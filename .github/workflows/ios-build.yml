@@ -30,7 +30,7 @@ concurrency:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       CONFIGURATION: ${{ inputs.configuration || 'Debug' }}
       SCHEME: Melodify
@@ -45,8 +45,14 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - name: Select newest Xcode on the runner
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          xcrun swift --version
 
       - name: Prebuild iOS project
         run: npx expo prebuild --platform ios --no-install --clean
@@ -78,17 +84,35 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | xcpretty || xcodebuild -version
+            build 2>&1 | tee xcodebuild.log | grep -E --line-buffered \
+              '^(=== |\*\* |error:|warning: .*deprecated|.*error: |The following build commands failed|\s+PhaseScriptExecution|\s+CompileSwift|\s+CompileC .*error)' || true
+          # tee's pipeline hides xcodebuild's own status; check the log instead
+          if grep -q '\*\* BUILD FAILED \*\*' xcodebuild.log; then
+            echo "::error::xcodebuild failed. Last 200 lines of the raw log follow."
+            tail -200 xcodebuild.log
+            exit 1
+          fi
+          grep -q '\*\* BUILD SUCCEEDED \*\*' xcodebuild.log
+
+      - name: Upload raw xcodebuild log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log-${{ env.CONFIGURATION }}
+          path: ios/xcodebuild.log
+          retention-days: 7
 
       - name: Package .ipa
         working-directory: ios
         run: |
-          APP=$(find build/Build/Products -name "*.app" -maxdepth 2 | head -1)
-          test -n "$APP" || { echo "no .app produced"; exit 1; }
+          APP=$(find build/Build/Products -maxdepth 2 -name "$SCHEME.app" | head -1)
+          test -n "$APP" || { echo "::error::no $SCHEME.app produced"; exit 1; }
+          test -x "$APP/$SCHEME" || { echo "::error::$APP has no executable"; ls -la "$APP"; exit 1; }
           mkdir -p Payload
           cp -R "$APP" Payload/
-          zip -qry "Melodify-$CONFIGURATION-unsigned.ipa" Payload
+          zip -qry "$SCHEME-$CONFIGURATION-unsigned.ipa" Payload
           ls -la *.ipa
+          du -sh Payload
 
       - name: Upload .ipa
         uses: actions/upload-artifact@v4
