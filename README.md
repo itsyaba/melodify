@@ -3,7 +3,8 @@
 An offline-first music player for iPhone, inspired by [Musicolet](https://krosbits.in/musicolet/) on Android.
 Built with Expo / React Native, sideloaded with SideStore. No accounts, no streaming, no ads: it plays the files you put on the phone.
 
-See [FEATURES.md](./FEATURES.md) for the full Musicolet feature list and where each one stands on iOS.
+See [FEATURES.md](./FEATURES.md) for the full Musicolet feature list and where each one stands on iOS,
+and [ROADMAP.md](./ROADMAP.md) for the phased plan. Scope is the whole list.
 
 ## Why this exists
 
@@ -17,12 +18,14 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | --- | --- | --- |
 | Framework | Expo SDK 57, React Native 0.86, TypeScript | New Architecture enabled |
 | Navigation | expo-router | file-based routes |
-| Playback | react-native-track-player | background audio, lock screen, Control Center, headphone controls |
-| Library index | expo-sqlite (or op-sqlite) | tracks, albums, artists, folders, play counts, bookmarks, queues |
+| Playback | `modules/cadence-audio` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, later EQ / gapless / crossfade |
+| Library index | expo-sqlite | tracks, albums, artists, folders, play counts, bookmarks, queues |
 | File access | expo-file-system | reads the app's own `Documents/` folder |
-| Tag reading | native module (AVFoundation metadata) or music-metadata in JS | decided during the scan work |
+| Tag reading | AVAsset metadata inside `cadence-audio` | filename-based guesses until the module lands |
 
-Expo Go is not used. Track player is a native module, so development happens in a custom dev client.
+Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
+The UI, queue and database layers program against `src/player/engine.ts`; a timer-driven fake engine
+stands in until the Swift module exists, so everything above the engine can be built first.
 
 ## How music gets onto the phone
 
@@ -70,38 +73,36 @@ npm install
 npm start
 ```
 
-Until the dev client exists, `npm start` is only useful for the web target and for type checking:
+Until the dev client exists there is no device to run on. What can be verified on Linux:
 
 ```sh
-npm run typecheck
+npm run typecheck                 # TypeScript
+npm test                          # unit tests (Node's built-in runner, no extra deps)
+npx expo export --platform ios    # full Metro bundle to Hermes bytecode
 ```
 
-## Project layout (planned)
+## Project layout
 
 ```
-app/            expo-router routes: library, folders, queue, player, settings
 src/
-  db/           SQLite schema, migrations, queries
-  player/       track-player setup, queue manager, remote command handlers
-  scan/         Documents/ walker, tag extraction, art cache
-  ui/           shared components, theme tokens
+  app/          expo-router routes only (NativeTabs: Library, Folders, Queue, Settings, Search)
+  screens/      screen bodies rendered by the routes
+  components/   shared UI: track-row, list-row, artwork, segmented, empty-state
+  db/           schema + migrations, typed queries
+  scan/         Documents/ walker, filename-based tag guesses (+ tests)
+  player/       engine interface, fake engine, in-memory queue store
+  hooks/        useLibraryQuery: DB query that refreshes when the library changes
+  utils/        events, formatting
+  theme.ts      color / spacing / type tokens (iOS semantic colors)
+modules/
+  cadence-audio/  Swift Expo Module (Phase 1)
+.github/workflows/ios-build.yml   unsigned IPA build
 assets/         icons, splash
 ```
 
 ## Roadmap
 
-Ordered by value divided by effort. Details and status in [FEATURES.md](./FEATURES.md).
-
-1. Scan `Documents/`, index into SQLite, list tracks / albums / artists / folders
-2. Playback with lock screen and Control Center controls
-3. Multiple queues, play next, add to queue, save queue as playlist
-4. Folder browsing
-5. Bookmarks, resume position, sleep timer
-6. Embedded and `.lrc` lyrics
-7. Play counts, recently added, most played, search
-8. Backup and restore
-9. Playback speed
-10. Later, native work: equalizer, gapless, crossfade, tag editor
+See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is in progress.
 
 ## License
 
