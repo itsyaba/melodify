@@ -45,11 +45,16 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Select newest Xcode on the runner
+      - name: Select Xcode
+        # Expo SDK 57's ExpoModulesJSI headers do not compile with Xcode 26.3's Swift
+        # (SWIFT_RETURNS_RETAINED on constructors is an error there). Pin the newest
+        # version that works; bump XCODE_VERSION when upgrading Expo.
+        env:
+          XCODE_VERSION: "26.2"
         run: |
-          ls -d /Applications/Xcode*.app
-          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
-          echo "Using $XCODE"
+          ls -d /Applications/Xcode_*.app
+          XCODE="/Applications/Xcode_${XCODE_VERSION}.app"
+          test -d "$XCODE" || { echo "::error::$XCODE not on this runner"; exit 1; }
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
           xcrun swift --version
