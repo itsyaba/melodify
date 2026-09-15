@@ -7,7 +7,7 @@ not to block the end.
 ## Architecture decision: own the audio engine
 
 Because equalizer, gapless, crossfade, pitch and ReplayGain are all in scope, playback is **not** built on
-react-native-track-player. Instead there is a Swift Expo Module, `modules/cadence-audio`, wrapping:
+react-native-track-player. Instead there is a Swift Expo Module, `modules/melodify-audio`, wrapping:
 
 - `AVAudioEngine` with two `AVAudioPlayerNode`s (A/B for gapless and crossfade), `AVAudioUnitEQ`,
   `AVAudioUnitTimePitch`
@@ -43,7 +43,7 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 - [ ] rsync test library, verify scan and folder browsing on the phone
 
 ### Phase 1. Play music
-- [ ] `cadence-audio` Swift module v1: single player node, play / pause / seek / next, session config
+- [ ] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config
 - [ ] Now Playing info + remote commands (lock screen, Control Center, headset, Bluetooth)
 - [ ] Interruptions, pause on unplug
 - [ ] Player screen: art, title, seek bar, controls

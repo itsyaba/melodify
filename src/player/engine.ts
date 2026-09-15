@@ -1,6 +1,6 @@
 /**
  * The contract the UI and queue manager program against.
- * Implemented by the Swift `cadence-audio` module on iOS (Phase 1) and by FakeEngine elsewhere.
+ * Implemented by the Swift `melodify-audio` module on iOS (Phase 1) and by FakeEngine elsewhere.
  * Every future engine feature (EQ, crossfade, pitch) is added here first, then in Swift.
  */
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';

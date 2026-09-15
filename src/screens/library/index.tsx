@@ -21,7 +21,7 @@ const VIEWS = [
 type LibraryView = (typeof VIEWS)[number]['key'];
 
 const EMPTY_BODY =
-  'Connect the phone over USB and rsync your music into the Cadence folder, then run a scan from Settings.';
+  'Connect the phone over USB and rsync your music into the Melodify folder, then run a scan from Settings.';
 
 export function LibraryScreen() {
   const [view, setView] = useState<LibraryView>('songs');

@@ -1,4 +1,4 @@
-# Cadence
+# Melodify
 
 An offline-first music player for iPhone, inspired by [Musicolet](https://krosbits.in/musicolet/) on Android.
 Built with Expo / React Native, sideloaded with SideStore. No accounts, no streaming, no ads: it plays the files you put on the phone.
@@ -18,10 +18,10 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | --- | --- | --- |
 | Framework | Expo SDK 57, React Native 0.86, TypeScript | New Architecture enabled |
 | Navigation | expo-router | file-based routes |
-| Playback | `modules/cadence-audio` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, later EQ / gapless / crossfade |
+| Playback | `modules/melodify-audio` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, later EQ / gapless / crossfade |
 | Library index | expo-sqlite | tracks, albums, artists, folders, play counts, bookmarks, queues |
 | File access | expo-file-system | reads the app's own `Documents/` folder |
-| Tag reading | AVAsset metadata inside `cadence-audio` | filename-based guesses until the module lands |
+| Tag reading | AVAsset metadata inside `melodify-audio` | filename-based guesses until the module lands |
 
 Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
 The UI, queue and database layers program against `src/player/engine.ts`; a timer-driven fake engine
@@ -30,15 +30,15 @@ stands in until the Swift module exists, so everything above the engine can be b
 ## How music gets onto the phone
 
 `app.json` sets `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, so the app's
-`Documents/` folder appears in the Files app under "On My iPhone / Cadence" and is writable over USB.
+`Documents/` folder appears in the Files app under "On My iPhone / Melodify" and is writable over USB.
 
 From Linux, with `ifuse` and the app installed:
 
 ```sh
-mkdir -p ~/mnt/cadence
-ifuse --documents dev.yeab.cadence ~/mnt/cadence
-rsync -avh --progress ~/Music/ ~/mnt/cadence/
-fusermount -u ~/mnt/cadence
+mkdir -p ~/mnt/melodify
+ifuse --documents dev.yeab.melodify ~/mnt/melodify
+rsync -avh --progress ~/Music/ ~/mnt/melodify/
+fusermount -u ~/mnt/melodify
 ```
 
 The app scans `Documents/` recursively and indexes what it finds. Folder structure is preserved for folder browsing.
@@ -64,7 +64,7 @@ This project is developed on Linux. There is no Xcode and no simulator, so the l
    Only steps 1 and 2 repeat when a new native module is added.
 4. **Refresh every 7 days.** Free-account builds expire weekly. SideStore handles the refresh.
 
-Free accounts allow 3 sideloaded apps at a time. Cadence counts as one.
+Free accounts allow 3 sideloaded apps at a time. Melodify counts as one.
 
 ## Getting started
 
@@ -95,7 +95,7 @@ src/
   utils/        events, formatting
   theme.ts      color / spacing / type tokens (iOS semantic colors)
 modules/
-  cadence-audio/  Swift Expo Module (Phase 1)
+  melodify-audio/  Swift Expo Module (Phase 1)
 .github/workflows/ios-build.yml   unsigned IPA build
 assets/         icons, splash
 ```

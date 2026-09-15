@@ -1,4 +1,4 @@
-export const DB_NAME = 'cadence.db';
+export const DB_NAME = 'melodify.db';
 
 /** Extensions Core Audio can decode. Ogg/Opus deliberately absent, see README. */
 export const AUDIO_EXTENSIONS = new Set([

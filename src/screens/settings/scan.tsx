@@ -32,7 +32,7 @@ export function ScanScreen() {
         </View>
       ) : (
         <Text style={[type.subhead, { color: colors.secondaryLabel, textAlign: 'center' }]}>
-          Scanning walks the Cadence folder, adds new files and drops missing ones. Tags are read afterwards.
+          Scanning walks the Melodify folder, adds new files and drops missing ones. Tags are read afterwards.
         </Text>
       )}
     </View>

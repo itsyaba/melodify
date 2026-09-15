@@ -1,4 +1,4 @@
-# Builds an unsigned iOS .ipa of the Cadence dev client on a macOS runner.
+# Builds an unsigned iOS .ipa of the Melodify dev client on a macOS runner.
 # Download the artifact, then sign and install it with SideStore.
 #
 # Trigger manually (workflow_dispatch) or on pushes that touch native config.
@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 60
     env:
       CONFIGURATION: ${{ inputs.configuration || 'Debug' }}
-      SCHEME: Cadence
+      SCHEME: Melodify
     steps:
       - uses: actions/checkout@v4
 
@@ -87,12 +87,12 @@ jobs:
           test -n "$APP" || { echo "no .app produced"; exit 1; }
           mkdir -p Payload
           cp -R "$APP" Payload/
-          zip -qry "Cadence-$CONFIGURATION-unsigned.ipa" Payload
+          zip -qry "Melodify-$CONFIGURATION-unsigned.ipa" Payload
           ls -la *.ipa
 
       - name: Upload .ipa
         uses: actions/upload-artifact@v4
         with:
-          name: Cadence-${{ env.CONFIGURATION }}-unsigned
-          path: ios/Cadence-${{ env.CONFIGURATION }}-unsigned.ipa
+          name: Melodify-${{ env.CONFIGURATION }}-unsigned
+          path: ios/Melodify-${{ env.CONFIGURATION }}-unsigned.ipa
           retention-days: 14
