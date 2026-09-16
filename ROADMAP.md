@@ -39,7 +39,8 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 - [x] `Documents/` scanner: walk folders, insert tracks by path, incremental rescan (`src/scan`)
 - [x] Theme tokens, list components
 - [x] CI workflow producing an unsigned dev-client IPA
-- [ ] Push to GitHub, run the workflow, first SideStore install
+- [x] Push to GitHub, run the workflow (first green build 2026-09-16, xcode-27 runner, 4.5 min)
+- [ ] First SideStore install
 - [ ] rsync test library, verify scan and folder browsing on the phone
 
 ### Phase 1. Play music
