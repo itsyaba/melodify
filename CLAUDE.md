@@ -21,7 +21,6 @@ There is no Mac. Native changes are compiled by `.github/workflows/ios-build.yml
 ## Known tooling quirks
 - npm 12 breaks `create-expo-app` and `npx expo install` (EALLOWSCRIPTS). Add packages with `npx expo install --` to
   resolve versions into package.json, then run `npm install` yourself.
-- `patches/expo-modules-jsi+57.1.0.patch` drops `SWIFT_RETURNS_RETAINED` from two constructors so the
-  ExpoModulesJSI xcframework builds on Xcode 26.x (Expo assumes Xcode 27). Applied by `postinstall`.
-  Regenerate or delete it when upgrading Expo. patch-package's own `npm install` fails under npm 12, so
-  make the patch by diffing against `npm pack expo-modules-jsi@<version>`.
+- Expo SDK 57's `expo-modules-jsi` only compiles with Xcode 27's Swift (ownership annotations on
+  constructors, strict-concurrency `sending` rules). CI therefore runs on GitHub's preview `xcode-27`
+  runner label. Do not pin an older Xcode; patching the vendored Swift sources was tried and is a dead end.

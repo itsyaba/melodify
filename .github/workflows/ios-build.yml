@@ -29,7 +29,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    # Expo SDK 57's expo-modules-jsi only compiles with Xcode 27's Swift. GitHub offers
+    # Xcode 27 through the preview `xcode-27` label (macOS 26 image). Capacity is limited,
+    # so a run may queue for a while.
+    runs-on: xcode-27
     timeout-minutes: 90
     env:
       CONFIGURATION: ${{ inputs.configuration || 'Debug' }}
@@ -46,15 +49,11 @@ jobs:
         run: npm ci
 
       - name: Select Xcode
-        # Expo SDK 57's ExpoModulesJSI headers do not compile with Xcode 26.3's Swift
-        # (SWIFT_RETURNS_RETAINED on constructors is an error there). Pin the newest
-        # version that works; bump XCODE_VERSION when upgrading Expo.
-        env:
-          XCODE_VERSION: "26.2"
         run: |
-          ls -d /Applications/Xcode_*.app
-          XCODE="/Applications/Xcode_${XCODE_VERSION}.app"
-          test -d "$XCODE" || { echo "::error::$XCODE not on this runner"; exit 1; }
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          test -n "$XCODE" || { echo "::error::no Xcode 27 on this runner"; exit 1; }
+          echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
           xcrun swift --version
