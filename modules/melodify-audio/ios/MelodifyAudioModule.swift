@@ -37,15 +37,7 @@ public class MelodifyAudioModule: Module {
     Events("state", "position", "ended", "remote", "routeChange", "error")
 
     OnCreate {
-      self.player.onState = { [weak self] state in
-        self?.emit("state", ["state": state.rawValue])
-      }
-      self.player.onPosition = { [weak self] position in
-        self?.emit("position", ["positionMs": position.positionMs, "durationMs": position.durationMs])
-      }
-      self.player.onEnded = { [weak self] in
-        self?.emit("ended", [:])
-      }
+      self.attachPlayerCallbacks()
     }
 
     OnDestroy {
@@ -97,6 +89,22 @@ public class MelodifyAudioModule: Module {
     // does not call this; it tracks state from the `state` event instead.
     Function("getState") { () -> String in
       self.player.currentState().rawValue
+    }
+  }
+
+  /// Split out of `OnCreate` so the weak captures below are plain weak captures. Written inline,
+  /// they sit inside a definition closure that already captures self implicitly and strongly,
+  /// which the compiler flags as a mismatch. The captures have to be weak either way: the player
+  /// is owned by this module and these closures are stored on the player.
+  private func attachPlayerCallbacks() {
+    player.onState = { [weak self] state in
+      self?.emit("state", ["state": state.rawValue])
+    }
+    player.onPosition = { [weak self] position in
+      self?.emit("position", ["positionMs": position.positionMs, "durationMs": position.durationMs])
+    }
+    player.onEnded = { [weak self] in
+      self?.emit("ended", [:])
     }
   }
 
