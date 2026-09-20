@@ -47,6 +47,10 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 - [x] rsync test library, verify scan and folder browsing on the phone (2026-09-20, 78-file subset)
 
 ### Phase 1. Play music
+
+Module v1 is written and compiles, but nothing here is checked off until it has been exercised on the
+phone; see "Definition of done per phase" below.
+
 - [ ] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config
 - [ ] Now Playing info + remote commands (lock screen, Control Center, headset, Bluetooth)
 - [ ] Interruptions, pause on unplug

@@ -4,14 +4,13 @@ import { Paths } from 'expo-file-system';
 import { ListRow } from '@/components/list-row';
 import { countTracks } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
-import { probeNativeAudio } from '@/player/native-probe';
+import { engineInfo } from '@/player';
 import { colors, spacing, type } from '@/theme';
 import { formatCount } from '@/utils/format';
 
 export function SettingsScreen() {
   const router = useRouter();
   const { data: count } = useLibraryQuery(countTracks);
-  const native = probeNativeAudio();
   return (
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section title="Library">
@@ -19,10 +18,13 @@ export function SettingsScreen() {
       </Section>
       <Section title="Audio engine">
         <Text style={[type.footnote, styles.note]}>
-          {native.linked
-            ? `melodify-audio ${native.version} (${native.implementation}) — state: ${native.state}`
-            : 'melodify-audio is not in this build. Playback is the fake engine until a newer IPA is installed.'}
+          {engineInfo.kind === 'native'
+            ? `melodify-audio ${engineInfo.version} (${engineInfo.implementation})`
+            : 'Fake engine: melodify-audio is not in this build, so nothing will play. Install a newer IPA.'}
         </Text>
+        {engineInfo.reason ? (
+          <Text style={[type.footnote, styles.note]}>{engineInfo.reason}</Text>
+        ) : null}
       </Section>
       <Section title="Storage">
         <Text style={[type.footnote, styles.note]}>Music folder: {decodeURIComponent(Paths.document.uri)}</Text>

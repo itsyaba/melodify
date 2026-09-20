@@ -24,8 +24,10 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | Tag reading | AVAsset metadata inside `melodify-audio` | filename-based guesses until the module lands |
 
 Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
-The UI, queue and database layers program against `src/player/engine.ts`; a timer-driven fake engine
-stands in until the Swift module exists, so everything above the engine can be built first.
+The UI, queue and database layers program against `src/player/engine.ts`. `src/player/index.ts` picks the
+Swift module on iOS and falls back to a timer-driven fake engine everywhere else, including on an IPA
+built before the module existed: the library still browses, it just stays silent. Settings names which
+engine the running build ended up with.
 
 ## How music gets onto the phone
 

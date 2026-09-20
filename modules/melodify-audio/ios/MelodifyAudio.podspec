@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name           = 'MelodifyAudio'
-  s.version        = '0.1.0'
+  s.version        = '0.2.0'
   s.summary        = 'AVAudioEngine playback for Melodify'
   s.description    = 'Background audio, lock screen and remote commands for Melodify.'
   s.author         = 'Yeabsira'
@@ -10,6 +10,9 @@ Pod::Spec.new do |s|
     :tvos => '16.4'
   }
   s.source         = { git: 'https://github.com/itsyaba/melodify.git' }
+  # Pinned rather than inherited: the module is written for Swift 5 language mode, which is
+  # what CocoaPods happens to default this target to today. ExpoModulesCore is on 6.0.
+  s.swift_version  = '5.9'
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'

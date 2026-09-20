@@ -28,12 +28,12 @@ to double-check against the current Musicolet release.
 | Resume on launch | Restore last queue, track and position after app restart | JS | todo |
 | Gapless playback | No silence between consecutive tracks | Native | todo |
 | Crossfade | Fade between tracks with adjustable duration (verify) | Native | todo |
-| Playback speed | 0.5x to 2x or wider, per session | RN+ | todo |
+| Playback speed | 0.5x to 2x or wider, per session | RN+ | wip |
 | Pitch control | Adjust pitch independently or linked with speed (verify) | Native | todo |
 | Skip silence | Skip silent segments in tracks (verify) | Native | skip |
 | Seek by fixed amount | Configurable skip forward/back (e.g. 10s / 30s) | RN+ | todo |
 | Fast seek gestures | Long-press or swipe on player to seek | JS | todo |
-| Volume in app | Volume slider inside the player | RN+ | todo |
+| Volume in app | Volume slider inside the player | RN+ | wip |
 | ReplayGain / volume leveling | Apply track or album gain tags (verify) | Native | skip |
 
 ## 2. Bookmarks and position memory
