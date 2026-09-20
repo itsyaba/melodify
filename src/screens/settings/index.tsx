@@ -4,16 +4,25 @@ import { Paths } from 'expo-file-system';
 import { ListRow } from '@/components/list-row';
 import { countTracks } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { probeNativeAudio } from '@/player/native-probe';
 import { colors, spacing, type } from '@/theme';
 import { formatCount } from '@/utils/format';
 
 export function SettingsScreen() {
   const router = useRouter();
   const { data: count } = useLibraryQuery(countTracks);
+  const native = probeNativeAudio();
   return (
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section title="Library">
         <ListRow title="Scan library" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/scan')} />
+      </Section>
+      <Section title="Audio engine">
+        <Text style={[type.footnote, styles.note]}>
+          {native.linked
+            ? `melodify-audio ${native.version} (${native.implementation}) — state: ${native.state}`
+            : 'melodify-audio is not in this build. Playback is the fake engine until a newer IPA is installed.'}
+        </Text>
       </Section>
       <Section title="Storage">
         <Text style={[type.footnote, styles.note]}>Music folder: {decodeURIComponent(Paths.document.uri)}</Text>
