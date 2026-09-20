@@ -6,12 +6,6 @@ internal final class AudioFileException: GenericException<String>, @unchecked Se
   }
 }
 
-internal final class NoTrackLoadedException: Exception, @unchecked Sendable {
-  override var reason: String {
-    "No track is loaded"
-  }
-}
-
 internal final class EngineStartException: GenericException<String>, @unchecked Sendable {
   override var reason: String {
     "Audio engine failed to start (\(param))"

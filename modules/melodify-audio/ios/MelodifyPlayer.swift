@@ -50,6 +50,11 @@ internal final class MelodifyPlayer {
   var onState: ((PlayerState) -> Void)?
   var onPosition: ((PlayerPosition) -> Void)?
   var onEnded: (() -> Void)?
+  /// Fired when the lock screen's picture of playback changes: a new state, or a seek that moved
+  /// the position out from under iOS's own extrapolation. Deliberately not driven by the position
+  /// ticker — MPNowPlayingInfoCenter works out elapsed time from the rate on its own, and only
+  /// needs telling when that arithmetic would be wrong.
+  var onNowPlaying: ((PlayerState, PlayerPosition) -> Void)?
 
   init() {
     engine.attach(player)
@@ -109,8 +114,9 @@ internal final class MelodifyPlayer {
 
   func play() throws {
     try queue.sync {
-      guard file != nil else { throw NoTrackLoadedException() }
-      guard state != .playing else { return }
+      // Nothing loaded is not a fault: a lock screen command can land just as the queue empties.
+      // FakeEngine does nothing here too, and the two engines have to behave the same.
+      guard file != nil, state != .playing else { return }
       // Playing after the file ran out starts it over rather than resuming at the end.
       if state == .ended {
         invalidateSchedule()
@@ -148,9 +154,9 @@ internal final class MelodifyPlayer {
     }
   }
 
-  func seek(toMs ms: Double) throws {
-    try queue.sync {
-      guard let opened = file else { throw NoTrackLoadedException() }
+  func seek(toMs ms: Double) {
+    queue.sync {
+      guard let opened = file else { return }
       let wasPlaying = state == .playing
       let wasEnded = state == .ended
       invalidateSchedule()
@@ -165,6 +171,8 @@ internal final class MelodifyPlayer {
         setState(.paused)
       }
       emitPosition()
+      // Seeking while playing leaves the state alone, so `setState` did not report this.
+      emitNowPlaying()
     }
   }
 
@@ -187,12 +195,10 @@ internal final class MelodifyPlayer {
 
   func currentPosition() -> PlayerPosition {
     queue.sync { () -> PlayerPosition in
-      guard let opened = file else { return PlayerPosition(positionMs: 0, durationMs: 0) }
-      let frames = state == .playing ? currentFrame() : lastFrame
-      return PlayerPosition(
-        positionMs: msFromFrames(frames, in: opened),
-        durationMs: msFromFrames(opened.length, in: opened)
-      )
+      if state == .playing {
+        lastFrame = currentFrame()
+      }
+      return snapshotLocked()
     }
   }
 
@@ -210,6 +216,7 @@ internal final class MelodifyPlayer {
     onState = nil
     onPosition = nil
     onEnded = nil
+    onNowPlaying = nil
   }
 
   // MARK: - Scheduling
@@ -316,14 +323,23 @@ internal final class MelodifyPlayer {
     ticker = nil
   }
 
-  private func emitPosition() {
-    guard let opened = file else { return }
-    onPosition?(
-      PlayerPosition(
-        positionMs: msFromFrames(lastFrame, in: opened),
-        durationMs: msFromFrames(opened.length, in: opened)
-      )
+  /// Position as last established, which every transport path sets before reporting. The caller
+  /// must already hold `queue`, so callbacks firing from inside it cannot deadlock on the way out.
+  private func snapshotLocked() -> PlayerPosition {
+    guard let opened = file else { return PlayerPosition(positionMs: 0, durationMs: 0) }
+    return PlayerPosition(
+      positionMs: msFromFrames(lastFrame, in: opened),
+      durationMs: msFromFrames(opened.length, in: opened)
     )
+  }
+
+  private func emitPosition() {
+    guard file != nil else { return }
+    onPosition?(snapshotLocked())
+  }
+
+  private func emitNowPlaying() {
+    onNowPlaying?(state, snapshotLocked())
   }
 
   private func msFromFrames(_ frames: AVAudioFramePosition, in opened: AVAudioFile) -> Double {
@@ -376,5 +392,6 @@ internal final class MelodifyPlayer {
     guard next != state else { return }
     state = next
     onState?(next)
+    emitNowPlaying()
   }
 }

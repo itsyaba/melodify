@@ -5,6 +5,7 @@ import type {
   NativeAudioConstants,
   NativeLoadOptions,
   NativeNowPlayingMeta,
+  NativeNowPlayingPatch,
   NativePosition,
 } from './MelodifyAudio.types';
 
@@ -16,6 +17,7 @@ declare class MelodifyAudioModule
   readonly version: string;
 
   load(uri: string, meta: NativeNowPlayingMeta, options: NativeLoadOptions): Promise<void>;
+  updateNowPlaying(meta: NativeNowPlayingPatch): Promise<void>;
   preload(uri: string): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;

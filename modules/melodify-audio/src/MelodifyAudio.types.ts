@@ -18,6 +18,15 @@ export interface NativeNowPlayingMeta {
   artUri?: string | null;
 }
 
+/** A partial `NativeNowPlayingMeta`: the fields present are applied, the rest are left alone. */
+export interface NativeNowPlayingPatch {
+  title?: string | null;
+  artist?: string | null;
+  album?: string | null;
+  durationMs?: number | null;
+  artUri?: string | null;
+}
+
 export interface NativeLoadOptions {
   autoplay: boolean;
   startMs: number;
@@ -33,7 +42,6 @@ export type MelodifyAudioEvents = {
   position: (payload: NativePosition) => void;
   ended: () => void;
   error: (payload: { message: string }) => void;
-  /** Declared for the remote-command item of Phase 1; nothing sends it yet. */
   remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
   /** Declared for the interruption item of Phase 1; nothing sends it yet. */
   routeChange: (payload: { reason: string }) => void;

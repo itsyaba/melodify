@@ -1,10 +1,18 @@
 import AVFoundation
 import ExpoModulesCore
 
-/// Mirrors `NowPlayingMeta` in src/player/engine.ts. Only carried across the bridge in v1;
-/// MPNowPlayingInfoCenter reads it once the Now Playing item of Phase 1 lands.
+/// Mirrors `NowPlayingMeta` in src/player/engine.ts.
 internal struct NowPlayingMetaRecord: Record {
   @Field var title: String = ""
+  @Field var artist: String? = nil
+  @Field var album: String? = nil
+  @Field var durationMs: Double? = nil
+  @Field var artUri: String? = nil
+}
+
+/// A partial `NowPlayingMeta`: every field optional, so a caller can correct one of them.
+internal struct NowPlayingPatchRecord: Record {
+  @Field var title: String? = nil
   @Field var artist: String? = nil
   @Field var album: String? = nil
   @Field var durationMs: Double? = nil
@@ -20,11 +28,11 @@ internal struct LoadOptionsRecord: Record {
  The native half of `PlayerEngine` (src/player/engine.ts). Every function here has a counterpart
  on that interface, and `FakeEngine` is the reference for what each one is expected to do.
 
- v1 implements transport and position. `remote` and `routeChange` are declared but never sent yet;
- they are the next two Phase 1 items (remote commands, then interruptions and unplug).
+ `routeChange` is declared but never sent yet; interruptions and unplug are the next Phase 1 item.
  */
 public class MelodifyAudioModule: Module {
   private let player = MelodifyPlayer()
+  private let nowPlaying = MelodifyNowPlaying()
 
   public func definition() -> ModuleDefinition {
     Name("MelodifyAudio")
@@ -32,7 +40,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.2.0" }
+    Constant("version") { "0.3.0" }
 
     Events("state", "position", "ended", "remote", "routeChange", "error")
 
@@ -42,13 +50,33 @@ public class MelodifyAudioModule: Module {
 
     OnDestroy {
       self.player.teardown()
+      self.nowPlaying.teardown()
     }
 
-    // `meta` is accepted but unused in v1: it exists so the JS call site is already the final
-    // one when MPNowPlayingInfoCenter starts reading it in the next Phase 1 item.
     AsyncFunction("load") { (uri: String, meta: NowPlayingMetaRecord, options: LoadOptionsRecord) in
       let url = try Self.fileURL(from: uri)
+      // Before the load, so the lock screen changes to the new track as playback starts rather
+      // than a frame later: loading is itself a state change and publishes what is set here.
+      self.nowPlaying.setMetadata(
+        NowPlayingMetadata(
+          title: meta.title,
+          artist: meta.artist,
+          album: meta.album,
+          durationMs: meta.durationMs,
+          artUri: meta.artUri
+        )
+      )
       try self.player.load(url: url, startMs: options.startMs, autoplay: options.autoplay)
+    }
+
+    AsyncFunction("updateNowPlaying") { (meta: NowPlayingPatchRecord) in
+      self.nowPlaying.mergeMetadata(
+        title: meta.title,
+        artist: meta.artist,
+        album: meta.album,
+        durationMs: meta.durationMs,
+        artUri: meta.artUri
+      )
     }
 
     AsyncFunction("preload") { (uri: String) in
@@ -69,7 +97,7 @@ public class MelodifyAudioModule: Module {
     }
 
     AsyncFunction("seek") { (positionMs: Double) in
-      try self.player.seek(toMs: positionMs)
+      self.player.seek(toMs: positionMs)
     }
 
     AsyncFunction("setRate") { (rate: Double) in
@@ -105,6 +133,14 @@ public class MelodifyAudioModule: Module {
     }
     player.onEnded = { [weak self] in
       self?.emit("ended", [:])
+    }
+    player.onNowPlaying = { [weak self] state, position in
+      self?.nowPlaying.update(state: state, position: position)
+    }
+    // Commands are not acted on here. They go to JS, where the queue store already knows what
+    // "next" means; deciding in two places is how the lock screen and the app drift apart.
+    nowPlaying.onCommand = { [weak self] command in
+      self?.emit("remote", command.payload)
     }
   }
 

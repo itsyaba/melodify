@@ -72,19 +72,30 @@ export const queue = {
   },
 };
 
+/**
+ * Engine calls made from an event handler have no caller to await them, so a rejection would
+ * surface as an unhandled one with no UI attached. Track ends and lock screen commands both
+ * arrive that way.
+ */
+function run(op: Promise<unknown>): void {
+  void op.catch((err: unknown) => {
+    console.warn('[melodify] engine call failed:', err);
+  });
+}
+
 engine.on('state', (s) => set({ state: s }));
 engine.on('position', (p) => set({ positionMs: p.positionMs, durationMs: p.durationMs }));
-engine.on('ended', () => void queue.next());
+engine.on('ended', () => run(queue.next()));
 engine.on('remote', (cmd) => {
   switch (cmd.type) {
-    case 'play': return void engine.play();
-    case 'pause': return void engine.pause();
-    case 'toggle': return void queue.toggle();
-    case 'next': return void queue.next();
-    case 'previous': return void queue.previous();
-    case 'seek': return void engine.seek(cmd.positionMs);
-    case 'skipForward': return void engine.seek(state.positionMs + cmd.intervalMs);
-    case 'skipBackward': return void engine.seek(Math.max(0, state.positionMs - cmd.intervalMs));
+    case 'play': return run(engine.play());
+    case 'pause': return run(engine.pause());
+    case 'toggle': return run(queue.toggle());
+    case 'next': return run(queue.next());
+    case 'previous': return run(queue.previous());
+    case 'seek': return run(engine.seek(cmd.positionMs));
+    case 'skipForward': return run(engine.seek(state.positionMs + cmd.intervalMs));
+    case 'skipBackward': return run(engine.seek(Math.max(0, state.positionMs - cmd.intervalMs)));
     case 'like': return; // Phase 3: toggle favorite
   }
 });
