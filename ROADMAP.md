@@ -26,7 +26,8 @@ FLAC). Tag **writing** later uses TagLib compiled into the module.
 ## Dev loop reminder
 
 No Mac. Native code is compiled in GitHub Actions (`.github/workflows/ios-build.yml`) into an unsigned
-`.ipa`, signed and installed with SideStore. JS changes are hot-reloaded into that dev client over WiFi.
+`.ipa`, then signed and installed on the phone (currently as a LiveContainer guest; SideStore also
+works). JS changes are hot-reloaded into that dev client over WiFi.
 Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 
 ## Phases
@@ -40,8 +41,10 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 - [x] Theme tokens, list components
 - [x] CI workflow producing an unsigned dev-client IPA
 - [x] Push to GitHub, run the workflow (first green build 2026-09-16, xcode-27 runner, 4.5 min)
-- [ ] First SideStore install
-- [ ] rsync test library, verify scan and folder browsing on the phone
+- [x] First device install, 2026-09-20. Installed as a LiveContainer guest rather than via
+      SideStore: LiveContainer is signed with the free account and already declares the `audio`
+      background mode and `UIFileSharingEnabled`, so guests get a real, ifuse-mountable container.
+- [x] rsync test library, verify scan and folder browsing on the phone (2026-09-20, 78-file subset)
 
 ### Phase 1. Play music
 - [ ] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config

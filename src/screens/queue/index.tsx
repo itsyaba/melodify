@@ -8,17 +8,20 @@ import { formatDuration } from '@/utils/format';
 export function QueueScreen() {
   const { tracks, currentIndex, state, positionMs, durationMs, playAt } = useQueue();
   const current = tracks[currentIndex];
+  // Inside the list, not beside it: only the scroll view receives the large-title
+  // header's content inset, so a sibling View here would sit under the status bar.
+  const header = current ? (
+    <View style={styles.now}>
+      <Text numberOfLines={1} style={[type.headline, { color: colors.label }]}>{current.title}</Text>
+      <Text numberOfLines={1} style={[type.footnote, { color: colors.secondaryLabel }]}>
+        {state} · {formatDuration(positionMs)} / {formatDuration(durationMs)}
+      </Text>
+    </View>
+  ) : null;
   return (
     <View style={styles.root}>
-      {current ? (
-        <View style={styles.now}>
-          <Text numberOfLines={1} style={[type.headline, { color: colors.label }]}>{current.title}</Text>
-          <Text numberOfLines={1} style={[type.footnote, { color: colors.secondaryLabel }]}>
-            {state} · {formatDuration(positionMs)} / {formatDuration(durationMs)}
-          </Text>
-        </View>
-      ) : null}
       <FlatList
+        ListHeaderComponent={header}
         data={tracks}
         keyExtractor={(t, i) => `${t.id}:${i}`}
         renderItem={({ item, index }) => (

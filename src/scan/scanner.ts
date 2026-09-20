@@ -83,7 +83,8 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
 /**
  * Incremental scan of Documents/: adds new files, updates changed ones (size or mtime),
  * removes rows whose file is gone. Tag reading happens later in the native module;
- * new rows get filename-based guesses so the library is browsable immediately.
+ * new rows get filename-based guesses so the library is browsable immediately, and rows
+ * still awaiting real tags have those guesses re-derived on each scan.
  */
 export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
   const progress: ScanProgress = { phase: 'walking', seen: 0, added: 0, updated: 0, removed: 0 };
@@ -104,8 +105,12 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
     progress.phase = 'indexing';
     emit();
 
-    const existing = await db.getAllAsync<{ id: number; path: string; size: number; mtime: number }>(
-      'SELECT id, path, size, mtime FROM tracks',
+    const existing = await db.getAllAsync<{
+      id: number; path: string; size: number; mtime: number; tagged: 0 | 1;
+      title: string; artist: string | null; album: string | null;
+      track_no: number | null; disc_no: number | null;
+    }>(
+      `SELECT id, path, size, mtime, tagged, title, artist, album, track_no, disc_no FROM tracks`,
     );
     const byPath = new Map(existing.map((r) => [r.path, r]));
     const seenPaths = new Set<string>();
@@ -120,6 +125,10 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
       const update = await tx.prepareAsync(
         `UPDATE tracks SET size = $size, mtime = $mtime, tagged = 0, art_key = COALESCE(art_key, $art_key),
            lyrics_path = $lyrics_path WHERE id = $id`,
+      );
+      const reguess = await tx.prepareAsync(
+        `UPDATE tracks SET title = $title, artist = $artist, album = $album,
+           track_no = $track_no, disc_no = $disc_no WHERE id = $id AND tagged = 0`,
       );
       try {
         for (const f of found.audio) {
@@ -139,11 +148,27 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
           } else if (prev.size !== f.size || prev.mtime !== f.mtime) {
             await update.executeAsync({ $size: f.size, $mtime: f.mtime, $art_key: artKey, $lyrics_path: lyricsPath, $id: prev.id });
             progress.updated += 1;
+          } else if (!prev.tagged) {
+            // Filename guesses only stand in until native tag reading runs, so refresh them
+            // on every scan while the row is untagged. Without this an improved parser could
+            // never reach rows that are already indexed and whose files have not changed.
+            const g = guessTags(f.path);
+            if (
+              g.title !== prev.title || g.artist !== prev.artist || g.album !== prev.album ||
+              g.track_no !== prev.track_no || g.disc_no !== prev.disc_no
+            ) {
+              await reguess.executeAsync({
+                $title: g.title, $artist: g.artist, $album: g.album,
+                $track_no: g.track_no, $disc_no: g.disc_no, $id: prev.id,
+              });
+              progress.updated += 1;
+            }
           }
         }
       } finally {
         await insert.finalizeAsync();
         await update.finalizeAsync();
+        await reguess.finalizeAsync();
       }
 
       const gone = existing.filter((r) => !seenPaths.has(r.path));

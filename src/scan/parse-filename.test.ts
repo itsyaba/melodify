@@ -35,3 +35,39 @@ test('single folder becomes album, no artist', () => {
 test('numeric-only title survives', () => {
   assert.equal(guessTags('X/Y/1999.mp3').title, '1999');
 });
+
+test('underscore-joined name yields track number and artist', () => {
+  assert.deepEqual(guessTags('10_Aster_Aweke_-_Ewedihalehu.mp3'), {
+    title: 'Ewedihalehu', artist: 'Aster Aweke', album: null, track_no: 10, disc_no: null,
+  });
+});
+
+test('en dash separates artist like a hyphen', () => {
+  const g = guessTags('3_Eyob_Mekonnen_–_Tetertche.mp3');
+  assert.equal(g.artist, 'Eyob Mekonnen');
+  assert.equal(g.title, 'Tetertche');
+  assert.equal(g.track_no, 3);
+});
+
+test('em dash separates artist too', () => {
+  assert.equal(guessTags('Rokia Traoré — Laidu.mp3').artist, 'Rokia Traoré');
+});
+
+test('underscores become spaces with no track number', () => {
+  const g = guessTags('Samsung/Over_the_Horizon.m4a');
+  assert.equal(g.title, 'Over the Horizon');
+  assert.equal(g.album, 'Samsung');
+  assert.equal(g.track_no, null);
+});
+
+test('only the first dash splits; later ones stay in the title', () => {
+  const g = guessTags('Yohana - Berta - Official Video.mp3');
+  assert.equal(g.artist, 'Yohana');
+  assert.equal(g.title, 'Berta - Official Video');
+});
+
+test('folder-derived artist still wins over a dash in the filename', () => {
+  const g = guessTags('Radiohead/In Rainbows/03 - Nude.flac');
+  assert.equal(g.artist, 'Radiohead');
+  assert.equal(g.title, 'Nude');
+});

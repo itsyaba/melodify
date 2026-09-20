@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EmptyState } from '@/components/empty-state';
@@ -23,19 +23,27 @@ type LibraryView = (typeof VIEWS)[number]['key'];
 const EMPTY_BODY =
   'Connect the phone over USB and rsync your music into the Melodify folder, then run a scan from Settings.';
 
+interface ListProps {
+  /** Rendered as each list's ListHeaderComponent. */
+  header: ReactElement;
+}
+
 export function LibraryScreen() {
   const [view, setView] = useState<LibraryView>('songs');
+  // The segmented control goes inside the lists rather than beside them: with a large-title
+  // header iOS lays content out under the nav bar and only a scroll view receives the
+  // matching content inset, so a plain sibling View renders under the status bar.
+  const header = <Segmented options={VIEWS} value={view} onChange={setView} />;
   return (
     <View style={styles.root}>
-      <Segmented options={VIEWS} value={view} onChange={setView} />
-      {view === 'songs' && <Songs />}
-      {view === 'albums' && <Albums />}
-      {view === 'artists' && <Artists />}
+      {view === 'songs' && <Songs header={header} />}
+      {view === 'albums' && <Albums header={header} />}
+      {view === 'artists' && <Artists header={header} />}
     </View>
   );
 }
 
-function Songs() {
+function Songs({ header }: ListProps) {
   const { data } = useLibraryQuery((db) => listTracks(db, 'title'));
   const onPress = (track: Track) => playTrackFromList(track, data ?? []);
   return (
@@ -45,11 +53,12 @@ function Songs() {
       renderItem={({ item }) => <TrackRow track={item} onPress={onPress} />}
       ListEmptyComponent={data ? <EmptyState title="No songs yet" body={EMPTY_BODY} /> : null}
       contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={header}
     />
   );
 }
 
-function Albums() {
+function Albums({ header }: ListProps) {
   const router = useRouter();
   const { data } = useLibraryQuery(listAlbums);
   return (
@@ -68,11 +77,12 @@ function Albums() {
       )}
       ListEmptyComponent={data ? <EmptyState title="No albums yet" body={EMPTY_BODY} /> : null}
       contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={header}
     />
   );
 }
 
-function Artists() {
+function Artists({ header }: ListProps) {
   const router = useRouter();
   const { data } = useLibraryQuery(listArtists);
   return (
@@ -88,6 +98,7 @@ function Artists() {
       )}
       ListEmptyComponent={data ? <EmptyState title="No artists yet" body={EMPTY_BODY} /> : null}
       contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={header}
     />
   );
 }

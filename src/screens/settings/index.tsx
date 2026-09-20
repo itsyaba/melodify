@@ -18,7 +18,8 @@ export function SettingsScreen() {
       <Section title="Storage">
         <Text style={[type.footnote, styles.note]}>Music folder: {decodeURIComponent(Paths.document.uri)}</Text>
         <Text style={[type.footnote, styles.note]}>
-          Copy music here over USB (ifuse --documents dev.yeab.melodify) or through the Files app.
+          Copy music into the folder above, over USB with ifuse or through the Files app. A
+          LiveContainer install nests it inside LiveContainer's own container; see the README.
         </Text>
       </Section>
     </ScrollView>

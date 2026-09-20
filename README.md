@@ -1,7 +1,7 @@
 # Melodify
 
 An offline-first music player for iPhone, inspired by [Musicolet](https://krosbits.in/musicolet/) on Android.
-Built with Expo / React Native, sideloaded with SideStore. No accounts, no streaming, no ads: it plays the files you put on the phone.
+Built with Expo / React Native, sideloaded with a free Apple account. No accounts, no streaming, no ads: it plays the files you put on the phone.
 
 See [FEATURES.md](./FEATURES.md) for the full Musicolet feature list and where each one stands on iOS,
 and [ROADMAP.md](./ROADMAP.md) for the phased plan. Scope is the whole list.
@@ -30,22 +30,44 @@ stands in until the Swift module exists, so everything above the engine can be b
 ## How music gets onto the phone
 
 `app.json` sets `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, so the app's
-`Documents/` folder appears in the Files app under "On My iPhone / Melodify" and is writable over USB.
+`Documents/` folder is writable over USB. Where that folder lives depends on how the app was installed.
 
-From Linux, with `ifuse` and the app installed:
+**As a normal app** (SideStore, or any route that registers the bundle id with installd), it also
+appears in the Files app under "On My iPhone / Melodify":
 
 ```sh
 mkdir -p ~/mnt/melodify
 ifuse --documents dev.yeab.melodify ~/mnt/melodify
-rsync -avh --progress ~/Music/ ~/mnt/melodify/
+rsync -rt --no-perms --no-owner --no-group --info=progress2 ~/Music/ ~/mnt/melodify/
 fusermount -u ~/mnt/melodify
 ```
+
+**As a LiveContainer guest** (the current setup). A guest runs inside LiveContainer's process and is
+never registered with installd, so house arrest cannot find it by bundle id —
+`ifuse --documents dev.yeab.melodify` fails with `ApplicationLookupFailed`. Mount LiveContainer
+instead; each guest owns a real container underneath it:
+
+```sh
+mkdir -p ~/mnt/lc
+ifuse --documents com.kdt.livecontainer.<TEAMID> ~/mnt/lc
+# containers are keyed by uuid; LCContainerInfo.plist says which bundle each one belongs to
+for d in ~/mnt/lc/Data/Application/*/; do
+  echo "$d -> $(strings "$d/LCContainerInfo.plist" | grep -E '^[a-z]+\.[a-zA-Z0-9.]+$' | head -1)"
+done
+rsync -rt --no-perms --no-owner --no-group --info=progress2 \
+  ~/Music/ ~/mnt/lc/Data/Application/<uuid>/Documents/
+fusermount -u ~/mnt/lc
+```
+
+Use `-rt`, not `-a`: AFC has no unix permissions or ownership, but it does preserve mtimes, which the
+scanner relies on to keep rescans incremental. Unmount before scanning.
 
 The app scans `Documents/` recursively and indexes what it finds. Folder structure is preserved for folder browsing.
 
 ## Supported formats
 
-Playback goes through AVPlayer, so the supported formats are the ones iOS decodes natively:
+Decoding goes through Core Audio (`AVAudioFile` inside `melodify-audio`), so the supported formats
+are the ones iOS decodes natively:
 
 - MP3, AAC / M4A, ALAC, FLAC, WAV, AIFF
 
@@ -58,13 +80,19 @@ This project is developed on Linux. There is no Xcode and no simulator, so the l
 
 1. **Build a dev client in CI.** A GitHub Actions macOS runner (or EAS Build) runs `expo prebuild` and
    `xcodebuild` with code signing disabled, then zips `Payload/` into an unsigned `.ipa`.
-2. **Sign and install with SideStore** using the free Apple account. Background audio and file sharing
-   are plain Info.plist keys, not paid entitlements, so the free account is enough.
+2. **Sign and install.** Background audio and file sharing are plain Info.plist keys, not paid
+   entitlements, so a free Apple account is enough. The current route is LiveContainer, which is
+   itself signed with the free account and runs the unsigned IPA as a guest; it already declares
+   the `audio` background mode and `UIFileSharingEnabled`, which guests inherit. SideStore also
+   works and gives a real app install.
 3. **Iterate on JS over WiFi.** Run `npm start`, open the dev client, and Metro hot-reloads.
    Only steps 1 and 2 repeat when a new native module is added.
-4. **Refresh every 7 days.** Free-account builds expire weekly. SideStore handles the refresh.
+   Under LiveContainer the Local Network permission belongs to **LiveContainer**, not Melodify, so
+   enable it there and force-quit the host before the dev client can reach Metro.
+4. **Refresh every 7 days.** Free-account signatures expire weekly.
 
-Free accounts allow 3 sideloaded apps at a time. Melodify counts as one.
+Free accounts allow 3 sideloaded apps at a time. As a LiveContainer guest Melodify does not count
+against that limit; LiveContainer itself does.
 
 ## Getting started
 
@@ -73,7 +101,8 @@ npm install
 npm start
 ```
 
-Until the dev client exists there is no device to run on. What can be verified on Linux:
+The dev client is installed on the phone; `npm start` and it hot-reloads over WiFi.
+What can be verified on Linux without the device:
 
 ```sh
 npm run typecheck                 # TypeScript
@@ -102,7 +131,9 @@ assets/         icons, splash
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is in progress.
+See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is done as of 2026-09-20: the app is on the
+phone, scanning and browsing a real library. Phase 1 (the `melodify-audio` Swift module, so it
+actually makes sound) is next.
 
 ## License
 

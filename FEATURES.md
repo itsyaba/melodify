@@ -48,8 +48,8 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Folder browsing | Navigate storage as a folder tree, play a folder, add folder to queue | JS | todo |
-| Songs / Albums / Artists / Album artists / Genres / Composers / Years | Standard grouped views | JS | todo |
+| Folder browsing | Navigate storage as a folder tree, play a folder, add folder to queue | JS | wip |
+| Songs / Albums / Artists / Album artists / Genres / Composers / Years | Standard grouped views | JS | wip |
 | Playlists | Create, rename, reorder, delete; add from anywhere | JS | todo |
 | Auto playlists | Recently added, most played, recently played, favorites | JS | todo |
 | Favorites | Heart a track, favorites list | JS | todo |
@@ -57,14 +57,14 @@ to double-check against the current Musicolet release.
 | Grid / list toggle | Switch layout per tab | JS | todo |
 | Custom tabs | Choose which tabs show and in what order | JS | todo |
 | Multi-select | Long-press to select many items, then batch action | JS | todo |
-| Search | Search tracks, albums, artists, folders, playlists; recent searches | JS | todo |
+| Search | Search tracks, albums, artists, folders, playlists; recent searches | JS | wip |
 | Track details | Full tag dump, file path, bitrate, sample rate, size | JS | todo |
-| Album art from folder | Use `cover.jpg` / `folder.jpg` when embedded art is missing | JS | todo |
+| Album art from folder | Use `cover.jpg` / `folder.jpg` when embedded art is missing | JS | wip |
 | Disc / track numbers | Show and sort by disc and track number | JS | todo |
 | Hide short tracks | Exclude tracks under N seconds (ringtones, notifications) | JS | todo |
 | Exclude folders | Blacklist folders from the library | JS | todo |
 | Hidden tracks | Hide individual tracks without deleting | JS | todo |
-| Rescan / custom scan folders | Choose scan roots, rescan on demand, don't depend on system media DB | JS | todo |
+| Rescan / custom scan folders | Choose scan roots, rescan on demand, don't depend on system media DB | JS | wip |
 | Delete file from device | Remove the file, not just the DB entry | JS | todo |
 | Share track | Share the audio file with another app | JS | todo |
 | Set as ringtone | Android-only | N/A | skip |
