@@ -1,37 +1,22 @@
 import { Suspense } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { SQLiteProvider } from 'expo-sqlite';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { DB_NAME, migrate } from '@/db';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
+  // A Stack above the tabs, so the player can present as a sheet over the tab bar. The tabs
+  // themselves live in (tabs) and render their own header, hence headerShown: false here.
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Suspense fallback={<Loading />}>
         <SQLiteProvider databaseName={DB_NAME} onInit={migrate} useSuspense>
-          <NativeTabs minimizeBehavior="onScrollDown">
-            <NativeTabs.Trigger name="(library)">
-              <NativeTabs.Trigger.Icon sf="music.note.list" md="library_music" />
-              <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
-            </NativeTabs.Trigger>
-            <NativeTabs.Trigger name="(folders)">
-              <NativeTabs.Trigger.Icon sf="folder" md="folder" />
-              <NativeTabs.Trigger.Label>Folders</NativeTabs.Trigger.Label>
-            </NativeTabs.Trigger>
-            <NativeTabs.Trigger name="(queue)">
-              <NativeTabs.Trigger.Icon sf="list.number" md="queue_music" />
-              <NativeTabs.Trigger.Label>Queue</NativeTabs.Trigger.Label>
-            </NativeTabs.Trigger>
-            <NativeTabs.Trigger name="(settings)">
-              <NativeTabs.Trigger.Icon sf="gear" md="settings" />
-              <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-            </NativeTabs.Trigger>
-            <NativeTabs.Trigger name="(search)" role="search">
-              <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
-            </NativeTabs.Trigger>
-          </NativeTabs>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />
+          </Stack>
         </SQLiteProvider>
       </Suspense>
     </ThemeProvider>

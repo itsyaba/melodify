@@ -116,17 +116,21 @@ npx expo export --platform ios    # full Metro bundle to Hermes bytecode
 
 ```
 src/
-  app/          expo-router routes only (NativeTabs: Library, Folders, Queue, Settings, Search)
+  app/          expo-router routes only
+    _layout      root Stack: the (tabs) group, plus /player as a modal over the tab bar
+    (tabs)/      NativeTabs: Library, Folders, Queue, Settings, Search, and the mini player
+                 in the tab bar's bottom accessory
   screens/      screen bodies rendered by the routes
-  components/   shared UI: track-row, list-row, artwork, segmented, empty-state
+  components/   shared UI: track-row, list-row, artwork, segmented, empty-state,
+                mini-player, seek-bar, icon-button
   db/           schema + migrations, typed queries
   scan/         Documents/ walker, filename-based tag guesses (+ tests)
-  player/       engine interface, fake engine, in-memory queue store
+  player/       engine interface, native + fake engines, in-memory queue store
   hooks/        useLibraryQuery: DB query that refreshes when the library changes
   utils/        events, formatting
   theme.ts      color / spacing / type tokens (iOS semantic colors)
 modules/
-  melodify-audio/  Swift Expo Module (Phase 1)
+  melodify-audio/  Swift Expo Module: AVAudioEngine playback
 .github/workflows/ios-build.yml   unsigned IPA build
 assets/         icons, splash
 ```

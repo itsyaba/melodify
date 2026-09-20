@@ -89,14 +89,23 @@ engine.on('remote', (cmd) => {
   }
 });
 
+function subscribe(fn: () => void): () => void {
+  subscribers.add(fn);
+  return () => {
+    subscribers.delete(fn);
+  };
+}
+
 export function useQueue() {
-  const snapshot = useSyncExternalStore(
-    (fn) => {
-      subscribers.add(fn);
-      return () => subscribers.delete(fn);
-    },
-    () => state,
-    () => state,
-  );
+  const snapshot = useSyncExternalStore(subscribe, () => state, () => state);
   return { ...snapshot, ...queue };
+}
+
+/**
+ * The playing track on its own. Its identity only changes when the track does, so anything that
+ * does not care about position can subscribe without re-rendering four times a second.
+ */
+export function useCurrentTrack(): Track | null {
+  const get = () => state.tracks[state.currentIndex] ?? null;
+  return useSyncExternalStore(subscribe, get, get);
 }
