@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { SFSymbol } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Artwork, artUri } from '@/components/artwork';
+import { Artwork, artSource } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { LyricsView } from '@/components/lyrics-view';
@@ -321,9 +321,9 @@ export function PlayerScreen() {
   );
 
   const background =
-    prefs.blurBackground && track.art_key ? (
+    prefs.blurBackground ? (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Image source={{ uri: artUri(track.art_key)! }} blurRadius={60} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={artSource(track.art_key)} blurRadius={60} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <View style={[StyleSheet.absoluteFill, styles.scrim]} />
       </View>
     ) : null;
