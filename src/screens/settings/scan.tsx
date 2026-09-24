@@ -32,6 +32,7 @@ export function ScanScreen() {
           <Line label="Removed" value={String(progress.removed)} />
           <Line label="Tags read" value={String(progress.tagged)} />
           {progress.tagFailed > 0 ? <Line label="Unreadable tags" value={String(progress.tagFailed)} /> : null}
+          {progress.tagError ? <Text style={[type.footnote, { color: colors.secondaryLabel }]}>{progress.tagError}</Text> : null}
           {progress.message ? <Text style={[type.footnote, { color: colors.destructive }]}>{progress.message}</Text> : null}
         </View>
       ) : (

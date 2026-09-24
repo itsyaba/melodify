@@ -84,19 +84,32 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
   return result;
 }
 
+type PendingRow = GuessedColumns & { id: number; path: string; folder: string; art_key: string | null };
+
 /**
- * Reads real tags for every row still marked untagged, a batch at a time. The native read happens
- * outside any transaction, so the database is only locked for the short write that follows it.
+ * Rows whose tags still need reading: never read, or read without yielding a duration. Every file
+ * that plays has a duration, so a row without one is a read that failed, and it is tried again
+ * rather than left looking empty until the file changes on disk.
+ */
+function pendingRows(db: SQLiteDatabase): Promise<PendingRow[]> {
+  return db.getAllAsync<PendingRow>(
+    `SELECT id, path, folder, title, artist, album, track_no, disc_no, art_key FROM tracks
+     WHERE tagged = 0 OR duration_ms IS NULL`,
+  );
+}
+
+/**
+ * Reads real tags for the pending rows, a batch at a time. The native read happens outside any
+ * transaction, so the database is only locked for the short write that follows it. `folderArt` is
+ * the fresh map from a walk; without one (the launch pass) each row keeps the art it already has.
  */
 async function tagPending(
   db: SQLiteDatabase,
-  folderArt: Map<string, string>,
+  pending: PendingRow[],
+  folderArt: Map<string, string> | null,
   progress: ScanProgress,
   emit: () => void,
 ): Promise<void> {
-  const pending = await db.getAllAsync<GuessedColumns & { id: number; path: string; folder: string }>(
-    'SELECT id, path, folder, title, artist, album, track_no, disc_no FROM tracks WHERE tagged = 0',
-  );
   for (let i = 0; i < pending.length; i += TAG_BATCH) {
     const batch = pending.slice(i, i + TAG_BATCH);
     const tags = await readTags(batch.map((r) => r.path));
@@ -114,7 +127,7 @@ async function tagPending(
           const found = tags.get(row.path);
           // No record at all means the batch came back short; the row stays untagged for next time.
           if (!found) continue;
-          const c = mergeTags(row, found, folderArt.get(row.folder) ?? null);
+          const c = mergeTags(row, found, folderArt ? (folderArt.get(row.folder) ?? null) : row.art_key);
           await write.executeAsync({
             $title: c.title, $artist: c.artist, $album: c.album, $album_artist: c.album_artist,
             $genre: c.genre, $composer: c.composer, $year: c.year, $track_no: c.track_no,
@@ -122,7 +135,10 @@ async function tagPending(
             $sample_rate: c.sample_rate, $art_key: c.art_key, $id: row.id,
           });
           progress.tagged += 1;
-          if (found.error) progress.tagFailed += 1;
+          if (found.error) {
+            progress.tagFailed += 1;
+            progress.tagError ??= `${row.path}: ${found.error}`;
+          }
         }
       } finally {
         await write.finalizeAsync();
@@ -132,6 +148,18 @@ async function tagPending(
   }
 }
 
+let running: Promise<unknown> = Promise.resolve();
+
+/**
+ * Scans and the launch tag pass run one at a time: two at once would read the same pending rows
+ * twice and interleave their progress on the Scan screen. A request made meanwhile waits its turn.
+ */
+function exclusive<T>(job: () => Promise<T>): Promise<T> {
+  const run = running.then(job, job);
+  running = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Incremental scan of Documents/: adds new files, updates changed ones (size or mtime),
  * removes rows whose file is gone, then reads real tags through the native module. New rows get
@@ -139,7 +167,11 @@ async function tagPending(
  * rows still awaiting real tags have those guesses re-derived on each scan. On a build without
  * the tag reader the guesses are all there is.
  */
-export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
+export function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
+  return exclusive(() => runScan(db));
+}
+
+async function runScan(db: SQLiteDatabase): Promise<ScanProgress> {
   const progress: ScanProgress = {
     phase: 'walking', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
   };
@@ -247,7 +279,7 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
       libraryEvents.emit('changed', undefined);
       progress.phase = 'tagging';
       emit();
-      await tagPending(db, found.folderArt, progress, emit);
+      await tagPending(db, await pendingRows(db), found.folderArt, progress, emit);
     }
 
     progress.phase = 'done';
@@ -264,4 +296,32 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
   emit();
   libraryEvents.emit('changed', undefined);
   return progress;
+}
+
+/**
+ * Run at launch: reads the tags a scan left unread, without walking the folder or dropping rows.
+ * Rows indexed by a build without the tag reader, or by a scan cut short when iOS suspended the
+ * app mid-tagging, would otherwise show filename guesses, no art and no length until the next
+ * manual scan. Silent when nothing is pending, so the Scan screen stays empty on a normal launch.
+ */
+export function readPendingTags(db: SQLiteDatabase): Promise<void> {
+  return exclusive(async () => {
+    if (!canReadTags()) return;
+    const progress: ScanProgress = {
+      phase: 'tagging', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
+    };
+    const emit = () => libraryEvents.emit('scanProgress', { ...progress });
+    try {
+      const pending = await pendingRows(db);
+      if (pending.length === 0) return;
+      emit();
+      await tagPending(db, pending, null, progress, emit);
+      progress.phase = 'done';
+    } catch (err) {
+      progress.phase = 'error';
+      progress.message = err instanceof Error ? err.message : String(err);
+    }
+    emit();
+    libraryEvents.emit('changed', undefined);
+  });
 }

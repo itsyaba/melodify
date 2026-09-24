@@ -21,7 +21,7 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | Playback | `modules/melodify-audio` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, later EQ / gapless / crossfade |
 | Library index | expo-sqlite | tracks, albums, artists, folders, play counts, bookmarks, queues |
 | File access | expo-file-system | reads the app's own `Documents/` folder |
-| Tag reading | AVAsset metadata inside `melodify-audio` | read during a scan; filename-based guesses stand in until then, and on builds without the reader |
+| Tag reading | AVAsset metadata inside `melodify-audio` | read during a scan, and at launch for anything a scan left unread; filename-based guesses stand in until then, and on builds without the reader |
 
 Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
 The UI, queue and database layers program against `src/player/engine.ts`. `src/player/index.ts` picks the

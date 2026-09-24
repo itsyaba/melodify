@@ -64,8 +64,11 @@ export, but stay unchecked until a CI build of them has been exercised on the ph
 - [x] Mini player above tab bar (2026-09-23, in the iOS 26 tab bar bottom accessory)
 - [ ] Tag reading via AVAsset in the module, art extraction and cache
       (written: a tagging pass after indexing, 50 files per bridge call; embedded art is cached
-      in `Documents/.artcache/` by content hash and beats folder art. To try: rescan the real
-      library and check FLAC files in particular, whose Vorbis comments are matched by key)
+      in `Documents/.artcache/` by content hash and beats folder art. Rows left unread, or read
+      without a duration, are read again at launch and on every scan. 2026-09-24: the device
+      library showed no art or lengths at all; cause not yet confirmed on the phone.
+      To try: relaunch, then check the Scan screen and FLAC files in particular, whose Vorbis
+      comments are matched by key)
 - [ ] Resume last queue and position on launch
       (written: the queue is mirrored to `queue_tracks`, position saved on pause, on track change,
       every 5 s while playing and on leaving the app; restored paused before the first screen)

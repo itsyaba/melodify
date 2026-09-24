@@ -26,5 +26,7 @@ export interface ScanProgress {
   tagged: number;
   /** Of those, how many the native reader could not parse; they keep their filename guesses. */
   tagFailed: number;
+  /** The first of those failures, path and reason, so an unreadable library says why. */
+  tagError?: string;
   message?: string;
 }

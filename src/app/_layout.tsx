@@ -7,13 +7,18 @@ import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
 import { loadPrefs } from '@/prefs';
+import { readPendingTags } from '@/scan/scanner';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
 
-/** Migrations first: the restore reads tables they create, and preferences before either. */
+/**
+ * Migrations first: the restore reads tables they create, and preferences before either. Unread
+ * tags are read in the background afterwards; the first screen does not wait for them.
+ */
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
   await loadPrefs(db);
   await restoreQueue(db);
+  void readPendingTags(db);
 }
 
 /**

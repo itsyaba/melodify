@@ -25,8 +25,8 @@ export interface TaggedColumns extends GuessedColumns {
  * Real tags win field by field. A field the file does not carry keeps its filename guess, so an
  * MP3 with a title but no album still groups under its folder name. Embedded art beats folder art
  * (a `cover.jpg` is the fallback, as in Musicolet). A file whose read failed comes back with every
- * field null and so keeps its guesses; the caller still marks it tagged, so a broken file is not
- * retried on every scan, only once it changes on disk.
+ * field null and so keeps its guesses. The caller still marks it tagged, but with no duration it
+ * counts as pending again, so the next scan or launch tries it once more.
  */
 export function mergeTags(guess: GuessedColumns, tags: NativeTrackTags, folderArt: string | null): TaggedColumns {
   return {
