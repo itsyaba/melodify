@@ -7,6 +7,7 @@ import type {
   NativeNowPlayingMeta,
   NativeNowPlayingPatch,
   NativePosition,
+  NativeTrackTags,
 } from './MelodifyAudio.types';
 
 declare class MelodifyAudioModule
@@ -26,6 +27,7 @@ declare class MelodifyAudioModule
   setRate(rate: number): Promise<void>;
   setVolume(volume: number): Promise<void>;
   getPosition(): Promise<NativePosition>;
+  readTags(uris: string[], artCacheDirectory: string): Promise<NativeTrackTags[]>;
   /** Widened to string here; `src/player/native-engine.ts` narrows it to PlaybackState. */
   getState(): string;
 }

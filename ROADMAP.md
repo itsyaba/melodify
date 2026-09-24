@@ -57,6 +57,9 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 - [x] Player screen: art, title, seek bar, controls (2026-09-23)
 - [x] Mini player above tab bar (2026-09-23, in the iOS 26 tab bar bottom accessory)
 - [ ] Tag reading via AVAsset in the module, art extraction and cache
+      (written: a tagging pass after indexing, 50 files per bridge call; embedded art is cached
+      in `Documents/.artcache/` by content hash and beats folder art. To try: rescan the real
+      library and check FLAC files in particular, whose Vorbis comments are matched by key)
 - [ ] Resume last queue and position on launch
 
 ### Phase 2. Musicolet core

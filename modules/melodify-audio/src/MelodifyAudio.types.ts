@@ -46,3 +46,24 @@ export type MelodifyAudioEvents = {
   /** Declared for the interruption item of Phase 1; nothing sends it yet. */
   routeChange: (payload: { reason: string }) => void;
 };
+
+/** One file's tags as the Swift side reports them. Absent fields come back null. */
+export interface NativeTrackTags {
+  uri: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  albumArtist: string | null;
+  genre: string | null;
+  composer: string | null;
+  year: number | null;
+  trackNo: number | null;
+  discNo: number | null;
+  durationMs: number | null;
+  bitrate: number | null;
+  sampleRate: number | null;
+  /** Relative to Documents/, e.g. ".artcache/ab12cd34.jpg". */
+  artKey: string | null;
+  /** Set when this one file failed; the rest of the batch still returns. */
+  error: string | null;
+}

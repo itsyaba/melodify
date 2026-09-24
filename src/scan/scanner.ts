@@ -2,7 +2,9 @@ import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { ART_EXTENSIONS, ART_FILENAMES, AUDIO_EXTENSIONS, LYRICS_EXTENSION } from '@/constants';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
+import { mergeTags, type GuessedColumns } from './merge-tags';
 import { guessTags } from './parse-filename';
+import { canReadTags, readTags, TAG_BATCH } from './read-tags';
 
 interface FoundFile {
   path: string; // relative to Documents/
@@ -81,13 +83,63 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
 }
 
 /**
+ * Reads real tags for every row still marked untagged, a batch at a time. The native read happens
+ * outside any transaction, so the database is only locked for the short write that follows it.
+ */
+async function tagPending(
+  db: SQLiteDatabase,
+  folderArt: Map<string, string>,
+  progress: ScanProgress,
+  emit: () => void,
+): Promise<void> {
+  const pending = await db.getAllAsync<GuessedColumns & { id: number; path: string; folder: string }>(
+    'SELECT id, path, folder, title, artist, album, track_no, disc_no FROM tracks WHERE tagged = 0',
+  );
+  for (let i = 0; i < pending.length; i += TAG_BATCH) {
+    const batch = pending.slice(i, i + TAG_BATCH);
+    const tags = await readTags(batch.map((r) => r.path));
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      const write = await tx.prepareAsync(
+        `UPDATE tracks SET title = $title, artist = $artist, album = $album, album_artist = $album_artist,
+           genre = $genre, composer = $composer, year = $year, track_no = $track_no, disc_no = $disc_no,
+           duration_ms = $duration_ms, bitrate = $bitrate, sample_rate = $sample_rate,
+           art_key = $art_key, tagged = 1
+         WHERE id = $id`,
+      );
+      try {
+        for (const row of batch) {
+          const found = tags.get(row.path);
+          // No record at all means the batch came back short; the row stays untagged for next time.
+          if (!found) continue;
+          const c = mergeTags(row, found, folderArt.get(row.folder) ?? null);
+          await write.executeAsync({
+            $title: c.title, $artist: c.artist, $album: c.album, $album_artist: c.album_artist,
+            $genre: c.genre, $composer: c.composer, $year: c.year, $track_no: c.track_no,
+            $disc_no: c.disc_no, $duration_ms: c.duration_ms, $bitrate: c.bitrate,
+            $sample_rate: c.sample_rate, $art_key: c.art_key, $id: row.id,
+          });
+          progress.tagged += 1;
+          if (found.error) progress.tagFailed += 1;
+        }
+      } finally {
+        await write.finalizeAsync();
+      }
+    });
+    emit();
+  }
+}
+
+/**
  * Incremental scan of Documents/: adds new files, updates changed ones (size or mtime),
- * removes rows whose file is gone. Tag reading happens later in the native module;
- * new rows get filename-based guesses so the library is browsable immediately, and rows
- * still awaiting real tags have those guesses re-derived on each scan.
+ * removes rows whose file is gone, then reads real tags through the native module. New rows get
+ * filename-based guesses first so the library is browsable while tags are still being read, and
+ * rows still awaiting real tags have those guesses re-derived on each scan. On a build without
+ * the tag reader the guesses are all there is.
  */
 export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
-  const progress: ScanProgress = { phase: 'walking', seen: 0, added: 0, updated: 0, removed: 0 };
+  const progress: ScanProgress = {
+    phase: 'walking', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
+  };
   const emit = () => libraryEvents.emit('scanProgress', { ...progress });
   const startedAt = Date.now();
   const run = await db.runAsync('INSERT INTO scan_runs (started_at) VALUES (?)', startedAt);
@@ -177,6 +229,15 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
         progress.removed += 1;
       }
     });
+
+    if (canReadTags()) {
+      // The index is complete at this point, so let the lists pick up new files now rather than
+      // after every tag has been read.
+      libraryEvents.emit('changed', undefined);
+      progress.phase = 'tagging';
+      emit();
+      await tagPending(db, found.folderArt, progress, emit);
+    }
 
     progress.phase = 'done';
     await db.runAsync(

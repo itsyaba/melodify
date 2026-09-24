@@ -17,10 +17,14 @@ export class Emitter<Events extends object> {
 export const libraryEvents = new Emitter<{ changed: void; scanProgress: ScanProgress }>();
 
 export interface ScanProgress {
-  phase: 'walking' | 'indexing' | 'done' | 'error';
+  phase: 'walking' | 'indexing' | 'tagging' | 'done' | 'error';
   seen: number;
   added: number;
   updated: number;
   removed: number;
+  /** Rows whose real tags have been read this run. */
+  tagged: number;
+  /** Of those, how many the native reader could not parse; they keep their filename guesses. */
+  tagFailed: number;
   message?: string;
 }

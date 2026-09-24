@@ -28,11 +28,13 @@ export function ScanScreen() {
           <Line label="Added" value={String(progress.added)} />
           <Line label="Updated" value={String(progress.updated)} />
           <Line label="Removed" value={String(progress.removed)} />
+          <Line label="Tags read" value={String(progress.tagged)} />
+          {progress.tagFailed > 0 ? <Line label="Unreadable tags" value={String(progress.tagFailed)} /> : null}
           {progress.message ? <Text style={[type.footnote, { color: colors.destructive }]}>{progress.message}</Text> : null}
         </View>
       ) : (
         <Text style={[type.subhead, { color: colors.secondaryLabel, textAlign: 'center' }]}>
-          Scanning walks the Melodify folder, adds new files and drops missing ones. Tags are read afterwards.
+          Scanning walks the Melodify folder, adds new files and drops missing ones, then reads the tags and artwork of anything new or changed.
         </Text>
       )}
     </View>

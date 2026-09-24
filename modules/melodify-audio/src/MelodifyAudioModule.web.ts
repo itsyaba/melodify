@@ -6,12 +6,13 @@ import type {
   NativeNowPlayingMeta,
   NativeNowPlayingPatch,
   NativePosition,
+  NativeTrackTags,
 } from './MelodifyAudio.types';
 
 /** No audio on web; `src/player` falls back to FakeEngine there. */
 class MelodifyAudioModule extends NativeModule<MelodifyAudioEvents> {
   implementation = 'web-stub';
-  version = '0.3.0';
+  version = '0.4.0';
 
   async load(_uri: string, _meta: NativeNowPlayingMeta, _options: NativeLoadOptions): Promise<void> {}
   async updateNowPlaying(_meta: NativeNowPlayingPatch): Promise<void> {}
@@ -24,6 +25,9 @@ class MelodifyAudioModule extends NativeModule<MelodifyAudioEvents> {
   async setVolume(_volume: number): Promise<void> {}
   async getPosition(): Promise<NativePosition> {
     return { positionMs: 0, durationMs: 0 };
+  }
+  async readTags(_uris: string[], _artCacheDirectory: string): Promise<NativeTrackTags[]> {
+    return [];
   }
   getState(): string {
     return 'idle';
