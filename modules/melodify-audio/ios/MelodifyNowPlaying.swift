@@ -55,7 +55,11 @@ internal final class MelodifyNowPlaying {
 
   // Main thread only.
   private var metadata = NowPlayingMetadata()
-  private var artwork: (uri: String, image: MPMediaItemArtwork)?
+  /// The track's own art, or the default cover under the uri it stands in for (nil for a track
+  /// with no art at all). Nil for the moment while a track's art is still being read off disk.
+  private var artwork: (uri: String?, image: MPMediaItemArtwork)?
+  /// Read on first use, not at launch: most sessions only ever need it for some tracks.
+  private lazy var defaultArtwork: MPMediaItemArtwork? = Self.loadDefaultArtwork()
   private var lastState: PlayerState = .idle
   private var lastPosition = PlayerPosition(positionMs: 0, durationMs: 0)
   private var targets: [(command: MPRemoteCommand, token: Any)] = []
@@ -152,9 +156,15 @@ internal final class MelodifyNowPlaying {
     metadata = NowPlayingMetadata()
   }
 
+  /// A track with no art, or art that will not load, gets the default cover, as it does in the app
+  /// (src/components/artwork.tsx).
   private func loadArtwork(_ uri: String?) {
     guard let uri else {
-      artwork = nil
+      if let fallback = defaultArtwork {
+        artwork = (uri: nil, image: fallback)
+      } else {
+        artwork = nil
+      }
       return
     }
     // Tracks in one album share a folder image, so the common case is already loaded.
@@ -162,14 +172,29 @@ internal final class MelodifyNowPlaying {
     artwork = nil
     artQueue.async { [weak self] in
       let url = URL(string: uri).flatMap { $0.isFileURL ? $0 : nil } ?? URL(fileURLWithPath: uri)
-      guard let image = UIImage(contentsOfFile: url.path) else { return }
-      let art = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+      let art = UIImage(contentsOfFile: url.path).map { image in
+        MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+      }
       DispatchQueue.main.async {
         guard let self, self.metadata.artUri == uri else { return }
-        self.artwork = (uri, art)
+        guard let image = art ?? self.defaultArtwork else { return }
+        self.artwork = (uri, image)
         self.publish()
       }
     }
+  }
+
+  /// The cover in this module's resource bundle (see MelodifyAudio.podspec). Linked statically the
+  /// bundle sits in the app next to the code; the lookup tries both places so a framework build
+  /// finds it too.
+  private static func loadDefaultArtwork() -> MPMediaItemArtwork? {
+    for bundle in [Bundle(for: MelodifyNowPlaying.self), Bundle.main] {
+      guard let url = bundle.url(forResource: "MelodifyAudioResources", withExtension: "bundle"),
+            let path = Bundle(url: url)?.path(forResource: "default-art", ofType: "jpg"),
+            let image = UIImage(contentsOfFile: path) else { continue }
+      return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+    return nil
   }
 
   // MARK: - Commands

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name           = 'MelodifyAudio'
-  s.version        = '0.5.0'
+  s.version        = '0.6.0'
   s.summary        = 'AVAudioEngine playback for Melodify'
   s.description    = 'Background audio, lock screen and remote commands for Melodify.'
   s.author         = 'Yeabsira'
@@ -23,4 +23,7 @@ Pod::Spec.new do |s|
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+  # The default cover, for tracks with no art of their own. The app shows the same file
+  # (src/components/artwork.tsx), so the lock screen and the app cannot drift apart.
+  s.resource_bundles = { 'MelodifyAudioResources' => ['Resources/*.jpg'] }
 end

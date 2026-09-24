@@ -10,7 +10,7 @@ export interface NowPlayingMeta {
   artist?: string | null;
   album?: string | null;
   durationMs?: number | null;
-  /** file:// URI of art, if any */
+  /** file:// URI of art, if any. Without one the lock screen shows the default cover. */
   artUri?: string | null;
 }
 

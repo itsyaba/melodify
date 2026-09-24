@@ -3,8 +3,12 @@ import { Image, type ImageSourcePropType } from 'react-native';
 import { Paths } from 'expo-file-system';
 import { makeStyles, radius } from '@/theme';
 
-/** Shown for songs with no embedded or folder art, and for art whose file has gone missing. */
-export const DEFAULT_ART: ImageSourcePropType = require('../../assets/default-art.jpg');
+/**
+ * Shown for songs with no embedded or folder art, and for art whose file has gone missing. It lives
+ * in the audio module because the lock screen shows the same file, and a pod can only bundle
+ * resources from inside its own folder.
+ */
+export const DEFAULT_ART: ImageSourcePropType = require('../../modules/melodify-audio/ios/Resources/default-art.jpg');
 
 interface Props {
   /** Relative path inside Documents/ (folder art) or a cache key (Phase 1). */

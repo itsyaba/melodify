@@ -45,7 +45,7 @@ export function TrackDetailsScreen({ id }: { id: number }) {
         ['Sample rate', track.sample_rate ? `${(track.sample_rate / 1000).toFixed(1)} kHz` : null],
         ['Modified', formatDate(track.mtime)],
         ['Lyrics file', track.lyrics_path],
-        ['Artwork', track.art_key],
+        ['Artwork', track.art_key ?? 'Default cover'],
       ],
     },
     {

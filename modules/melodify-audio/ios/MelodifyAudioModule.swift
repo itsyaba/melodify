@@ -38,7 +38,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.5.0" }
+    Constant("version") { "0.6.0" }
 
     Events("state", "position", "ended", "remote", "routeChange", "error")
 
