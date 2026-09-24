@@ -16,13 +16,15 @@ import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { moveTrack, removeTracks } from '@/player/queue-ops';
 import { queue } from '@/player/queue-store';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { formatCount, formatDuration } from '@/utils/format';
 
 const NO_TRACKS: Track[] = [];
 
 export function PlaylistScreen({ id }: { id: number }) {
+  const styles = useStyles();
+  const colors = useTheme();
   const db = useSQLiteContext();
   const router = useRouter();
   const actions = useTrackActions();
@@ -134,6 +136,7 @@ function EditOrder({
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
 }) {
+  const colors = useTheme();
   const navigation = useNavigation();
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -158,8 +161,8 @@ function EditOrder({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
   header: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl },
   buttons: { flexDirection: 'row', gap: spacing.xxl, paddingTop: spacing.sm },
-});
+}));

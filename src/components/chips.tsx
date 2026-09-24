@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { colors, radius, spacing, type } from '@/theme';
+import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 
 interface Props<T extends string | number> {
   options: readonly { key: T; label: string }[];
@@ -13,6 +13,8 @@ interface Props<T extends string | number> {
 
 /** Horizontally scrolling pills: the library views, the queue tabs. */
 export function Chips<T extends string | number>({ options, value, onChange, onLongPress, action }: Props<T>) {
+  const styles = useStyles();
+  const colors = useTheme();
   return (
     <ScrollView
       horizontal
@@ -51,7 +53,7 @@ export function Chips<T extends string | number>({ options, value, onChange, onL
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
@@ -61,4 +63,4 @@ const styles = StyleSheet.create({
   },
   active: { backgroundColor: colors.label },
   pressed: { opacity: 0.6 },
-});
+}));

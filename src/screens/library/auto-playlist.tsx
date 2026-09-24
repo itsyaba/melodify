@@ -10,7 +10,7 @@ import { listAutoPlaylist, type AutoPlaylist } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
-import { colors } from '@/theme';
+import { makeStyles } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
 export const AUTO_PLAYLISTS: readonly { kind: AutoPlaylist; title: string; icon: SFSymbol; empty: string }[] = [
@@ -27,6 +27,7 @@ const NO_TRACKS: Track[] = [];
  * not to reload every screen once a song, and this one refreshes whenever it comes into view.
  */
 export function AutoPlaylistScreen({ kind }: { kind: AutoPlaylist }) {
+  const styles = useStyles();
   const actions = useTrackActions();
   const meta = AUTO_PLAYLISTS.find((p) => p.kind === kind)!;
   const { data, refresh } = useLibraryQuery((db) => listAutoPlaylist(db, kind), [kind]);
@@ -53,4 +54,4 @@ export function AutoPlaylistScreen({ kind }: { kind: AutoPlaylist }) {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.background } });
+const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));

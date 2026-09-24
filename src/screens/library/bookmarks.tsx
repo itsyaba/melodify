@@ -7,12 +7,13 @@ import { promptText, showMenu } from '@/components/menus';
 import { deleteBookmark, listBookmarks, renameBookmark } from '@/db/bookmarks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
-import { artSize, colors } from '@/theme';
+import { artSize, makeStyles } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { formatDate, formatDuration } from '@/utils/format';
 
 /** Every bookmark, newest first. Tap to play from it; long press to rename or delete. */
 export function BookmarksScreen() {
+  const styles = useStyles();
   const db = useSQLiteContext();
   const { data } = useLibraryQuery((d) => listBookmarks(d));
   return (
@@ -68,4 +69,4 @@ export function BookmarksScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.background } });
+const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));

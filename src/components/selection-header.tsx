@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from 'expo-router';
 import type { Selection } from '@/hooks/use-selection';
-import { colors, spacing, type } from '@/theme';
+import { spacing, type, useTheme } from '@/theme';
 import { IconButton } from './icon-button';
 
 interface Options {
@@ -84,6 +84,7 @@ export function useSelectionHeader({ selection, count, onActions, onMenu, select
 }
 
 function HeaderText({ label, onPress, strong }: { label: string; onPress: () => void; strong?: boolean }) {
+  const colors = useTheme();
   return (
     <Pressable onPress={onPress} hitSlop={spacing.sm} accessibilityRole="button" style={styles.text}>
       <Text style={[type.body, { color: colors.tint, fontWeight: strong ? '600' : '400' }]}>{label}</Text>

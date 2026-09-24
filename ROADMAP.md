@@ -131,10 +131,23 @@ build, where lyrics fall back to `.lrc` files only.
       either side of the artwork to skip)
 
 ### Phase 4. Appearance
+
+Written, and passing typecheck, tests and the bundle export; not yet on the phone. Keep screen on
+and the rotation setting use expo-keep-awake and expo-screen-orientation, so they need a build that
+includes them; on an older one they do nothing, since both are loaded behind a guard.
+
 - [ ] Light / dark / black themes, accent colors, follow system
+      (written: `Appearance.setColorScheme` forces light or dark, and the palette swaps the tokens
+      that differ; every component reads colors through `useTheme` / `makeStyles`, so a change
+      applies at once. Twelve accents, all iOS system colors)
 - [ ] Multiple player layouts, blurred art background
+      (written: standard, edge-to-edge artwork, and compact with the next six songs; a side-by-side
+      layout in landscape. The blur is `Image` `blurRadius` under a scrim)
 - [ ] Custom tabs and tab order, grid / list toggle, density
+      (written: Settings › Tabs and library views; Library and Settings cannot be switched off.
+      Albums have a grid. Compact density shrinks track rows)
 - [ ] Keep screen on, landscape
+      (written: keep awake only while the player is open; rotation free, portrait or landscape)
 
 ### Phase 5. Data
 - [ ] Backup and restore to a JSON file in `Documents/`

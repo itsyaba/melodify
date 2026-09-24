@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View, type LayoutChangeEvent, type PanResponderInstance } from 'react-native';
-import { colors, radius } from '@/theme';
+import { makeStyles, radius } from '@/theme';
 
 const TRACK = 4;
 const THUMB = 14;
@@ -15,6 +15,7 @@ interface Props {
 }
 
 export function SeekBar({ positionMs, durationMs, onSeek, onScrub }: Props) {
+  const styles = useStyles();
   const [width, setWidth] = useState(0);
   const [dragMs, setDragMs] = useState<number | null>(null);
 
@@ -80,7 +81,7 @@ export function SeekBar({ positionMs, durationMs, onSeek, onScrub }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   hit: { height: THUMB * 2, justifyContent: 'center' },
   track: { height: TRACK, borderRadius: radius.sm, backgroundColor: colors.fill, overflow: 'hidden' },
   fill: { height: TRACK, backgroundColor: colors.tint },
@@ -91,4 +92,4 @@ const styles = StyleSheet.create({
     borderRadius: THUMB / 2,
     backgroundColor: colors.tint,
   },
-});
+}));

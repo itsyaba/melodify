@@ -7,10 +7,11 @@ import { showMenu } from '@/components/menus';
 import { toast } from '@/components/toast';
 import { includeFolder, listExcludedFolders } from '@/db/folders';
 import { useLibraryQuery } from '@/hooks/use-library-query';
-import { colors } from '@/theme';
+import { makeStyles } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 
 export function ExcludedFoldersScreen() {
+  const styles = useStyles();
   const db = useSQLiteContext();
   const { data } = useLibraryQuery(listExcludedFolders);
   const include = async (folder: string) => {
@@ -48,4 +49,4 @@ export function ExcludedFoldersScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.background } });
+const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));

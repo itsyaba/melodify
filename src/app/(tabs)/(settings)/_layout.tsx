@@ -7,6 +7,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="scan" options={{ title: 'Scan library', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="hidden" options={{ title: 'Hidden songs', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="excluded" options={{ title: 'Excluded folders', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="tabs" options={{ title: 'Tabs and views', headerLargeTitleEnabled: false }} />
     </Stack>
   );
 }

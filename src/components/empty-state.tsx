@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, type } from '@/theme';
+import { makeStyles, spacing, type, useTheme } from '@/theme';
 
 export function EmptyState({ title, body }: { title: string; body?: string }) {
+  const styles = useStyles();
+  const colors = useTheme();
   return (
     <View style={styles.wrap}>
       <Text style={[type.headline, { color: colors.label, textAlign: 'center' }]}>{title}</Text>
@@ -10,7 +12,7 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.sm },
   body: { color: colors.secondaryLabel, textAlign: 'center' },
-});
+}));

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '@/theme';
+import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 
 interface Props<T extends string> {
   options: readonly { key: T; label: string }[];
@@ -9,6 +9,8 @@ interface Props<T extends string> {
 
 /** Plain JS segmented control; swapped for @expo/ui Picker once the dev client exists. */
 export function Segmented<T extends string>({ options, value, onChange }: Props<T>) {
+  const styles = useStyles();
+  const colors = useTheme();
   return (
     <View style={styles.track}>
       {options.map((o) => {
@@ -23,7 +25,7 @@ export function Segmented<T extends string>({ options, value, onChange }: Props<
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   track: {
     flexDirection: 'row',
     backgroundColor: colors.fill,
@@ -34,4 +36,4 @@ const styles = StyleSheet.create({
   },
   segment: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.sm },
   active: { backgroundColor: colors.background },
-});
+}));

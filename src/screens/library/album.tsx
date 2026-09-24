@@ -9,12 +9,13 @@ import { listAlbumTracks } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, spacing, type, useTheme } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
 const NO_TRACKS: Track[] = [];
 
 export function AlbumScreen({ album, albumArtist }: { album: string; albumArtist: string | null }) {
+  const colors = useTheme();
   const router = useRouter();
   const actions = useTrackActions();
   const { data } = useLibraryQuery((db) => listAlbumTracks(db, album, albumArtist), [album, albumArtist]);

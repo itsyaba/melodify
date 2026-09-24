@@ -7,13 +7,14 @@ import { listHiddenTracks } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { setTracksHidden } from '@/player/track-edits';
-import { colors } from '@/theme';
+import { makeStyles } from '@/theme';
 import { formatCount } from '@/utils/format';
 
 const NO_TRACKS: Track[] = [];
 
 /** Songs hidden from the library, to bring back. Their long-press menu has "Show in library". */
 export function HiddenSongsScreen() {
+  const styles = useStyles();
   const db = useSQLiteContext();
   const { data } = useLibraryQuery(listHiddenTracks);
   const tracks = data ?? NO_TRACKS;
@@ -36,4 +37,4 @@ export function HiddenSongsScreen() {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.background } });
+const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));

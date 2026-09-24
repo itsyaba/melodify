@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, type } from '@/theme';
+import { useDensity } from '@/hooks/use-density';
+import { makeStyles, spacing, type, useTheme } from '@/theme';
 
 interface Props {
   title: string;
@@ -16,12 +17,19 @@ interface Props {
 
 /** Generic navigation row: album, artist, folder, settings entry. */
 export function ListRow({ title, subtitle, leading, trailing, tinted, onPress, onLongPress }: Props) {
+  const styles = useStyles();
+  const density = useDensity();
+  const colors = useTheme();
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityRole="button"
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.row,
+        { paddingVertical: density.paddingVertical, minHeight: density.minHeight - 4 },
+        pressed && styles.pressed,
+      ]}
     >
       {leading}
       <View style={styles.text}>
@@ -35,7 +43,7 @@ export function ListRow({ title, subtitle, leading, trailing, tinted, onPress, o
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -46,4 +54,4 @@ const styles = StyleSheet.create({
   },
   pressed: { backgroundColor: colors.fill },
   text: { flex: 1, gap: 2 },
-});
+}));

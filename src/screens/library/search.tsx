@@ -24,7 +24,8 @@ import {
 import type { AlbumSummary, FolderEntry, GroupSummary, Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
-import { artSize, colors, radius, spacing, type } from '@/theme';
+import { usePrefs } from '@/prefs';
+import { artSize, makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { formatCount } from '@/utils/format';
 
 type Item =
@@ -55,6 +56,8 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function SearchScreen() {
+  const styles = useStyles();
+  const colors = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
   const actions = useTrackActions();
@@ -62,6 +65,7 @@ export function SearchScreen() {
   const debounced = useDebounced(query.trim(), DEBOUNCE_MS);
   const active = debounced.length >= 2;
   const [recent, setRecent] = useState<string[]>([]);
+  const foldersTab = usePrefs().tabs.includes('folders');
 
   useEffect(() => {
     void getSetting(db, 'recentSearches').then((r) => setRecent(r ?? []));
@@ -108,10 +112,11 @@ export function SearchScreen() {
       { title: 'Artists', data: data.artists.map((artist): Item => ({ kind: 'artist', artist })) },
       { title: 'Albums', data: data.albums.map((album): Item => ({ kind: 'album', album })) },
       { title: 'Playlists', data: data.playlists.map((playlist): Item => ({ kind: 'playlist', playlist })) },
-      { title: 'Folders', data: data.folders.map((folder): Item => ({ kind: 'folder', folder })) },
+      // Only while the Folders tab is on: a switched-off tab's screens cannot be opened.
+      { title: 'Folders', data: foldersTab ? data.folders.map((folder): Item => ({ kind: 'folder', folder })) : [] },
       { title: 'Songs', data: data.tracks.map((track, index): Item => ({ kind: 'track', track, index })) },
     ].filter((s) => s.data.length > 0);
-  }, [data]);
+  }, [data, foldersTab]);
 
   const renderItem = ({ item }: { item: Item }) => {
     switch (item.kind) {
@@ -260,7 +265,7 @@ export function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
   input: {
     margin: spacing.lg,
@@ -279,4 +284,4 @@ const styles = StyleSheet.create({
   },
   recent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   pressed: { backgroundColor: colors.fill },
-});
+}));

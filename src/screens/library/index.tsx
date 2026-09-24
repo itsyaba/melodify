@@ -1,10 +1,12 @@
 import { useMemo, type ReactElement } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
+import { AlbumCard, albumCardGap } from '@/components/album-card';
 import { Artwork } from '@/components/artwork';
 import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';
+import { IconButton } from '@/components/icon-button';
 import { IconTile } from '@/components/icon-tile';
 import { ListRow } from '@/components/list-row';
 import { ListToolbar, type SortOption } from '@/components/list-toolbar';
@@ -30,12 +32,13 @@ import {
   type GroupSort,
   type TrackSort,
 } from '@/db/tracks';
-import type { Track } from '@/db/types';
+import type { AlbumSummary, Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { useStoredChoice } from '@/hooks/use-stored-choice';
+import { usePrefs } from '@/prefs';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
 import { queue } from '@/player/queue-store';
-import { artSize, colors } from '@/theme';
+import { artSize, makeStyles, spacing } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { formatCount, formatDuration } from '@/utils/format';
 
@@ -98,11 +101,19 @@ interface ListProps {
 }
 
 export function LibraryScreen() {
-  const [view, setView] = useStoredChoice<LibraryView>('library.view', 'songs', VIEWS);
+  const styles = useStyles();
+  const { libraryViews } = usePrefs();
+  // In the order chosen in Settings, leaving out the ones switched off there.
+  const shown = useMemo(
+    () => libraryViews.flatMap((key) => VIEWS.filter((v) => v.key === key)),
+    [libraryViews],
+  );
+  const [stored, setView] = useStoredChoice<LibraryView>('library.view', shown[0]?.key ?? 'songs', shown);
+  const view = shown.some((v) => v.key === stored) ? stored : (shown[0]?.key ?? 'songs');
   // The chips go inside the lists rather than beside them: with a large-title header iOS lays
   // content out under the nav bar and only a scroll view receives the matching content inset,
   // so a plain sibling View renders under the status bar.
-  const chips = <Chips options={VIEWS} value={view} onChange={setView} />;
+  const chips = <Chips options={shown} value={view} onChange={setView} />;
   const group = GROUP_VIEWS[view];
   return (
     <View style={styles.root}>
@@ -140,26 +151,43 @@ function Songs({ chips }: ListProps) {
   );
 }
 
+const ALBUM_LAYOUTS = [{ key: 'list' }, { key: 'grid' }] as const;
+
 function Albums({ chips }: ListProps) {
   const router = useRouter();
   const actions = useTrackActions();
+  const { width } = useWindowDimensions();
   const [sort, setSort] = useStoredChoice<AlbumSort>('sort.albums', 'name', ALBUM_SORTS);
+  const [layout, setLayout] = useStoredChoice<'list' | 'grid'>('layout.albums', 'list', ALBUM_LAYOUTS);
   const { data } = useLibraryQuery((db) => listAlbums(db, sort), [sort]);
+  const grid = layout === 'grid';
+  const columns = width >= 700 ? 4 : width >= 500 ? 3 : 2;
+  const cardSize = Math.floor((width - spacing.lg * 2 - albumCardGap * (columns - 1)) / columns);
+  const open = (a: AlbumSummary) => router.push(albumHref(a.album, a.album_artist));
+  const menu = (a: AlbumSummary) =>
+    actions.collectionMenu(a.album, (db) => listAlbumTracks(db, a.album, a.album_artist));
   return (
     <FlatList
+      // numColumns cannot change on a mounted list, so each layout gets its own.
+      key={grid ? `grid-${columns}` : 'list'}
       data={data}
+      numColumns={grid ? columns : 1}
+      columnWrapperStyle={grid ? { gap: albumCardGap, paddingHorizontal: spacing.lg } : undefined}
+      contentContainerStyle={grid ? { gap: spacing.lg, paddingBottom: spacing.lg } : undefined}
       keyExtractor={(a) => `${a.album_artist ?? ''}::${a.album}`}
-      renderItem={({ item }) => (
-        <ListRow
-          title={item.album}
-          subtitle={[item.album_artist, item.year, formatCount(item.track_count, 'song')].filter(Boolean).join(' · ')}
-          leading={<Artwork artKey={item.art_key} size={artSize.row} />}
-          onPress={() => router.push(albumHref(item.album, item.album_artist))}
-          onLongPress={() =>
-            actions.collectionMenu(item.album, (db) => listAlbumTracks(db, item.album, item.album_artist))
-          }
-        />
-      )}
+      renderItem={({ item }) =>
+        grid ? (
+          <AlbumCard album={item} size={cardSize} subtitle="artist" onPress={() => open(item)} onLongPress={() => menu(item)} />
+        ) : (
+          <ListRow
+            title={item.album}
+            subtitle={[item.album_artist, item.year, formatCount(item.track_count, 'song')].filter(Boolean).join(' · ')}
+            leading={<Artwork artKey={item.art_key} size={artSize.row} />}
+            onPress={() => open(item)}
+            onLongPress={() => menu(item)}
+          />
+        )
+      }
       ListEmptyComponent={data ? <EmptyState title="No albums yet" body={EMPTY_BODY} /> : null}
       contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={
@@ -169,6 +197,14 @@ function Albums({ chips }: ListProps) {
             <ListToolbar
               summary={formatCount(data.length, 'album')}
               sort={{ options: ALBUM_SORTS, value: sort, onChange: setSort }}
+              trailing={
+                <IconButton
+                  name={grid ? 'list.bullet' : 'square.grid.2x2'}
+                  size={18}
+                  onPress={() => setLayout(grid ? 'list' : 'grid')}
+                  accessibilityLabel={grid ? 'Show as a list' : 'Show as a grid'}
+                />
+              }
             />
           ) : null}
         </>
@@ -299,6 +335,6 @@ function Playlists({ chips }: ListProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
-});
+}));

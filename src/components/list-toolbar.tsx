@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import { colors, spacing, type } from '@/theme';
+import { makeStyles, spacing, type, useTheme } from '@/theme';
 import { IconButton } from './icon-button';
 import { showMenu } from './menus';
 
@@ -15,10 +16,14 @@ interface Props<T extends string> {
   sort?: { options: readonly SortOption<T>[]; value: T; onChange: (value: T) => void };
   onPlay?: () => void;
   onShuffle?: () => void;
+  /** Anything else for the strip, e.g. a grid / list toggle. */
+  trailing?: ReactNode;
 }
 
 /** The strip above a list: what is in it, how it is sorted, and play or shuffle all of it. */
-export function ListToolbar<T extends string>({ summary, sort, onPlay, onShuffle }: Props<T>) {
+export function ListToolbar<T extends string>({ summary, sort, onPlay, onShuffle, trailing }: Props<T>) {
+  const styles = useStyles();
+  const colors = useTheme();
   const current = sort?.options.find((o) => o.key === sort.value);
   return (
     <View style={styles.row}>
@@ -45,11 +50,12 @@ export function ListToolbar<T extends string>({ summary, sort, onPlay, onShuffle
       ) : null}
       {onShuffle ? <IconButton name="shuffle" size={18} color={colors.tint} onPress={onShuffle} accessibilityLabel="Shuffle all" /> : null}
       {onPlay ? <IconButton name="play.fill" size={18} color={colors.tint} onPress={onPlay} accessibilityLabel="Play all" /> : null}
+      {trailing}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -60,4 +66,4 @@ const styles = StyleSheet.create({
   summary: { flex: 1, color: colors.secondaryLabel },
   sort: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pressed: { opacity: 0.5 },
-});
+}));

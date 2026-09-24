@@ -11,7 +11,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useTheme } from '@/theme';
 
 /**
  * A FlatList whose rows can be dragged by a handle and swiped away, built on PanResponder and
@@ -62,6 +62,8 @@ export function ReorderableList<T>({
   extraData,
   listRef: externalRef,
 }: Props<T>) {
+  const styles = useStyles();
+  const colors = useTheme();
   const ownRef = useRef<FlatList<T>>(null);
   const listRef = externalRef ?? ownRef;
   const containerRef = useRef<View>(null);
@@ -210,7 +212,7 @@ export function ReorderableList<T>({
         </View>
       );
     },
-    [begin, finish, g, ghostTop, updateTarget, responders],
+    [begin, finish, g, ghostTop, updateTarget, responders, styles, colors],
   );
 
   const onScroll = useCallback(
@@ -323,6 +325,8 @@ function SwipeToRemove({
   onRemove: () => void;
   onActive: (active: boolean) => void;
 }) {
+  const styles = useStyles();
+  const colors = useTheme();
   const { width } = useWindowDimensions();
   const x = useRef(new Animated.Value(0)).current;
   const [direction, setDirection] = useState<'left' | 'right'>('left');
@@ -374,7 +378,7 @@ function SwipeToRemove({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1 },
   handle: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
   placeholder: { opacity: 0 },
@@ -398,4 +402,4 @@ const styles = StyleSheet.create({
   },
   removeRight: { alignItems: 'flex-start' },
   swipeFront: { backgroundColor: colors.background },
-});
+}));

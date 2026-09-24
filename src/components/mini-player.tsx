@@ -4,7 +4,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Artwork } from '@/components/artwork';
 import { IconButton } from '@/components/icon-button';
 import { useQueue } from '@/player/queue-store';
-import { colors, spacing, type } from '@/theme';
+import { makeStyles, spacing, type, useTheme } from '@/theme';
 
 const ART = 36;
 
@@ -14,6 +14,8 @@ const ART = 36;
  * which leaves room for the artwork, the title and one button and nothing else.
  */
 export function MiniPlayer() {
+  const styles = useStyles();
+  const colors = useTheme();
   const router = useRouter();
   const { tracks, currentIndex, state, positionMs, durationMs, toggle, next } = useQueue();
   const placement = NativeTabs.BottomAccessory.usePlacement();
@@ -56,7 +58,7 @@ export function MiniPlayer() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, justifyContent: 'center' },
   progress: { height: 2, backgroundColor: colors.fill },
   progressFill: { height: 2, backgroundColor: colors.tint },
@@ -68,4 +70,4 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   text: { flex: 1, gap: 1 },
-});
+}));

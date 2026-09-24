@@ -54,8 +54,8 @@ to double-check against the current Musicolet release.
 | Auto playlists | Recently added, most played, recently played, favorites | JS | wip |
 | Favorites | Heart a track, favorites list | JS | wip |
 | Sorting | Per-list sort by title, artist, album, date added, duration, track number, play count | JS | wip |
-| Grid / list toggle | Switch layout per tab | JS | todo |
-| Custom tabs | Choose which tabs show and in what order | JS | todo |
+| Grid / list toggle | Switch layout per tab | JS | wip |
+| Custom tabs | Choose which tabs show and in what order | JS | wip |
 | Multi-select | Long-press to select many items, then batch action | JS | wip |
 | Search | Search tracks, albums, artists, folders, playlists; recent searches | JS | wip |
 | Track details | Full tag dump, file path, bitrate, sample rate, size | JS | wip |
@@ -128,14 +128,14 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Themes | Light, dark, black (AMOLED) | JS | todo |
-| Accent colors | Pick accent color | JS | todo |
-| Follow system theme | Automatic light / dark | JS | todo |
-| Player layouts | Multiple now-playing layouts | JS | todo |
-| Album art blur background | Blurred art behind the player | JS | todo |
-| Font size / density | Compact vs comfortable lists | JS | todo |
-| Keep screen on | Prevent sleep while player is open | JS | todo |
-| Landscape support | Rotates on tablets / landscape | JS | todo |
+| Themes | Light, dark, black (AMOLED) | JS | wip |
+| Accent colors | Pick accent color | JS | wip |
+| Follow system theme | Automatic light / dark | JS | wip |
+| Player layouts | Multiple now-playing layouts | JS | wip |
+| Album art blur background | Blurred art behind the player | JS | wip |
+| Font size / density | Compact vs comfortable lists | JS | wip |
+| Keep screen on | Prevent sleep while player is open | JS | wip |
+| Landscape support | Rotates on tablets / landscape | JS | wip |
 
 ## 10. Statistics and history
 

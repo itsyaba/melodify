@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Track } from '@/db/types';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
+import { useDensity } from '@/hooks/use-density';
 import { formatDuration } from '@/utils/format';
 import { Artwork } from './artwork';
 
@@ -18,21 +19,28 @@ interface Props {
 }
 
 export function TrackRow({ track, showNumber, active, trailing, onPress, onLongPress }: Props) {
+  const styles = useStyles();
+  const colors = useTheme();
+  const density = useDensity();
   const subtitle = [track.artist, track.album].filter(Boolean).join(' · ') || track.folder || 'Unknown';
   return (
     <Pressable
       onPress={() => onPress?.(track)}
       onLongPress={onLongPress ? () => onLongPress(track) : undefined}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.row,
+        { paddingVertical: density.paddingVertical, minHeight: density.minHeight },
+        pressed && styles.pressed,
+      ]}
       accessibilityRole="button"
       accessibilityState={active ? { selected: true } : undefined}
     >
       {showNumber ? (
-        <View style={styles.number}>
+        <View style={[styles.number, { width: density.art }]}>
           <Text style={[type.subhead, { color: active ? colors.tint : colors.secondaryLabel }]}>{track.track_no ?? '–'}</Text>
         </View>
       ) : (
-        <Artwork artKey={track.art_key} size={artSize.row} />
+        <Artwork artKey={track.art_key} size={density.art} />
       )}
       <View style={styles.text}>
         <Text numberOfLines={1} style={[type.body, { color: active ? colors.tint : colors.label }]}>{track.title}</Text>
@@ -45,7 +53,7 @@ export function TrackRow({ track, showNumber, active, trailing, onPress, onLongP
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -57,4 +65,4 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: colors.fill },
   number: { width: artSize.row, alignItems: 'center' },
   text: { flex: 1, gap: 2 },
-});
+}));

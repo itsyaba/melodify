@@ -15,7 +15,7 @@ import { listFolder, listFolderTracksRecursive } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
-import { colors } from '@/theme';
+import { makeStyles } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
 
@@ -26,6 +26,7 @@ const NO_TRACKS: Track[] = [];
  * everything beneath the folder, as Musicolet's do; tapping a song plays just this level.
  */
 export function FoldersScreen({ path }: { path: string }) {
+  const styles = useStyles();
   const router = useRouter();
   const db = useSQLiteContext();
   const actions = useTrackActions();
@@ -117,4 +118,4 @@ export function FoldersScreen({ path }: { path: string }) {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: colors.background } });
+const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));

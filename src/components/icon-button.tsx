@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, type ColorValue } from 'react-native';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { colors, spacing } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 
 interface Props {
   name: SFSymbol;
@@ -19,7 +19,7 @@ interface Props {
 export function IconButton({
   name,
   size = 22,
-  color = colors.label,
+  color,
   onPress,
   onLongPress,
   onPressOut,
@@ -27,6 +27,7 @@ export function IconButton({
   accessibilityHint,
   disabled,
 }: Props) {
+  const colors = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -40,7 +41,7 @@ export function IconButton({
       hitSlop={spacing.md}
       style={({ pressed }) => [styles.button, (pressed || disabled) && styles.dimmed]}
     >
-      <SymbolView name={name} size={size} tintColor={disabled ? colors.tertiaryLabel : color} weight="semibold" />
+      <SymbolView name={name} size={size} tintColor={disabled ? colors.tertiaryLabel : (color ?? colors.label)} weight="semibold" />
     </Pressable>
   );
 }

@@ -130,7 +130,9 @@ src/
                 mirrored to SQLite), pure queue operations (+ tests)
   hooks/        useLibraryQuery (refreshes when the library changes), selection, stored choices
   utils/        events, formatting
-  theme.ts      color / spacing / type tokens (iOS semantic colors)
+  theme.ts      color / spacing / type tokens (iOS semantic colors), themes and accents,
+                useTheme / makeStyles
+  prefs.ts      user preferences, one JSON object in the settings table
 modules/
   melodify-audio/  Swift Expo Module: AVAudioEngine playback
 .github/workflows/ios-build.yml   unsigned IPA build
@@ -143,8 +145,9 @@ See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is done as of 2026-09-20: t
 phone, scanning and browsing a real library. In Phase 1, playback, the lock screen and the player
 screens work on the device as of 2026-09-23; tag reading, interruption handling and restoring the
 queue on launch are written and waiting for a device test. Phase 2 (multiple queues, queue editing
-with undo, playlists, grouped library views, multi-select, search) is written, JS only, and waiting
-for the same.
+with undo, playlists, grouped library views, multi-select, search), Phase 3 (bookmarks, sleep timer,
+lyrics, play counts, favorites, song details, hiding and deleting) and Phase 4 (themes, accents,
+player layouts, custom tabs, density, rotation) are written and waiting for the same.
 
 ## License
 

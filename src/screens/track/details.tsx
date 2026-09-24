@@ -3,11 +3,13 @@ import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { getTrack } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { formatBytes, formatDate, formatDuration } from '@/utils/format';
 
 /** Everything known about one file: its tags, the file itself, and how it has been played. */
 export function TrackDetailsScreen({ id }: { id: number }) {
+  const styles = useStyles();
+  const colors = useTheme();
   const { data: track, loading } = useLibraryQuery((db) => getTrack(db, id), [id]);
   const { data: bookmarks } = useLibraryQuery(
     (db) => db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM bookmarks WHERE track_id = ?', id).then((r) => r?.n ?? 0),
@@ -83,7 +85,7 @@ export function TrackDetailsScreen({ id }: { id: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.xxl },
   header: { alignItems: 'center', gap: spacing.md, padding: spacing.xl },
@@ -99,4 +101,4 @@ const styles = StyleSheet.create({
   },
   label: { width: 110, color: colors.secondaryLabel },
   value: { flex: 1, color: colors.label },
-});
+}));

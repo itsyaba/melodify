@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Track } from '@/db/types';
 import { activeLine } from '@/lyrics/lrc';
 import { loadLyrics, type LoadedLyrics } from '@/lyrics/load';
-import { colors, spacing, type } from '@/theme';
+import { makeStyles, spacing, type, useTheme } from '@/theme';
 
 /** After the user scrolls the lyrics by hand, leave them there this long before following again. */
 const MANUAL_SCROLL_HOLD_MS = 4000;
@@ -13,6 +13,8 @@ const MANUAL_SCROLL_HOLD_MS = 4000;
  * third of the way down, and seek to a line when it is tapped.
  */
 export function LyricsView({ track, positionMs, onSeek }: { track: Track; positionMs: number; onSeek: (ms: number) => void }) {
+  const styles = useStyles();
+  const colors = useTheme();
   const [lyrics, setLyrics] = useState<LoadedLyrics | null | undefined>(undefined);
   const scroll = useRef<ScrollView>(null);
   const lineY = useRef<number[]>([]);
@@ -66,7 +68,7 @@ export function LyricsView({ track, positionMs, onSeek }: { track: Track; positi
         </Pressable>
       );
     });
-  }, [lyrics, current, onSeek]);
+  }, [lyrics, current, onSeek, colors, styles]);
 
   if (lyrics === undefined) return <View style={styles.root} />;
   if (lyrics === null) {
@@ -99,7 +101,7 @@ export function LyricsView({ track, positionMs, onSeek }: { track: Track; positi
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, alignSelf: 'stretch' },
   center: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.xl },
   hint: { color: colors.secondaryLabel, textAlign: 'center' },
@@ -107,4 +109,4 @@ const styles = StyleSheet.create({
   line: { fontWeight: '700' },
   plain: { color: colors.label, lineHeight: 26 },
   source: { color: colors.tertiaryLabel, paddingTop: spacing.xl },
-});
+}));

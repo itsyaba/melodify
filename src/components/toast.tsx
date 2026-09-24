@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, spacing, type } from '@/theme';
+import { makeStyles, radius, spacing, type } from '@/theme';
 
 interface ToastMessage {
   id: number;
@@ -47,6 +47,7 @@ function subscribe(fn: () => void) {
  * mini player. It sits under a presented modal, since that is a separate native window layer.
  */
 export function ToastHost() {
+  const styles = useStyles();
   const message = useSyncExternalStore(subscribe, () => current, () => current);
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -78,7 +79,7 @@ export function ToastHost() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   // Inverted from the page: label color as the fill, background color as the text.
   toast: {
@@ -93,4 +94,4 @@ const styles = StyleSheet.create({
   },
   text: { flexShrink: 1, color: colors.background },
   action: { color: colors.tint },
-});
+}));

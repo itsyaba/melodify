@@ -4,7 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import type { Track } from '@/db/types';
 import { useSelection } from '@/hooks/use-selection';
 import { queue, useCurrentTrack } from '@/player/queue-store';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 import type { MenuItem } from './menus';
 import { useSelectionHeader } from './selection-header';
 import { useTrackActions } from './track-actions';
@@ -40,6 +40,7 @@ interface Props {
  * buttons belong to this list, so a screen hands its own through `onMenu`.
  */
 export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, menuExtra, batchExtra, onMenu }: Props) {
+  const colors = useTheme();
   const selection = useSelection(tracks);
   const actions = useTrackActions();
   const current = useCurrentTrack();

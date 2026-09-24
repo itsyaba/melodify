@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { scanLibrary } from '@/scan/scanner';
-import { colors, radius, spacing, type } from '@/theme';
+import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
 
 export function ScanScreen() {
+  const styles = useStyles();
+  const colors = useTheme();
   const db = useSQLiteContext();
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const running = progress != null && progress.phase !== 'done' && progress.phase !== 'error';
@@ -42,6 +44,8 @@ export function ScanScreen() {
 }
 
 function Line({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
+  const colors = useTheme();
   return (
     <View style={styles.line}>
       <Text style={[type.body, { color: colors.secondaryLabel }]}>{label}</Text>
@@ -50,10 +54,10 @@ function Line({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background, padding: spacing.xl, gap: spacing.xl },
   button: { backgroundColor: colors.tint, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center' },
   buttonText: { color: colors.onTint },
   stats: { gap: spacing.sm },
   line: { flexDirection: 'row', justifyContent: 'space-between' },
-});
+}));

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { SFSymbol } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Artwork } from '@/components/artwork';
+import { Artwork, artUri } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { LyricsView } from '@/components/lyrics-view';
@@ -17,7 +17,8 @@ import { cycleRepeat } from '@/player/queue-ops';
 import { queue, useQueue, type RepeatMode } from '@/player/queue-store';
 import { sleepTimer, useSleepTimer, type SleepTimer } from '@/player/sleep-timer';
 import { usePrefs } from '@/prefs';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
+import { setKeepAwake } from '@/utils/device';
 import { libraryEvents } from '@/utils/events';
 import { formatDuration } from '@/utils/format';
 
@@ -29,6 +30,10 @@ function skipIcon(direction: 'back' | 'forward', seconds: number): SFSymbol {
   const base = direction === 'back' ? 'gobackward' : 'goforward';
   return (NUMBERED.has(seconds) ? `${base}.${seconds}` : base) as SFSymbol;
 }
+
+/** Songs listed under Up next in the compact layout. */
+const UP_NEXT = 6;
+const COMPACT_ART = 96;
 
 /** While previous or next is held, the position moves this far every tick. */
 const HOLD_STEP_MS = 5000;
@@ -43,7 +48,10 @@ function sleepLabel(timer: SleepTimer, remainingMs: number): string | null {
 }
 
 export function PlayerScreen() {
-  const { width } = useWindowDimensions();
+  const styles = useStyles();
+  const colors = useTheme();
+  const { width, height } = useWindowDimensions();
+  const landscape = width > height;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const db = useSQLiteContext();
@@ -60,10 +68,18 @@ export function PlayerScreen() {
   const latest = useRef({ positionMs, durationMs });
   latest.current = { positionMs, durationMs };
   const track = tracks[currentIndex];
+  const layout = prefs.playerLayout;
 
   useEffect(() => () => {
     if (holdTimer.current) clearInterval(holdTimer.current);
   }, []);
+
+  // Only while the player is open, and only if asked for: it costs battery.
+  useEffect(() => {
+    if (!prefs.keepAwake) return;
+    setKeepAwake(true);
+    return () => setKeepAwake(false);
+  }, [prefs.keepAwake]);
 
   if (!track) {
     return <EmptyState title="Nothing playing" body="Pick a song from the library to start a queue." />;
@@ -165,153 +181,257 @@ export function PlayerScreen() {
   };
 
   const sleeping = sleepLabel(timer, remainingMs);
+  const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
+
+  const artArea = (size: number) =>
+    showLyrics ? (
+      <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
+    ) : (
+      <Pressable
+        onPress={(e) => onArtTap(e.nativeEvent.locationX)}
+        accessibilityRole="image"
+        accessibilityLabel="Artwork"
+        accessibilityHint={`Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
+      >
+        <Artwork artKey={track.art_key} size={size} rounded={layout === 'edge' && !landscape ? 'none' : 'lg'} />
+      </Pressable>
+    );
+  const meta = (align: 'center' | 'left') => (
+    <View style={styles.meta}>
+      <Text numberOfLines={2} style={[type.title, { color: colors.label, textAlign: align }]}>
+        {track.title}
+      </Text>
+      {subtitle ? (
+        <Text numberOfLines={1} style={[type.subhead, styles.subtitle, { textAlign: align }]}>{subtitle}</Text>
+      ) : null}
+      {sleeping ? <Text style={[type.caption, { color: colors.tint, textAlign: align }]}>{sleeping}</Text> : null}
+    </View>
+  );
+  const seekRow = (
+    <View style={styles.seek}>
+      <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} />
+      <View style={styles.times}>
+        <Text style={[type.caption, styles.time]}>{formatDuration(shown)}</Text>
+        <Text style={[type.caption, styles.time]}>
+          {durationMs > 0 ? `-${formatDuration(durationMs - shown)}` : '--:--'}
+        </Text>
+      </View>
+    </View>
+  );
+  const controls = (
+    <View style={styles.controls}>
+      <IconButton
+        name={skipIcon('back', prefs.skipSeconds)}
+        size={26}
+        onPress={() => skip(-skipMs)}
+        accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
+      />
+      <IconButton
+        name="backward.fill"
+        size={30}
+        onPress={previous}
+        onLongPress={() => startHold(-1)}
+        onPressOut={endHold}
+        accessibilityLabel="Previous track"
+        accessibilityHint="Hold to rewind"
+      />
+      <IconButton
+        name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
+        size={64}
+        color={colors.tint}
+        onPress={toggle}
+        accessibilityLabel={playing ? 'Pause' : 'Play'}
+      />
+      <IconButton
+        name="forward.fill"
+        size={30}
+        onPress={next}
+        onLongPress={() => startHold(1)}
+        onPressOut={endHold}
+        accessibilityLabel="Next track"
+        accessibilityHint="Hold to fast-forward"
+      />
+      <IconButton
+        name={skipIcon('forward', prefs.skipSeconds)}
+        size={26}
+        onPress={() => skip(skipMs)}
+        accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
+      />
+    </View>
+  );
+  const secondary = (
+    <View style={styles.secondary}>
+      <IconButton
+        name={repeat === 'one' ? 'repeat.1' : 'repeat'}
+        size={20}
+        color={repeat === 'off' ? colors.secondaryLabel : colors.tint}
+        onPress={() => {
+          const nextMode = cycleRepeat(repeat);
+          setRepeat(nextMode);
+          toast.show(REPEAT_LABEL[nextMode]);
+        }}
+        accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
+      />
+      <IconButton
+        name="shuffle"
+        size={20}
+        color={colors.secondaryLabel}
+        disabled={tracks.length < 2}
+        onPress={() => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }))}
+        accessibilityLabel="Shuffle the queue"
+      />
+      <IconButton
+        name={showLyrics ? 'quote.bubble.fill' : 'quote.bubble'}
+        size={20}
+        color={showLyrics ? colors.tint : colors.secondaryLabel}
+        onPress={() => setShowLyrics((v) => !v)}
+        accessibilityLabel={showLyrics ? 'Show artwork' : 'Show lyrics'}
+      />
+      <IconButton
+        name={timer.mode === 'off' ? 'moon.zzz' : 'moon.zzz.fill'}
+        size={20}
+        color={timer.mode === 'off' ? colors.secondaryLabel : colors.tint}
+        onPress={sleepMenu}
+        accessibilityLabel={sleeping ?? 'Sleep timer'}
+      />
+      <IconButton
+        name="bookmark"
+        size={20}
+        color={colors.secondaryLabel}
+        onPress={() => void bookmarkHere()}
+        onLongPress={() => void bookmarksMenu()}
+        accessibilityLabel="Bookmark this spot"
+        accessibilityHint="Hold for this song’s bookmarks"
+      />
+      <IconButton
+        name={track.favorite ? 'heart.fill' : 'heart'}
+        size={20}
+        color={track.favorite ? colors.tint : colors.secondaryLabel}
+        onPress={() => void queue.setFavorite(track, !track.favorite)}
+        accessibilityLabel={track.favorite ? 'Remove from favorites' : 'Add to favorites'}
+      />
+      <IconButton
+        name="ellipsis.circle"
+        size={20}
+        color={colors.secondaryLabel}
+        onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })}
+        accessibilityLabel="More for this song"
+      />
+    </View>
+  );
+
+  const background =
+    prefs.blurBackground && track.art_key ? (
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Image source={{ uri: artUri(track.art_key)! }} blurRadius={60} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <View style={[StyleSheet.absoluteFill, styles.scrim]} />
+      </View>
+    ) : null;
+
+  let body: ReactElement;
+  if (landscape) {
+    // Side by side: the artwork as tall as the screen allows, everything else beside it.
+    const size = Math.min(height - insets.top - insets.bottom - spacing.xl * 2, width * 0.45);
+    body = (
+      <View style={[styles.landscape, { paddingLeft: insets.left + spacing.xl, paddingRight: insets.right + spacing.xl }]}>
+        <View style={[styles.artWrap, { flex: 0, width: size }]}>{artArea(size)}</View>
+        <View style={styles.side}>
+          {meta('left')}
+          {seekRow}
+          {controls}
+          {secondary}
+        </View>
+      </View>
+    );
+  } else if (layout === 'compact') {
+    // Smaller artwork beside the title, and the next few songs where the artwork was.
+    body = (
+      <View style={styles.padded}>
+        <View style={styles.compactHead}>
+          {showLyrics ? null : artArea(COMPACT_ART)}
+          <View style={{ flex: 1 }}>{meta('left')}</View>
+        </View>
+        <View style={styles.upNext}>
+          {showLyrics ? (
+            <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
+          ) : (
+            <>
+              <Text style={[type.footnote, styles.upNextTitle]}>{upNext.length ? 'UP NEXT' : 'END OF THE QUEUE'}</Text>
+              {upNext.map((t, i) => (
+                <Pressable
+                  key={`${t.id}:${i}`}
+                  onPress={() => void queue.playAt(currentIndex + 1 + i)}
+                  style={({ pressed }) => [styles.upNextRow, pressed && { opacity: 0.5 }]}
+                  accessibilityRole="button"
+                >
+                  <Artwork artKey={t.art_key} size={36} />
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={[type.subhead, { color: colors.label }]}>{t.title}</Text>
+                    <Text numberOfLines={1} style={[type.caption, { color: colors.secondaryLabel }]}>
+                      {t.artist ?? t.folder}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </>
+          )}
+        </View>
+        {seekRow}
+        {controls}
+        {secondary}
+      </View>
+    );
+  } else if (layout === 'edge') {
+    // Artwork edge to edge at the top, square, with the rest padded below it.
+    body = (
+      <>
+        {/* Full width where the screen is tall enough, otherwise as large as fits. */}
+        <View style={styles.edgeArt}>{artArea(Math.min(width, Math.round(height * 0.5)))}</View>
+        <View style={[styles.padded, { flex: 0 }]}>
+          {meta('center')}
+          {seekRow}
+          {controls}
+          {secondary}
+        </View>
+      </>
+    );
+  } else {
+    body = (
+      <View style={styles.padded}>
+        <View style={styles.artWrap}>{artArea(art)}</View>
+        {meta('center')}
+        {seekRow}
+        {controls}
+        {secondary}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>
-      <View style={styles.artWrap}>
-        {showLyrics ? (
-          <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
-        ) : (
-          <Pressable
-            onPress={(e) => onArtTap(e.nativeEvent.locationX)}
-            accessibilityRole="image"
-            accessibilityLabel="Artwork"
-            accessibilityHint={`Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
-          >
-            <Artwork artKey={track.art_key} size={art} rounded="lg" />
-          </Pressable>
-        )}
-      </View>
-
-      <View style={styles.meta}>
-        <Text numberOfLines={2} style={[type.title, { color: colors.label, textAlign: 'center' }]}>
-          {track.title}
-        </Text>
-        {subtitle ? (
-          <Text numberOfLines={1} style={[type.subhead, styles.subtitle]}>{subtitle}</Text>
-        ) : null}
-        {sleeping ? <Text style={[type.caption, { color: colors.tint, textAlign: 'center' }]}>{sleeping}</Text> : null}
-      </View>
-
-      <View style={styles.seek}>
-        <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} />
-        <View style={styles.times}>
-          <Text style={[type.caption, styles.time]}>{formatDuration(shown)}</Text>
-          <Text style={[type.caption, styles.time]}>
-            {durationMs > 0 ? `-${formatDuration(durationMs - shown)}` : '--:--'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.controls}>
-        <IconButton
-          name={skipIcon('back', prefs.skipSeconds)}
-          size={26}
-          onPress={() => skip(-skipMs)}
-          accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
-        />
-        <IconButton
-          name="backward.fill"
-          size={30}
-          onPress={previous}
-          onLongPress={() => startHold(-1)}
-          onPressOut={endHold}
-          accessibilityLabel="Previous track"
-          accessibilityHint="Hold to rewind"
-        />
-        <IconButton
-          name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
-          size={64}
-          color={colors.tint}
-          onPress={toggle}
-          accessibilityLabel={playing ? 'Pause' : 'Play'}
-        />
-        <IconButton
-          name="forward.fill"
-          size={30}
-          onPress={next}
-          onLongPress={() => startHold(1)}
-          onPressOut={endHold}
-          accessibilityLabel="Next track"
-          accessibilityHint="Hold to fast-forward"
-        />
-        <IconButton
-          name={skipIcon('forward', prefs.skipSeconds)}
-          size={26}
-          onPress={() => skip(skipMs)}
-          accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
-        />
-      </View>
-
-      <View style={styles.secondary}>
-        <IconButton
-          name={repeat === 'one' ? 'repeat.1' : 'repeat'}
-          size={20}
-          color={repeat === 'off' ? colors.secondaryLabel : colors.tint}
-          onPress={() => {
-            const nextMode = cycleRepeat(repeat);
-            setRepeat(nextMode);
-            toast.show(REPEAT_LABEL[nextMode]);
-          }}
-          accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
-        />
-        <IconButton
-          name="shuffle"
-          size={20}
-          color={colors.secondaryLabel}
-          disabled={tracks.length < 2}
-          onPress={() => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }))}
-          accessibilityLabel="Shuffle the queue"
-        />
-        <IconButton
-          name={showLyrics ? 'quote.bubble.fill' : 'quote.bubble'}
-          size={20}
-          color={showLyrics ? colors.tint : colors.secondaryLabel}
-          onPress={() => setShowLyrics((v) => !v)}
-          accessibilityLabel={showLyrics ? 'Show artwork' : 'Show lyrics'}
-        />
-        <IconButton
-          name={timer.mode === 'off' ? 'moon.zzz' : 'moon.zzz.fill'}
-          size={20}
-          color={timer.mode === 'off' ? colors.secondaryLabel : colors.tint}
-          onPress={sleepMenu}
-          accessibilityLabel={sleeping ?? 'Sleep timer'}
-        />
-        <IconButton
-          name="bookmark"
-          size={20}
-          color={colors.secondaryLabel}
-          onPress={() => void bookmarkHere()}
-          onLongPress={() => void bookmarksMenu()}
-          accessibilityLabel="Bookmark this spot"
-          accessibilityHint="Hold for this song’s bookmarks"
-        />
-        <IconButton
-          name={track.favorite ? 'heart.fill' : 'heart'}
-          size={20}
-          color={track.favorite ? colors.tint : colors.secondaryLabel}
-          onPress={() => void queue.setFavorite(track, !track.favorite)}
-          accessibilityLabel={track.favorite ? 'Remove from favorites' : 'Add to favorites'}
-        />
-        <IconButton
-          name="ellipsis.circle"
-          size={20}
-          color={colors.secondaryLabel}
-          onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })}
-          accessibilityLabel="More for this song"
-        />
-      </View>
+      {background}
+      {body}
       {/* The app-wide toast sits under this modal, so the player shows its own. */}
       <ToastHost />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.xl, gap: spacing.lg },
+const useStyles = makeStyles((colors) => ({
+  root: { flex: 1, backgroundColor: colors.background },
+  padded: { flex: 1, paddingHorizontal: spacing.xl, gap: spacing.lg },
   artWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
+  edgeArt: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0, marginBottom: spacing.lg },
+  landscape: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xl },
+  side: { flex: 1, gap: spacing.md, justifyContent: 'center' },
+  compactHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingTop: spacing.lg },
+  upNext: { flex: 1, minHeight: 0, gap: spacing.sm },
+  upNextTitle: { color: colors.secondaryLabel, paddingTop: spacing.sm },
+  upNextRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 2 },
+  // Keeps text legible over the blurred artwork in both light and dark.
+  scrim: { backgroundColor: colors.background, opacity: 0.55 },
   meta: { gap: spacing.xs },
-  subtitle: { color: colors.secondaryLabel, textAlign: 'center' },
+  subtitle: { color: colors.secondaryLabel },
   seek: { gap: 2 },
   times: { flexDirection: 'row', justifyContent: 'space-between' },
   time: { color: colors.secondaryLabel },
@@ -321,4 +441,4 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm },
-});
+}));

@@ -7,6 +7,7 @@ import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
 import { loadPrefs } from '@/prefs';
+import { ACCENTS, currentTheme, useTheme } from '@/theme';
 
 /** Migrations first: the restore reads tables they create, and preferences before either. */
 async function initDatabase(db: SQLiteDatabase) {
@@ -15,12 +16,34 @@ async function initDatabase(db: SQLiteDatabase) {
   await restoreQueue(db);
 }
 
-export default function RootLayout() {
+/**
+ * React Navigation's theme, following the app's. Its colors must be plain strings (parts of it
+ * do arithmetic on them), so the accent goes in as hex rather than as the dynamic system color.
+ */
+function useNavigationTheme() {
   const scheme = useColorScheme();
+  useTheme(); // Re-render when the theme or accent changes.
+  const { theme, accent } = currentTheme();
+  const dark = scheme === 'dark';
+  const base = dark ? DarkTheme : DefaultTheme;
+  const surface = dark && theme === 'black' ? '#000000' : dark && theme === 'dark' ? '#1c1c1e' : null;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: ACCENTS[accent].hex,
+      background: surface ?? base.colors.background,
+      card: surface ?? base.colors.card,
+    },
+  };
+}
+
+export default function RootLayout() {
+  const navigationTheme = useNavigationTheme();
   // A Stack above the tabs, so the player can present as a sheet over the tab bar. The tabs
   // themselves live in (tabs) and render their own header, hence headerShown: false here.
   return (
-    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <Suspense fallback={<Loading />}>
         <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase} useSuspense>
           <Stack>

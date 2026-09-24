@@ -17,7 +17,7 @@ import { TrackRow } from '@/components/track-row';
 import type { Track } from '@/db/types';
 import { useSelection } from '@/hooks/use-selection';
 import { queue, queueSnapshot, useQueue, useQueues, useUndoLabel, type QueueInfo, type RepeatMode } from '@/player/queue-store';
-import { artSize, colors, spacing, type } from '@/theme';
+import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
 const REPEAT_ICON = { off: 'repeat', all: 'repeat', one: 'repeat.1' } as const;
@@ -33,6 +33,8 @@ function undoToast(text: string) {
  * what switches to it.
  */
 export function QueueScreen() {
+  const styles = useStyles();
+  const colors = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
   // Deliberately not useQueue(): that changes four times a second while playing, and this
@@ -295,6 +297,8 @@ export function QueueScreen() {
  * accessory, too.
  */
 function NowPlaying() {
+  const styles = useStyles();
+  const colors = useTheme();
   const router = useRouter();
   const { tracks, currentIndex, state, positionMs, durationMs } = useQueue();
   const current = tracks[currentIndex];
@@ -317,7 +321,7 @@ function NowPlaying() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
   now: {
     flexDirection: 'row',
@@ -339,4 +343,4 @@ const styles = StyleSheet.create({
   current: { backgroundColor: colors.secondaryBackground },
   trailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   check: { width: 28, alignItems: 'flex-end' },
-});
+}));

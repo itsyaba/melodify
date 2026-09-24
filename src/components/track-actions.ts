@@ -6,6 +6,7 @@ import type { GroupKind } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { queue, queueSnapshot } from '@/player/queue-store';
 import { deleteTrackFiles, setFavorites, setTracksHidden, shareTrack } from '@/player/track-edits';
+import { getPrefs } from '@/prefs';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
 import { confirm, promptText, showMenu, type MenuItem } from './menus';
@@ -161,7 +162,8 @@ export function useTrackActions() {
             },
             {
               label: 'Go to folder',
-              hidden: !track.folder,
+              // A switched-off tab cannot be navigated to at all.
+              hidden: !track.folder || !getPrefs().tabs.includes('folders'),
               onPress: () => go({ pathname: '/folder/[...path]', params: { path: track.folder.split('/') } }),
             },
             { label: 'Select', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
