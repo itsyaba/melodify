@@ -48,14 +48,14 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 
 ### Phase 1. Play music
 
-Module v1 is written and compiles, but nothing here is checked off until it has been exercised on the
-phone; see "Definition of done per phase" below.
-
-- [ ] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config
-- [ ] Now Playing info + remote commands (lock screen, Control Center, headset, Bluetooth)
+- [x] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config
+      (2026-09-23: plays on device under LiveContainer, iOS 26.6.1; pause, seek and next all exercised)
+- [x] Now Playing info + remote commands (lock screen, Control Center, headset, Bluetooth)
+      (2026-09-23: lock screen shows the track and its buttons drive playback. Bluetooth and headset
+      use the same MPRemoteCommandCenter handlers but have not been tried on real hardware)
 - [ ] Interruptions, pause on unplug
-- [ ] Player screen: art, title, seek bar, controls
-- [ ] Mini player above tab bar
+- [x] Player screen: art, title, seek bar, controls (2026-09-23)
+- [x] Mini player above tab bar (2026-09-23, in the iOS 26 tab bar bottom accessory)
 - [ ] Tag reading via AVAsset in the module, art extraction and cache
 - [ ] Resume last queue and position on launch
 

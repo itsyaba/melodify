@@ -115,7 +115,7 @@ to double-check against the current Musicolet release.
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
 | Notification controls | Play, pause, next, previous, favorite from notification | iOS≈ Control Center / lock screen | wip |
-| Lock screen controls and art | Now Playing info with art, seek | RN+ | wip |
+| Lock screen controls and art | Now Playing info with art, seek | RN+ | done |
 | Headset button actions | Single, double, triple click and long press mapped to actions | RN+ (limited on iOS) | wip |
 | Bluetooth controls | AVRCP play/pause/next/prev, track info on car / headphones | RN+ | wip |
 | Pause on unplug / resume on plug | Headphone jack and Bluetooth disconnect handling | RN+ | todo |
