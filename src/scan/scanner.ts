@@ -2,6 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { ART_EXTENSIONS, ART_FILENAMES, AUDIO_EXTENSIONS, LYRICS_EXTENSION } from '@/constants';
 import { BUSY_TIMEOUT } from '@/db';
+import { isExcluded } from '@/db/folders';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
 import { mergeTags, type GuessedColumns } from './merge-tags';
 import { guessTags } from './parse-filename';
@@ -230,7 +231,11 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
     // On the main connection, not the transaction's: that one is opened fresh without
     // `foreign_keys = ON`, which cannot be switched on inside a transaction, so deleting there
     // would skip the cascade and leave the file behind in queues and playlists.
-    const gone = existing.filter((r) => !seenPaths.has(r.path)).map((r) => r.id);
+    // Rows under an excluded folder were not walked, but they are kept: excluding hides, and
+    // including the folder again should bring the songs back as they were.
+    const gone = existing
+      .filter((r) => !seenPaths.has(r.path) && !isExcluded(dirname(r.path), excluded))
+      .map((r) => r.id);
     if (gone.length > 0) {
       await db.runAsync('DELETE FROM tracks WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify(gone));
       progress.removed = gone.length;

@@ -14,6 +14,8 @@ export default function LibraryLayout({ segment }: { segment: string }) {
       <Stack.Screen name="album/[id]" options={{ headerLargeTitleEnabled: false, title: '' }} />
       <Stack.Screen name="group/[kind]/[value]" options={{ headerLargeTitleEnabled: false }} />
       <Stack.Screen name="playlist/[id]" options={{ headerLargeTitleEnabled: false, title: '' }} />
+      <Stack.Screen name="auto/[kind]" options={{ headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="bookmarks" options={{ headerLargeTitleEnabled: false, title: 'Bookmarks' }} />
       {group === 'search' ? null : null}
     </Stack>
   );

@@ -17,7 +17,10 @@ import {
 } from '@/db/queues';
 import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
+import { recordPlay, setFavorite, setResumeMs } from '@/db/tracks';
 import type { Track } from '@/db/types';
+import { getPrefs } from '@/prefs';
+import { libraryEvents } from '@/utils/events';
 import { artUri } from '@/components/artwork';
 import { engine, type PlaybackState } from './index';
 import * as ops from './queue-ops';
@@ -105,6 +108,29 @@ let db: SQLiteDatabase | null = null;
 /** Position last written, so the 4 Hz position tick only writes every few seconds. */
 let savedMs = 0;
 const SAVE_EVERY_MS = 5000;
+/** Whether the current load has been counted as a play yet. */
+let counted = false;
+/**
+ * Latest resume position per track id, newer than the `resume_ms` on the in-memory rows. Kept
+ * here rather than patched into the rows: that would give the playing track a new identity every
+ * few seconds and re-render everything that watches it.
+ */
+const resumeCache = new Map<number, number | null>();
+/** Near the end, a long track counts as finished and starts over next time. */
+const RESUME_END_SLACK_MS = 15_000;
+
+/** A play is counted at half the track or four minutes in, whichever comes first. */
+function playThreshold(durationMs: number): number {
+  if (durationMs <= 0) return 30_000;
+  return Math.min(durationMs / 2, 4 * 60_000);
+}
+
+/** Tracks long enough to remember their own position, per the resume preference. */
+function remembersPosition(track: Track | undefined, durationMs = track?.duration_ms ?? 0): boolean {
+  const min = getPrefs().resumeMinMs;
+  return !!track && min > 0 && durationMs >= min;
+}
+
 /**
  * Loads in flight. A position tick from the outgoing track can still arrive during one, and it
  * must not be recorded as the incoming track's position. A count rather than a flag, since a
@@ -144,6 +170,16 @@ function savePosition(ms = resumeMs()): void {
   if (q.currentIndex < 0) return;
   savedMs = ms;
   persist((d) => saveQueuePosition(d, q.id, q.currentIndex, ms));
+  const track = q.tracks[q.currentIndex];
+  const duration = state.durationMs || track?.duration_ms || 0;
+  if (track && remembersPosition(track, duration)) {
+    const resume = ms <= 0 || ms >= duration - RESUME_END_SLACK_MS ? null : Math.round(ms);
+    const known = resumeCache.has(track.id) ? resumeCache.get(track.id) : track.resume_ms;
+    if (resume !== known) {
+      resumeCache.set(track.id, resume);
+      persist((d) => setResumeMs(d, track.id, resume));
+    }
+  }
 }
 
 function saveInactivePosition(q: QueueInfo): void {
@@ -161,7 +197,9 @@ async function loadIndex(index: number, opts: { autoplay?: boolean; startMs?: nu
   const q = active();
   const track = q.tracks[index];
   if (!track) return;
-  const startMs = opts.startMs ?? track.resume_ms ?? 0;
+  const remembered = resumeCache.has(track.id) ? resumeCache.get(track.id) : track.resume_ms;
+  const startMs = opts.startMs ?? (remembersPosition(track) ? remembered ?? 0 : 0);
+  counted = false;
   updateQueue(q.id, { currentIndex: index });
   set({ positionMs: startMs, durationMs: track.duration_ms ?? 0 });
   savePosition(startMs);
@@ -222,7 +260,7 @@ async function edit(
     set({ positionMs: 0, durationMs: 0 });
   } else if (reload) {
     // Removing the playing track carries on with the next one; filling an empty queue only cues it.
-    await loadIndex(after.currentIndex, { autoplay: after.currentRemoved === true && isPlaying(), startMs: 0 });
+    await loadIndex(after.currentIndex, { autoplay: after.currentRemoved === true && isPlaying() });
   } else {
     savePosition();
     preloadNext();
@@ -251,6 +289,21 @@ function nextQueueName(): string {
   return `Queue ${n}`;
 }
 
+/**
+ * Applies a change to every in-memory copy of these tracks, in every queue: a favorite toggled,
+ * a resume position saved. The rows themselves are the caller's to update.
+ */
+export function patchTracks(ids: number[], patch: Partial<Track>): void {
+  const wanted = new Set(ids);
+  let touched = false;
+  const queues = state.queues.map((q) => {
+    if (!q.tracks.some((t) => wanted.has(t.id))) return q;
+    touched = true;
+    return { ...q, tracks: q.tracks.map((t) => (wanted.has(t.id) ? { ...t, ...patch } : t)) };
+  });
+  if (touched) set({ queues });
+}
+
 export const queue = {
   /** Replace the active queue with `tracks` and start at `index`. Undoable. */
   async replace(tracks: Track[], index: number) {
@@ -276,7 +329,7 @@ export const queue = {
       if (!getQueue(queueId)) return;
       activate(queueId);
     }
-    await loadIndex(index, { startMs: 0 });
+    await loadIndex(index);
   },
   /** `manual` is false only for a track that ended by itself, which is when repeat-one applies. */
   async next(manual = true) {
@@ -334,6 +387,48 @@ export const queue = {
       const r = ops.removeDuplicates(l);
       return r.removed === 0 ? l : r;
     });
+  },
+  /**
+   * Drops tracks from every queue, as when their files are deleted. Not undoable: the rows are
+   * gone, so there would be nothing to put back.
+   */
+  async forgetTracks(ids: number[]) {
+    const gone = new Set(ids);
+    for (let i = undoStack.length - 1; i >= 0; i -= 1) {
+      if (undoStack[i].tracks.some((t) => gone.has(t.id))) undoStack.splice(i, 1);
+    }
+    set({ undoLabel: undoStack[undoStack.length - 1]?.label ?? null });
+    for (const q of state.queues) {
+      const indexes = q.tracks.flatMap((t, i) => (gone.has(t.id) ? [i] : []));
+      if (indexes.length === 0) continue;
+      await edit(q.id, 'Remove', (l) => ops.removeTracks(l, indexes));
+      undoStack.pop();
+    }
+    set({ undoLabel: undoStack[undoStack.length - 1]?.label ?? null });
+  },
+  /**
+   * Plays `track` from `ms`, as a bookmark does: a seek if it is already the current track,
+   * otherwise it goes in right after the current one and starts there.
+   */
+  async jumpTo(track: Track, ms: number) {
+    const q = active();
+    if (q.tracks[q.currentIndex]?.id === track.id) {
+      await engine.seek(ms);
+      if (!isPlaying()) await engine.play();
+      return;
+    }
+    const at = q.currentIndex + 1;
+    await edit(q.id, 'Play bookmark', (l) => ops.insertTracks(l, at, [track]));
+    await loadIndex(Math.max(0, active().tracks.indexOf(track)), { startMs: ms });
+  },
+  /** Hearts or un-hearts a track, wherever it is. The lock screen's like command lands here. */
+  async setFavorite(track: Track, favorite: boolean) {
+    patchTracks([track.id], { favorite: favorite ? 1 : 0 });
+    const target = db;
+    if (target) {
+      await serial(() => setFavorite(target, track.id, favorite));
+      libraryEvents.emit('changed', undefined);
+    }
   },
   /** Reverts the most recent edit, on whichever queue it was made. */
   async undo() {
@@ -488,6 +583,15 @@ engine.on('state', (s) => {
 engine.on('position', (p) => {
   if (loading > 0) return;
   set({ positionMs: p.positionMs, durationMs: p.durationMs });
+  if (!counted && state.state === 'playing' && p.positionMs >= playThreshold(p.durationMs)) {
+    counted = true;
+    // Only the row: the in-memory copy's count is not shown anywhere that reads it.
+    const track = state.tracks[state.currentIndex];
+    if (track) {
+      const at = Date.now();
+      persist((d) => recordPlay(d, track.id, at));
+    }
+  }
   // Also catches a seek, which moves the position by more than this in one tick.
   if (Math.abs(p.positionMs - savedMs) >= SAVE_EVERY_MS) savePosition(p.positionMs);
 });
@@ -495,7 +599,26 @@ engine.on('position', (p) => {
 AppState.addEventListener('change', (next) => {
   if (next !== 'active') savePosition();
 });
-engine.on('ended', () => run(queue.next(false)));
+/**
+ * Consulted when a track ends by itself, before the queue moves on. The sleep timer uses it to
+ * stop after a number of songs; 'pause' still advances, but leaves the next track paused.
+ */
+type TrackEndHook = () => 'continue' | 'pause';
+let trackEndHook: TrackEndHook | null = null;
+
+export function setTrackEndHook(hook: TrackEndHook | null): void {
+  trackEndHook = hook;
+}
+
+async function onTrackEnded() {
+  if (trackEndHook?.() !== 'pause') return queue.next(false);
+  const q = active();
+  const i = ops.nextIndex(q.tracks.length, q.currentIndex, q.repeat, true);
+  if (i < 0) await engine.stop();
+  else await loadIndex(i, { autoplay: false });
+}
+
+engine.on('ended', () => run(onTrackEnded()));
 engine.on('remote', (cmd) => {
   switch (cmd.type) {
     case 'play': return run(engine.play());
@@ -506,7 +629,10 @@ engine.on('remote', (cmd) => {
     case 'seek': return run(engine.seek(cmd.positionMs));
     case 'skipForward': return run(engine.seek(state.positionMs + cmd.intervalMs));
     case 'skipBackward': return run(engine.seek(Math.max(0, state.positionMs - cmd.intervalMs)));
-    case 'like': return; // Phase 3: toggle favorite
+    case 'like': {
+      const track = state.tracks[state.currentIndex];
+      return track ? run(queue.setFavorite(track, !track.favorite)) : undefined;
+    }
   }
 });
 

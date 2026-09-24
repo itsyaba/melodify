@@ -21,6 +21,7 @@ import {
 import {
   listAlbums,
   listAlbumTracks,
+  listAutoPlaylist,
   listGroups,
   listGroupTracks,
   listTracks,
@@ -32,6 +33,7 @@ import {
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { useStoredChoice } from '@/hooks/use-stored-choice';
+import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
 import { queue } from '@/player/queue-store';
 import { artSize, colors } from '@/theme';
 import { libraryEvents } from '@/utils/events';
@@ -264,6 +266,20 @@ function Playlists({ chips }: ListProps) {
       ListHeaderComponent={
         <>
           {chips}
+          {AUTO_PLAYLISTS.map((p) => (
+            <ListRow
+              key={p.kind}
+              title={p.title}
+              leading={<IconTile name={p.icon} />}
+              onPress={() => router.push({ pathname: '/auto/[kind]', params: { kind: p.kind } })}
+              onLongPress={() => actions.collectionMenu(p.title, (d) => listAutoPlaylist(d, p.kind))}
+            />
+          ))}
+          <ListRow
+            title="Bookmarks"
+            leading={<IconTile name="bookmark.fill" />}
+            onPress={() => router.push('/bookmarks')}
+          />
           <ListRow
             title="New playlist"
             tinted

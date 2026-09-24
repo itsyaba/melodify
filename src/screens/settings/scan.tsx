@@ -19,7 +19,7 @@ export function ScanScreen() {
         onPress={() => void scanLibrary(db)}
         style={({ pressed }) => [styles.button, (pressed || running) && { opacity: 0.6 }]}
       >
-        {running ? <ActivityIndicator color="#fff" /> : <Text style={[type.headline, styles.buttonText]}>Scan now</Text>}
+        {running ? <ActivityIndicator color={colors.onTint} /> : <Text style={[type.headline, styles.buttonText]}>Scan now</Text>}
       </Pressable>
       {progress ? (
         <View style={styles.stats}>
@@ -53,7 +53,7 @@ function Line({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background, padding: spacing.xl, gap: spacing.xl },
   button: { backgroundColor: colors.tint, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center' },
-  buttonText: { color: '#fff' },
+  buttonText: { color: colors.onTint },
   stats: { gap: spacing.sm },
   line: { flexDirection: 'row', justifyContent: 'space-between' },
 });

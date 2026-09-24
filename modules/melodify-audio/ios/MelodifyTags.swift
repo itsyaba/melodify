@@ -45,6 +45,38 @@ internal enum MelodifyTags {
     return results
   }
 
+  /**
+   Lyrics embedded in the file, or nil. `AVAsset.lyrics` covers ID3 USLT and the iTunes lyrics
+   atom; Vorbis comments in FLAC are only reachable by key, so those are looked up after it.
+   Read on demand when the player shows lyrics, not during the scan: most files have none, and
+   the text can be long.
+   */
+  static func lyrics(uri: String) async -> String? {
+    let url = fileURL(from: uri)
+    guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+    let asset = AVURLAsset(url: url)
+    if let text = try? await asset.load(.lyrics), let cleaned = nonEmpty(text) {
+      return cleaned
+    }
+    guard let metadata = try? await asset.load(.metadata) else { return nil }
+    for item in metadata {
+      let byIdentifier = item.identifier == .id3MetadataUnsynchronizedLyric || item.identifier == .iTunesMetadataLyrics
+      let key = (item.key as? String)?.uppercased()
+      let byKey = key == "LYRICS" || key == "UNSYNCEDLYRICS" || key == "UNSYNCED LYRICS"
+      guard byIdentifier || byKey else { continue }
+      if let value = try? await item.load(.stringValue), let cleaned = nonEmpty(value) {
+        return cleaned
+      }
+    }
+    return nil
+  }
+
+  private static func nonEmpty(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+  }
+
   private static func readOne(uri: String, cacheURL: URL) async -> TrackTagsRecord {
     let record = TrackTagsRecord()
     record.uri = uri

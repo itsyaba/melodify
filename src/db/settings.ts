@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { Prefs } from '@/prefs';
 
 /**
  * Key-value settings, stored as JSON in the `settings` table. Every key the app reads is listed
@@ -11,6 +12,8 @@ export interface Settings {
   recentSearches: string[];
   /** Remembered UI choices (sort orders, the last library view), keyed by where they apply. */
   choices: Record<string, string>;
+  /** Stored partial, so a preference added later takes its default. */
+  prefs: Partial<Prefs>;
 }
 
 export const RECENT_SEARCHES = 12;

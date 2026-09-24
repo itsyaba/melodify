@@ -102,15 +102,33 @@ dependency, so the Phase 1 IPA (module 0.4.0) runs it as it is.
       (written: songs, albums, artists, folders and playlists; twelve recent searches)
 
 ### Phase 3. Companion features
+
+Written, and passing typecheck, tests and the bundle export; not yet on the phone. Embedded lyrics
+need module 0.5.0 (one new function, `readLyrics`); everything else is JS and runs on the 0.4.0
+build, where lyrics fall back to `.lrc` files only.
+
 - [ ] Bookmarks and per-track resume position
+      (written: bookmark button in the player, hold it for this song's bookmarks; a Bookmarks list
+      under Playlists. Songs of 10 min or more resume where they were left, adjustable in Settings)
 - [ ] Sleep timer: minutes, after track, after N tracks, fade out
+      (written: moon button in the player; the minutes timer fades over its last 30 s. The songs
+      timer counts natural track ends and leaves the next song cued, paused)
 - [ ] Embedded lyrics and `.lrc` synced lyrics with tap-to-seek
+      (written: lyrics button in the player; `.lrc` first, then embedded USLT / iTunes / Vorbis
+      LYRICS through AVAsset. The line being sung is highlighted and followed; tap one to seek)
 - [ ] Play counts, last played, recently added / most played / recently played auto playlists
+      (written: a play counts at half the song or four minutes in; auto playlists under Playlists)
 - [ ] Favorites
+      (written: heart in the player, in every track menu and batch menu; the lock screen's like
+      command is handled but not yet enabled in the module)
 - [ ] Track details screen
 - [ ] Hide short tracks, exclude folders, hidden tracks
+      (written: excluding a folder hides its songs and skips it in scans, but keeps the rows, so
+      including it again restores play counts and playlist places)
 - [ ] Delete file, share file
 - [ ] Skip-by-N-seconds, seek gestures
+      (written: skip buttons with the interval from Settings, hold previous / next to seek, double-tap
+      either side of the artwork to skip)
 
 ### Phase 4. Appearance
 - [ ] Light / dark / black themes, accent colors, follow system

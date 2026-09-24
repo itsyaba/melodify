@@ -11,3 +11,21 @@ export function formatDuration(ms: number | null | undefined): string {
 export function formatCount(n: number, singular: string, plural = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : plural}`;
 }
+
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || bytes < 0) return '–';
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
+}
+
+export function formatDate(ms: number | null | undefined): string {
+  if (!ms) return '–';
+  return new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}

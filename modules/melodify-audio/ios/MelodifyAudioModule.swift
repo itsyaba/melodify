@@ -38,7 +38,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.4.0" }
+    Constant("version") { "0.5.0" }
 
     Events("state", "position", "ended", "remote", "routeChange", "error")
 
@@ -116,6 +116,11 @@ public class MelodifyAudioModule: Module {
     // because under LiveContainer the guest's Documents is not where FileManager would look.
     AsyncFunction("readTags") { (uris: [String], artCacheDirectory: String) -> [TrackTagsRecord] in
       await MelodifyTags.read(uris: uris, artCacheDirectory: artCacheDirectory)
+    }
+
+    // Embedded lyrics for one file, on demand. Nil when there are none.
+    AsyncFunction("readLyrics") { (uri: String) -> String? in
+      await MelodifyTags.lyrics(uri: uri)
     }
 
     // Synchronous so the Settings diagnostic can read the engine without awaiting. The JS engine

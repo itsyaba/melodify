@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { getPrefs } from '@/prefs';
 import type { AlbumSummary, FolderEntry, GroupSummary, Track } from './types';
 
 export type TrackSort = 'title' | 'artist' | 'album' | 'added' | 'played' | 'plays' | 'duration' | 'year' | 'filename';
@@ -16,10 +17,24 @@ const sortSql: Record<TrackSort, string> = {
   filename: 'path COLLATE NOCASE',
 };
 
-const VISIBLE = 'hidden = 0';
+/**
+ * What the library lists show: not hidden, and not shorter than the hide-short-songs setting.
+ * A track whose duration is still unknown (tags not read yet) is shown. The threshold is a number
+ * this app controls, so it is inlined rather than bound, which keeps every query's parameters
+ * as they were.
+ */
+function visible(): string {
+  const min = Math.max(0, Math.floor(getPrefs().minDurationMs));
+  const long = min > 0 ? ` AND (duration_ms IS NULL OR duration_ms >= ${min})` : '';
+  return `hidden = 0${long} AND ${NOT_EXCLUDED}`;
+}
+
+/** Outside every excluded folder. Cheap: the table is empty or holds a handful of rows. */
+const NOT_EXCLUDED = `NOT EXISTS (SELECT 1 FROM excluded_folders e
+  WHERE tracks.folder = e.folder OR substr(tracks.folder, 1, length(e.folder) + 1) = e.folder || '/')`;
 
 export function listTracks(db: SQLiteDatabase, sort: TrackSort = 'title'): Promise<Track[]> {
-  return db.getAllAsync<Track>(`SELECT * FROM tracks WHERE ${VISIBLE} ORDER BY ${sortSql[sort]}`);
+  return db.getAllAsync<Track>(`SELECT * FROM tracks WHERE ${visible()} ORDER BY ${sortSql[sort]}`);
 }
 
 export function getTrack(db: SQLiteDatabase, id: number): Promise<Track | null> {
@@ -28,7 +43,7 @@ export function getTrack(db: SQLiteDatabase, id: number): Promise<Track | null> 
 
 export function countTracks(db: SQLiteDatabase): Promise<number> {
   return db
-    .getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM tracks WHERE ${VISIBLE}`)
+    .getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM tracks WHERE ${visible()}`)
     .then((r) => r?.n ?? 0);
 }
 
@@ -56,7 +71,7 @@ export function listGroups(db: SQLiteDatabase, kind: GroupKind, sort: GroupSort 
     SELECT CAST(${col} AS TEXT) AS name, COUNT(*) AS track_count, COUNT(DISTINCT album) AS album_count,
            MAX(art_key) AS art_key, SUM(duration_ms) AS duration_ms
     FROM tracks
-    WHERE ${VISIBLE} AND ${col} IS NOT NULL AND ${col} != ''
+    WHERE ${visible()} AND ${col} IS NOT NULL AND ${col} != ''
     GROUP BY ${col}
     ORDER BY ${order}
   `);
@@ -65,7 +80,7 @@ export function listGroups(db: SQLiteDatabase, kind: GroupKind, sort: GroupSort 
 /** Every track in one group, album by album. `value` is the group's `name` as listed. */
 export function listGroupTracks(db: SQLiteDatabase, kind: GroupKind, value: string): Promise<Track[]> {
   return db.getAllAsync<Track>(
-    `SELECT * FROM tracks WHERE ${VISIBLE} AND CAST(${groupColumn[kind]} AS TEXT) = ?
+    `SELECT * FROM tracks WHERE ${visible()} AND CAST(${groupColumn[kind]} AS TEXT) = ?
      ORDER BY album COLLATE NOCASE, disc_no, track_no, title COLLATE NOCASE`,
     value,
   );
@@ -93,7 +108,7 @@ export function listAlbums(
             COUNT(*) AS track_count, MAX(art_key) AS art_key, MIN(id) AS first_track_id,
             MAX(added_at) AS added_at
      FROM tracks
-     WHERE ${VISIBLE} AND album IS NOT NULL ${filter}
+     WHERE ${visible()} AND album IS NOT NULL ${filter}
      GROUP BY album, COALESCE(album_artist, artist)
      ORDER BY ${albumSortSql[sort]}`,
     ...(within ? [within.value] : []),
@@ -103,7 +118,7 @@ export function listAlbums(
 export function listAlbumTracks(db: SQLiteDatabase, album: string, albumArtist: string | null): Promise<Track[]> {
   return db.getAllAsync<Track>(
     `SELECT * FROM tracks
-     WHERE ${VISIBLE} AND album = ? AND COALESCE(album_artist, artist) IS ?
+     WHERE ${visible()} AND album = ? AND COALESCE(album_artist, artist) IS ?
      ORDER BY disc_no, track_no, title COLLATE NOCASE`,
     album,
     albumArtist,
@@ -119,7 +134,7 @@ export async function listFolder(
   const rows = await db.getAllAsync<{ child: string; n: number }>(
     `SELECT substr(folder, ?, instr(substr(folder, ?) || '/', '/') - 1) AS child, COUNT(*) AS n
      FROM tracks
-     WHERE ${VISIBLE} AND folder != ? AND substr(folder, 1, ?) = ?
+     WHERE ${visible()} AND folder != ? AND substr(folder, 1, ?) = ?
      GROUP BY child
      ORDER BY child COLLATE NOCASE`,
     prefix.length + 1,
@@ -132,7 +147,7 @@ export async function listFolder(
     .filter((r) => r.child !== '')
     .map((r) => ({ path: prefix + r.child, name: r.child, track_count: r.n }));
   const tracks = await db.getAllAsync<Track>(
-    `SELECT * FROM tracks WHERE ${VISIBLE} AND folder = ? ORDER BY disc_no, track_no, filename COLLATE NOCASE`,
+    `SELECT * FROM tracks WHERE ${visible()} AND folder = ? ORDER BY disc_no, track_no, filename COLLATE NOCASE`,
     folder,
   );
   return { folders, tracks };
@@ -141,7 +156,7 @@ export async function listFolder(
 export function listFolderTracksRecursive(db: SQLiteDatabase, folder: string): Promise<Track[]> {
   const prefix = folder === '' ? '' : `${folder}/`;
   return db.getAllAsync<Track>(
-    `SELECT * FROM tracks WHERE ${VISIBLE} AND (folder = ? OR substr(folder, 1, ?) = ?)
+    `SELECT * FROM tracks WHERE ${visible()} AND (folder = ? OR substr(folder, 1, ?) = ?)
      ORDER BY folder COLLATE NOCASE, disc_no, track_no, filename COLLATE NOCASE`,
     folder,
     prefix.length,
@@ -158,7 +173,7 @@ export function searchTracks(db: SQLiteDatabase, query: string, limit = 100): Pr
   const q = likePattern(query);
   return db.getAllAsync<Track>(
     `SELECT * FROM tracks
-     WHERE ${VISIBLE} AND (title LIKE ?1 ESCAPE '\\' OR artist LIKE ?1 ESCAPE '\\'
+     WHERE ${visible()} AND (title LIKE ?1 ESCAPE '\\' OR artist LIKE ?1 ESCAPE '\\'
        OR album LIKE ?1 ESCAPE '\\' OR filename LIKE ?1 ESCAPE '\\')
      ORDER BY title COLLATE NOCASE LIMIT ?2`,
     q, limit,
@@ -171,7 +186,7 @@ export function searchAlbums(db: SQLiteDatabase, query: string, limit = 20): Pro
             COUNT(*) AS track_count, MAX(art_key) AS art_key, MIN(id) AS first_track_id,
             MAX(added_at) AS added_at
      FROM tracks
-     WHERE ${VISIBLE} AND album LIKE ?1 ESCAPE '\\'
+     WHERE ${visible()} AND album LIKE ?1 ESCAPE '\\'
      GROUP BY album, COALESCE(album_artist, artist)
      ORDER BY album COLLATE NOCASE LIMIT ?2`,
     likePattern(query), limit,
@@ -184,7 +199,7 @@ export function searchGroups(db: SQLiteDatabase, kind: GroupKind, query: string,
     `SELECT CAST(${col} AS TEXT) AS name, COUNT(*) AS track_count, COUNT(DISTINCT album) AS album_count,
             MAX(art_key) AS art_key, SUM(duration_ms) AS duration_ms
      FROM tracks
-     WHERE ${VISIBLE} AND CAST(${col} AS TEXT) LIKE ?1 ESCAPE '\\'
+     WHERE ${visible()} AND CAST(${col} AS TEXT) LIKE ?1 ESCAPE '\\'
      GROUP BY ${col}
      ORDER BY name COLLATE NOCASE LIMIT ?2`,
     likePattern(query), limit,
@@ -195,7 +210,7 @@ export function searchGroups(db: SQLiteDatabase, kind: GroupKind, query: string,
 export async function searchFolders(db: SQLiteDatabase, query: string, limit = 20): Promise<FolderEntry[]> {
   const rows = await db.getAllAsync<{ folder: string; n: number }>(
     `SELECT folder, COUNT(*) AS n FROM tracks
-     WHERE ${VISIBLE} AND folder != '' AND folder LIKE ?1 ESCAPE '\\'
+     WHERE ${visible()} AND folder != '' AND folder LIKE ?1 ESCAPE '\\'
      GROUP BY folder ORDER BY folder COLLATE NOCASE`,
     likePattern(query),
   );
@@ -204,4 +219,57 @@ export async function searchFolders(db: SQLiteDatabase, query: string, limit = 2
     .map((r) => ({ path: r.folder, name: r.folder.slice(r.folder.lastIndexOf('/') + 1), track_count: r.n }))
     .filter((f) => f.name.toLowerCase().includes(needle))
     .slice(0, limit);
+}
+
+/** The built-in playlists, filled by queries rather than by hand. */
+export type AutoPlaylist = 'favorites' | 'recently_added' | 'most_played' | 'recently_played';
+
+/** Long enough to be useful, short enough that a big library's list opens at once. */
+const AUTO_LIMIT = 300;
+
+export function listAutoPlaylist(db: SQLiteDatabase, kind: AutoPlaylist): Promise<Track[]> {
+  const where = {
+    favorites: 'favorite = 1',
+    recently_added: '1',
+    most_played: 'play_count > 0',
+    recently_played: 'last_played_at IS NOT NULL',
+  }[kind];
+  const order = {
+    favorites: 'title COLLATE NOCASE',
+    recently_added: 'added_at DESC, path',
+    most_played: 'play_count DESC, last_played_at DESC',
+    recently_played: 'last_played_at DESC',
+  }[kind];
+  const limit = kind === 'favorites' ? '' : `LIMIT ${AUTO_LIMIT}`;
+  return db.getAllAsync<Track>(`SELECT * FROM tracks WHERE ${visible()} AND ${where} ORDER BY ${order} ${limit}`);
+}
+
+export function listHiddenTracks(db: SQLiteDatabase): Promise<Track[]> {
+  return db.getAllAsync<Track>('SELECT * FROM tracks WHERE hidden = 1 ORDER BY title COLLATE NOCASE');
+}
+
+export async function setFavorite(db: SQLiteDatabase, id: number, favorite: boolean): Promise<void> {
+  await db.runAsync('UPDATE tracks SET favorite = ? WHERE id = ?', favorite ? 1 : 0, id);
+}
+
+export async function setHidden(db: SQLiteDatabase, ids: number[], hidden: boolean): Promise<void> {
+  await db.runAsync(
+    'UPDATE tracks SET hidden = ? WHERE id IN (SELECT value FROM json_each(?))',
+    hidden ? 1 : 0,
+    JSON.stringify(ids),
+  );
+}
+
+export async function recordPlay(db: SQLiteDatabase, id: number, at: number): Promise<void> {
+  await db.runAsync('UPDATE tracks SET play_count = play_count + 1, last_played_at = ? WHERE id = ?', at, id);
+}
+
+/** Null clears it, for a track played to the end. */
+export async function setResumeMs(db: SQLiteDatabase, id: number, ms: number | null): Promise<void> {
+  await db.runAsync('UPDATE tracks SET resume_ms = ? WHERE id = ?', ms === null ? null : Math.round(ms), id);
+}
+
+/** Removes rows (the file itself is the caller's business). Queues and playlists cascade. */
+export async function deleteTrackRows(db: SQLiteDatabase, ids: number[]): Promise<void> {
+  await db.runAsync('DELETE FROM tracks WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify(ids));
 }

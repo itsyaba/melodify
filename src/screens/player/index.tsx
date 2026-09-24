@@ -1,30 +1,69 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSQLiteContext } from 'expo-sqlite';
+import type { SFSymbol } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
+import { LyricsView } from '@/components/lyrics-view';
+import { promptText, showMenu } from '@/components/menus';
 import { SeekBar } from '@/components/seek-bar';
 import { toast, ToastHost } from '@/components/toast';
 import { useTrackActions } from '@/components/track-actions';
+import { addBookmark, listBookmarks } from '@/db/bookmarks';
 import { cycleRepeat } from '@/player/queue-ops';
-import { useQueue, type RepeatMode } from '@/player/queue-store';
+import { queue, useQueue, type RepeatMode } from '@/player/queue-store';
+import { sleepTimer, useSleepTimer, type SleepTimer } from '@/player/sleep-timer';
+import { usePrefs } from '@/prefs';
 import { artSize, colors, spacing, type } from '@/theme';
+import { libraryEvents } from '@/utils/events';
 import { formatDuration } from '@/utils/format';
 
 const REPEAT_LABEL: Record<RepeatMode, string> = { off: 'Repeat off', all: 'Repeat queue', one: 'Repeat song' };
 
+/** SF Symbols ship numbered skip glyphs for these intervals only. */
+const NUMBERED = new Set([5, 10, 15, 30, 45, 60, 75, 90]);
+function skipIcon(direction: 'back' | 'forward', seconds: number): SFSymbol {
+  const base = direction === 'back' ? 'gobackward' : 'goforward';
+  return (NUMBERED.has(seconds) ? `${base}.${seconds}` : base) as SFSymbol;
+}
+
+/** While previous or next is held, the position moves this far every tick. */
+const HOLD_STEP_MS = 5000;
+const HOLD_TICK_MS = 200;
+/** Two taps on the artwork within this long count as a double tap. */
+const DOUBLE_TAP_MS = 300;
+
+function sleepLabel(timer: SleepTimer, remainingMs: number): string | null {
+  if (timer.mode === 'minutes') return `Sleep in ${formatDuration(remainingMs)}`;
+  if (timer.mode === 'songs') return timer.left === 1 ? 'Stops after this song' : `Stops after ${timer.left} songs`;
+  return null;
+}
+
 export function PlayerScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const actions = useTrackActions();
   const router = useRouter();
+  const db = useSQLiteContext();
+  const actions = useTrackActions();
+  const prefs = usePrefs();
+  const { timer, remainingMs } = useSleepTimer();
   const { tracks, currentIndex, state, positionMs, durationMs, repeat, toggle, next, previous, seek, shuffle, undo, setRepeat } =
     useQueue();
   // While the thumb is down the labels follow it, not the engine, which keeps ticking underneath.
   const [scrubMs, setScrubMs] = useState<number | null>(null);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTap = useRef({ at: 0, side: 'left' as 'left' | 'right' });
+  const latest = useRef({ positionMs, durationMs });
+  latest.current = { positionMs, durationMs };
   const track = tracks[currentIndex];
+
+  useEffect(() => () => {
+    if (holdTimer.current) clearInterval(holdTimer.current);
+  }, []);
 
   if (!track) {
     return <EmptyState title="Nothing playing" body="Pick a song from the library to start a queue." />;
@@ -34,11 +73,114 @@ export function PlayerScreen() {
   const shown = scrubMs ?? positionMs;
   const art = Math.min(artSize.player, width - spacing.xl * 2);
   const subtitle = [track.artist, track.album].filter(Boolean).join(' — ');
+  const skipMs = prefs.skipSeconds * 1000;
+
+  const skip = (ms: number) => {
+    const { positionMs: at, durationMs: total } = latest.current;
+    void seek(Math.max(0, Math.min(total > 0 ? total - 500 : at + ms, at + ms)));
+  };
+  const startHold = (direction: 1 | -1) => {
+    if (holdTimer.current) clearInterval(holdTimer.current);
+    skip(direction * HOLD_STEP_MS);
+    holdTimer.current = setInterval(() => skip(direction * HOLD_STEP_MS), HOLD_TICK_MS);
+  };
+  const endHold = () => {
+    if (holdTimer.current) clearInterval(holdTimer.current);
+    holdTimer.current = null;
+  };
+
+  const onArtTap = (x: number) => {
+    const side = x < art / 2 ? 'left' : 'right';
+    const now = Date.now();
+    if (now - lastTap.current.at < DOUBLE_TAP_MS && lastTap.current.side === side) {
+      skip(side === 'left' ? -skipMs : skipMs);
+      toast.show(`${side === 'left' ? '−' : '+'}${prefs.skipSeconds} s`);
+      lastTap.current = { at: 0, side };
+    } else {
+      lastTap.current = { at: now, side };
+    }
+  };
+
+  const sleepMenu = () =>
+    showMenu({
+      title: 'Sleep timer',
+      message: sleepLabel(timer, remainingMs) ?? (prefs.sleepFade ? 'Fades out over the last 30 seconds.' : undefined),
+      items: [
+        { label: 'Turn off', hidden: timer.mode === 'off', destructive: true, onPress: () => sleepTimer.cancel() },
+        { label: 'Add 10 minutes', hidden: timer.mode !== 'minutes', onPress: () => sleepTimer.extend(10) },
+        ...[15, 30, 45, 60, 90].map((m) => ({
+          label: m < 60 ? `${m} minutes` : m === 60 ? '1 hour' : '1 hour 30 minutes',
+          onPress: () => {
+            sleepTimer.minutes(m);
+            toast.show(`Sleep in ${m} minutes`);
+          },
+        })),
+        {
+          label: 'Custom…',
+          onPress: async () => {
+            const text = await promptText('Sleep in how many minutes?', { ok: 'Start' });
+            const minutes = Number(text);
+            if (text && Number.isFinite(minutes) && minutes > 0) sleepTimer.minutes(minutes);
+          },
+        },
+        { label: 'End of this song', onPress: () => sleepTimer.songs(1) },
+        {
+          label: 'After a number of songs…',
+          onPress: async () => {
+            const text = await promptText('Stop after how many songs?', { message: 'This song counts as the first.', ok: 'Start' });
+            const count = Number(text);
+            if (text && Number.isInteger(count) && count > 0) sleepTimer.songs(count);
+          },
+        },
+      ],
+    });
+
+  const bookmarkHere = async () => {
+    const at = latest.current.positionMs;
+    const label = await promptText(`Bookmark at ${formatDuration(at)}`, { message: 'A name is optional.', ok: 'Save' });
+    if (label === null) return;
+    await addBookmark(db, track.id, at, label || null);
+    libraryEvents.emit('changed', undefined);
+    toast.show(`Bookmarked at ${formatDuration(at)}`);
+  };
+  const bookmarksMenu = async () => {
+    const marks = await listBookmarks(db, track.id);
+    showMenu({
+      title: marks.length ? 'Bookmarks in this song' : 'No bookmarks in this song yet',
+      items: [
+        ...marks.map((b) => ({
+          label: `${formatDuration(b.position_ms)}${b.label ? ` — ${b.label}` : ''}`,
+          onPress: () => void seek(b.position_ms),
+        })),
+        { label: 'Bookmark this spot…', onPress: () => void bookmarkHere() },
+        {
+          label: 'All bookmarks',
+          onPress: () => {
+            router.back();
+            router.push('/bookmarks');
+          },
+        },
+      ],
+    });
+  };
+
+  const sleeping = sleepLabel(timer, remainingMs);
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + spacing.xl }]}>
+    <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>
       <View style={styles.artWrap}>
-        <Artwork artKey={track.art_key} size={art} rounded="lg" />
+        {showLyrics ? (
+          <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
+        ) : (
+          <Pressable
+            onPress={(e) => onArtTap(e.nativeEvent.locationX)}
+            accessibilityRole="image"
+            accessibilityLabel="Artwork"
+            accessibilityHint={`Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
+          >
+            <Artwork artKey={track.art_key} size={art} rounded="lg" />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.meta}>
@@ -48,6 +190,7 @@ export function PlayerScreen() {
         {subtitle ? (
           <Text numberOfLines={1} style={[type.subhead, styles.subtitle]}>{subtitle}</Text>
         ) : null}
+        {sleeping ? <Text style={[type.caption, { color: colors.tint, textAlign: 'center' }]}>{sleeping}</Text> : null}
       </View>
 
       <View style={styles.seek}>
@@ -62,6 +205,46 @@ export function PlayerScreen() {
 
       <View style={styles.controls}>
         <IconButton
+          name={skipIcon('back', prefs.skipSeconds)}
+          size={26}
+          onPress={() => skip(-skipMs)}
+          accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
+        />
+        <IconButton
+          name="backward.fill"
+          size={30}
+          onPress={previous}
+          onLongPress={() => startHold(-1)}
+          onPressOut={endHold}
+          accessibilityLabel="Previous track"
+          accessibilityHint="Hold to rewind"
+        />
+        <IconButton
+          name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
+          size={64}
+          color={colors.tint}
+          onPress={toggle}
+          accessibilityLabel={playing ? 'Pause' : 'Play'}
+        />
+        <IconButton
+          name="forward.fill"
+          size={30}
+          onPress={next}
+          onLongPress={() => startHold(1)}
+          onPressOut={endHold}
+          accessibilityLabel="Next track"
+          accessibilityHint="Hold to fast-forward"
+        />
+        <IconButton
+          name={skipIcon('forward', prefs.skipSeconds)}
+          size={26}
+          onPress={() => skip(skipMs)}
+          accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
+        />
+      </View>
+
+      <View style={styles.secondary}>
+        <IconButton
           name={repeat === 'one' ? 'repeat.1' : 'repeat'}
           size={20}
           color={repeat === 'off' ? colors.secondaryLabel : colors.tint}
@@ -72,15 +255,6 @@ export function PlayerScreen() {
           }}
           accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
         />
-        <IconButton name="backward.fill" size={30} onPress={previous} accessibilityLabel="Previous track" />
-        <IconButton
-          name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
-          size={64}
-          color={colors.tint}
-          onPress={toggle}
-          accessibilityLabel={playing ? 'Pause' : 'Play'}
-        />
-        <IconButton name="forward.fill" size={30} onPress={next} accessibilityLabel="Next track" />
         <IconButton
           name="shuffle"
           size={20}
@@ -89,12 +263,46 @@ export function PlayerScreen() {
           onPress={() => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }))}
           accessibilityLabel="Shuffle the queue"
         />
+        <IconButton
+          name={showLyrics ? 'quote.bubble.fill' : 'quote.bubble'}
+          size={20}
+          color={showLyrics ? colors.tint : colors.secondaryLabel}
+          onPress={() => setShowLyrics((v) => !v)}
+          accessibilityLabel={showLyrics ? 'Show artwork' : 'Show lyrics'}
+        />
+        <IconButton
+          name={timer.mode === 'off' ? 'moon.zzz' : 'moon.zzz.fill'}
+          size={20}
+          color={timer.mode === 'off' ? colors.secondaryLabel : colors.tint}
+          onPress={sleepMenu}
+          accessibilityLabel={sleeping ?? 'Sleep timer'}
+        />
+        <IconButton
+          name="bookmark"
+          size={20}
+          color={colors.secondaryLabel}
+          onPress={() => void bookmarkHere()}
+          onLongPress={() => void bookmarksMenu()}
+          accessibilityLabel="Bookmark this spot"
+          accessibilityHint="Hold for this song’s bookmarks"
+        />
+        <IconButton
+          name={track.favorite ? 'heart.fill' : 'heart'}
+          size={20}
+          color={track.favorite ? colors.tint : colors.secondaryLabel}
+          onPress={() => void queue.setFavorite(track, !track.favorite)}
+          accessibilityLabel={track.favorite ? 'Remove from favorites' : 'Add to favorites'}
+        />
+        <IconButton
+          name="ellipsis.circle"
+          size={20}
+          color={colors.secondaryLabel}
+          onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })}
+          accessibilityLabel="More for this song"
+        />
       </View>
       {/* The app-wide toast sits under this modal, so the player shows its own. */}
       <ToastHost />
-      <View style={styles.secondary}>
-        <IconButton name="ellipsis.circle" size={24} color={colors.secondaryLabel} onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })} accessibilityLabel="More for this song" />
-      </View>
     </View>
   );
 }
@@ -111,7 +319,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing.sm,
   },
-  secondary: { flexDirection: 'row', justifyContent: 'center' },
+  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm },
 });

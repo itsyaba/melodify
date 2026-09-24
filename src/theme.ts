@@ -17,6 +17,8 @@ export const colors = {
   tint: ios('systemPink', '#ff2d55'),
   fill: ios('systemFill', '#78788033'),
   destructive: ios('systemRed', '#ff3b30'),
+  /** Text and icons drawn on a tint-colored fill. */
+  onTint: ios('white', '#ffffff'),
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;

@@ -6,10 +6,12 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
+import { loadPrefs } from '@/prefs';
 
-/** Migrations first: the restore reads tables they create. */
+/** Migrations first: the restore reads tables they create, and preferences before either. */
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
+  await loadPrefs(db);
   await restoreQueue(db);
 }
 
@@ -24,6 +26,7 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />
+            <Stack.Screen name="track/[id]" options={{ presentation: 'modal', title: 'Song Details' }} />
           </Stack>
           <ToastHost />
         </SQLiteProvider>

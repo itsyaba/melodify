@@ -5,9 +5,10 @@ import { addToPlaylist, createPlaylist, listPlaylists } from '@/db/playlists';
 import type { GroupKind } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { queue, queueSnapshot } from '@/player/queue-store';
+import { deleteTrackFiles, setFavorites, setTracksHidden, shareTrack } from '@/player/track-edits';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
-import { promptText, showMenu, type MenuItem } from './menus';
+import { confirm, promptText, showMenu, type MenuItem } from './menus';
 import { toast } from './toast';
 
 const songs = (n: number) => formatCount(n, 'song');
@@ -84,6 +85,20 @@ export async function choosePlaylist(db: SQLiteDatabase, tracks: Track[]) {
   });
 }
 
+/** Asks first, since this removes files from the phone, not just rows from the library. */
+export async function confirmDelete(db: SQLiteDatabase, tracks: Track[]): Promise<boolean> {
+  const what = tracks.length === 1 ? `“${tracks[0].title}”` : songs(tracks.length);
+  const ok = await confirm(
+    `Delete ${what}?`,
+    'The file is removed from this phone and from every playlist and queue. This cannot be undone.',
+    'Delete',
+  );
+  if (!ok) return false;
+  const failed = await deleteTrackFiles(db, tracks);
+  toast.show(failed ? `${songs(failed)} could not be deleted` : `Deleted ${what}`);
+  return failed === 0;
+}
+
 export function groupHref(kind: GroupKind, value: string) {
   return { pathname: '/group/[kind]/[value]', params: { kind, value } } as const;
 }
@@ -131,6 +146,10 @@ export function useTrackActions() {
             ...queueItems([track]),
             ...(opts.extra ?? []),
             {
+              label: track.favorite ? 'Remove from favorites' : 'Add to favorites',
+              onPress: () => void queue.setFavorite(track, !track.favorite),
+            },
+            {
               label: 'Go to album',
               hidden: !track.album,
               onPress: () => go(albumHref(track.album!, track.album_artist ?? track.artist)),
@@ -146,6 +165,17 @@ export function useTrackActions() {
               onPress: () => go({ pathname: '/folder/[...path]', params: { path: track.folder.split('/') } }),
             },
             { label: 'Select', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
+            // Not through `go`: details open as a sheet, so over the player is fine.
+            { label: 'Details', onPress: () => router.push({ pathname: '/track/[id]', params: { id: String(track.id) } }) },
+            { label: 'Share file…', onPress: () => void shareTrack(track) },
+            {
+              label: track.hidden ? 'Show in library' : 'Hide from library',
+              onPress: () =>
+                void setTracksHidden(db, [track], !track.hidden).then(() =>
+                  toast.show(track.hidden ? `“${track.title}” is back in the library` : `Hid “${track.title}”. Settings lists hidden songs.`),
+                ),
+            },
+            { label: 'Delete file…', destructive: true, onPress: () => void confirmDelete(db, [track]) },
           ],
         });
       },
@@ -179,7 +209,13 @@ export function useTrackActions() {
             { label: 'Play', onPress: () => void queue.replace(tracks, 0) },
             { label: 'Shuffle', onPress: () => void queue.playShuffled(tracks) },
             ...queueItems(tracks),
+            { label: 'Add to favorites', onPress: () => void setFavorites(db, tracks, true).then(() => toast.show(`Added ${songs(tracks.length)} to favorites`)) },
             ...extra,
+            {
+              label: 'Hide from library',
+              onPress: () => void setTracksHidden(db, tracks, true).then(() => toast.show(`Hid ${songs(tracks.length)}`)),
+            },
+            { label: 'Delete files…', destructive: true, onPress: () => void confirmDelete(db, tracks) },
           ],
         });
       },
