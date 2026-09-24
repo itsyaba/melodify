@@ -32,6 +32,10 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 
 ## Phases
 
+The build to test with is the newest green CI run: module 0.6.0 as of 2026-09-24. It carries
+everything Phases 1 to 4 need (the tag reader, `readLyrics`, keep-awake and screen orientation), so the
+notes below that name 0.4.0 or 0.5.0 give the minimum, not the build to install.
+
 ### Phase 0. Foundation (this week)
 - [x] Expo SDK 57 scaffold, TypeScript, git
 - [x] README, FEATURES, ROADMAP

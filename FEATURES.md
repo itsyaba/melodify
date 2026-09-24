@@ -28,12 +28,12 @@ to double-check against the current Musicolet release.
 | Resume on launch | Restore last queue, track and position after app restart | JS | wip |
 | Gapless playback | No silence between consecutive tracks | Native | todo |
 | Crossfade | Fade between tracks with adjustable duration (verify) | Native | todo |
-| Playback speed | 0.5x to 2x or wider, per session | RN+ | wip |
+| Playback speed | 0.5x to 2x or wider, per session | RN+ | todo |
 | Pitch control | Adjust pitch independently or linked with speed (verify) | Native | todo |
 | Skip silence | Skip silent segments in tracks (verify) | Native | skip |
 | Seek by fixed amount | Configurable skip forward/back (e.g. 10s / 30s) | RN+ | wip |
 | Fast seek gestures | Long-press or swipe on player to seek | JS | wip |
-| Volume in app | Volume slider inside the player | RN+ | wip |
+| Volume in app | Volume slider inside the player | RN+ | todo |
 | ReplayGain / volume leveling | Apply track or album gain tags (verify) | Native | skip |
 
 ## 2. Bookmarks and position memory
@@ -116,7 +116,7 @@ to double-check against the current Musicolet release.
 | --- | --- | --- | --- |
 | Notification controls | Play, pause, next, previous, favorite from notification | iOS≈ Control Center / lock screen | wip |
 | Lock screen controls and art | Now Playing info with art, seek | RN+ | done |
-| Headset button actions | Single, double, triple click and long press mapped to actions | RN+ (limited on iOS) | wip |
+| Headset button actions | Single, double, triple click and long press mapped to actions | RN+ (limited on iOS) | todo |
 | Bluetooth controls | AVRCP play/pause/next/prev, track info on car / headphones | RN+ | wip |
 | Pause on unplug / resume on plug | Headphone jack and Bluetooth disconnect handling | RN+ | wip |
 | Auto play on headphone connect | Start playing when headphones connect (verify) | Native | skip |
