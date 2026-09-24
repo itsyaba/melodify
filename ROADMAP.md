@@ -157,10 +157,26 @@ includes them; on an older one they do nothing, since both are loaded behind a g
       (written: keep awake only while the player is open; rotation free, portrait or landscape)
 
 ### Phase 5. Data
+
+Written, and passing typecheck, tests (the restore runs against the real schema in Node's SQLite)
+and the bundle export; not yet on the phone. JS only: it runs on the 0.6.0 build.
+
 - [ ] Backup and restore to a JSON file in `Documents/`
+      (written: Settings › Backup and restore. Files go to `Documents/Melodify/Backups/`; a restore
+      replaces playlists, queues, bookmarks, excluded folders and settings, and writes play counts,
+      favorites, hidden flags and resume points onto the songs it finds. The current state is saved
+      as a before-restore backup first. Any JSON file can be restored through the Files picker)
 - [ ] Path remapping on restore
+      (written: songs are matched by path, then folder by folder by file name, then by title,
+      artist and length. The restore screen shows the folder moves it found, and a folder whose
+      songs were not found can be pointed at its new place by hand)
 - [ ] M3U import / export
+      (written: a playlist's menu exports it to `Documents/Melodify/Playlists/` with relative paths;
+      Settings exports all, and imports any .m3u / .m3u8 in the music folder or picked in Files.
+      Absolute and Windows paths from a computer are matched by their trailing folders)
 - [ ] Auto backup
+      (written: off, daily or weekly, default weekly, at launch and when the app goes to the
+      background; the last five are kept)
 
 ### Phase 6. Audio engine v2
 - [ ] Gapless via A/B player nodes

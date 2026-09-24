@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useNavigation, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
+import { exportPlaylist, shareFile } from '@/backup';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
@@ -61,6 +62,18 @@ export function PlaylistScreen({ id }: { id: number }) {
           if (!next) return;
           await renamePlaylist(db, id, next);
           libraryEvents.emit('changed', undefined);
+        },
+      },
+      {
+        label: 'Export as M3U',
+        hidden: tracks.length === 0,
+        onPress: async () => {
+          try {
+            const file = await exportPlaylist(db, id, name);
+            toast.show(`Saved ${file.path}`, { label: 'Share', onPress: () => void shareFile(file.uri) });
+          } catch (err) {
+            toast.show(`Exporting failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
         },
       },
       {

@@ -566,6 +566,22 @@ export async function restoreQueue(database: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Throws away every queue in memory and loads them again from the database, stopped and cued
+ * paused, as at launch. For after a restore has replaced the tables underneath the store; the
+ * undo history refers to the old queues, so it goes too.
+ */
+export async function reloadQueues(database: SQLiteDatabase): Promise<void> {
+  await engine.stop().catch(() => undefined);
+  undoStack.length = 0;
+  resumeCache.clear();
+  savedMs = 0;
+  set({
+    queues: [EMPTY_QUEUE], activeId: DEFAULT_QUEUE_ID, state: 'idle', positionMs: 0, durationMs: 0, undoLabel: null,
+  });
+  await restoreQueue(database);
+}
+
+/**
  * Engine calls made from an event handler have no caller to await them, so a rejection would
  * surface as an unhandled one with no UI attached. Track ends and lock screen commands both
  * arrive that way.

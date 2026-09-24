@@ -108,7 +108,8 @@ What can be verified on Linux without the device:
 
 ```sh
 npm run typecheck                 # TypeScript
-npm test                          # unit tests (Node's built-in runner, no extra deps)
+npm test                          # unit tests (Node's built-in runner, no extra deps; database
+                                  # code runs against the real schema in node:sqlite)
 npx expo export --platform ios    # full Metro bundle to Hermes bytecode
 ```
 
@@ -124,6 +125,7 @@ src/
   components/   shared UI: track-list (tap, long-press menu, multi-select), reorderable-list
                 (drag and swipe), track-actions (queue and playlist menus), menus (action
                 sheets, prompts), toast (with undo), chips, list-toolbar, rows, mini-player
+  backup/       backup file format, restore matching (moved folders), M3U, and the file side
   db/           schema + migrations, typed queries, playlists, settings, a serial write chain
   scan/         Documents/ walker, filename-based tag guesses, native tag reading (+ tests)
   player/       engine interface, native + fake engines, queue store (several queues,
@@ -147,7 +149,8 @@ screens work on the device as of 2026-09-23; tag reading, interruption handling 
 queue on launch are written and waiting for a device test. Phase 2 (multiple queues, queue editing
 with undo, playlists, grouped library views, multi-select, search), Phase 3 (bookmarks, sleep timer,
 lyrics, play counts, favorites, song details, hiding and deleting) and Phase 4 (themes, accents,
-player layouts, custom tabs, density, rotation) are written and waiting for the same.
+player layouts, custom tabs, density, rotation) and Phase 5 (backup, restore onto a moved library,
+M3U import and export, automatic backups) are written and waiting for the same.
 
 ## License
 

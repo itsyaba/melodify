@@ -150,11 +150,11 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Backup | Export playlists, queues, favorites, play counts, bookmarks, settings to a file | JS | todo |
-| Restore | Import that file, matching tracks by path or tags | JS | todo |
-| Playlist import / export | M3U / M3U8 in and out | JS | todo |
-| Auto backup | Periodic backup to a folder (verify) | JS | skip |
-| Path remapping on restore | Handle moved music folders when restoring | JS | todo |
+| Backup | Export playlists, queues, favorites, play counts, bookmarks, settings to a file | JS | wip |
+| Restore | Import that file, matching tracks by path or tags | JS | wip |
+| Playlist import / export | M3U / M3U8 in and out | JS | wip |
+| Auto backup | Periodic backup to a folder (verify) | JS | wip |
+| Path remapping on restore | Handle moved music folders when restoring | JS | wip |
 
 ## 12. Design principles (kept)
 

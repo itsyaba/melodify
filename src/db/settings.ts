@@ -14,6 +14,8 @@ export interface Settings {
   choices: Record<string, string>;
   /** Stored partial, so a preference added later takes its default. */
   prefs: Partial<Prefs>;
+  /** When the last automatic backup was written, ms since epoch. */
+  lastAutoBackupAt: number;
 }
 
 export const RECENT_SEARCHES = 12;

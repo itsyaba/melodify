@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --import ./scripts/test-hooks.mjs --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "expo": "~57.0.22",

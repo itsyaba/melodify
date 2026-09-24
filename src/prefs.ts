@@ -30,8 +30,12 @@ export interface Prefs {
   tabs: TabKey[];
   /** Library views in order; the ones left out are not shown. */
   libraryViews: LibraryViewKey[];
+
+  // Data.
+  autoBackup: AutoBackup;
 }
 
+export type AutoBackup = 'off' | 'daily' | 'weekly';
 export type PlayerLayout = 'standard' | 'edge' | 'compact';
 export type Density = 'comfortable' | 'compact';
 export type OrientationChoice = 'auto' | 'portrait' | 'landscape';
@@ -60,6 +64,7 @@ export const DEFAULT_PREFS: Prefs = {
   orientation: 'portrait',
   tabs: [...ALL_TABS],
   libraryViews: [...ALL_LIBRARY_VIEWS],
+  autoBackup: 'weekly',
 };
 
 /**
@@ -93,6 +98,8 @@ export async function loadPrefs(database: SQLiteDatabase): Promise<void> {
     console.warn('[melodify] loading preferences failed:', err);
   }
   apply(prefs);
+  // Nothing is subscribed at launch; after a restore, every screen showing a preference is.
+  subscribers.forEach((fn) => fn());
 }
 
 export function getPrefs(): Prefs {

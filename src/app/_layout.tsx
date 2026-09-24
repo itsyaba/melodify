@@ -3,6 +3,7 @@ import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import { startAutoBackup } from '@/backup';
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
@@ -12,13 +13,15 @@ import { ACCENTS, currentTheme, useTheme } from '@/theme';
 
 /**
  * Migrations first: the restore reads tables they create, and preferences before either. Unread
- * tags are read in the background afterwards; the first screen does not wait for them.
+ * tags are read, and an automatic backup written if one is due, in the background afterwards;
+ * the first screen does not wait for them.
  */
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
   await loadPrefs(db);
   await restoreQueue(db);
   void readPendingTags(db);
+  startAutoBackup(db);
 }
 
 /**

@@ -5,6 +5,11 @@ import { getSetting, setSetting } from '@/db/settings';
 /** Loaded once per launch and shared, so every list after the first opens already sorted. */
 let cache: Record<string, string> | null = null;
 
+/** Drops the shared copy, so the next list reads the stored choices again (after a restore). */
+export function forgetStoredChoices(): void {
+  cache = null;
+}
+
 /**
  * A small UI choice remembered across launches under `key`: a list's sort order, the library's
  * last view. A stored value that is no longer one of `allowed` falls back rather than sticking.
