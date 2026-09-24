@@ -1,18 +1,27 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { SeekBar } from '@/components/seek-bar';
-import { useQueue } from '@/player/queue-store';
+import { toast, ToastHost } from '@/components/toast';
+import { useTrackActions } from '@/components/track-actions';
+import { cycleRepeat } from '@/player/queue-ops';
+import { useQueue, type RepeatMode } from '@/player/queue-store';
 import { artSize, colors, spacing, type } from '@/theme';
 import { formatDuration } from '@/utils/format';
+
+const REPEAT_LABEL: Record<RepeatMode, string> = { off: 'Repeat off', all: 'Repeat queue', one: 'Repeat song' };
 
 export function PlayerScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { tracks, currentIndex, state, positionMs, durationMs, toggle, next, previous, seek } = useQueue();
+  const actions = useTrackActions();
+  const router = useRouter();
+  const { tracks, currentIndex, state, positionMs, durationMs, repeat, toggle, next, previous, seek, shuffle, undo, setRepeat } =
+    useQueue();
   // While the thumb is down the labels follow it, not the engine, which keeps ticking underneath.
   const [scrubMs, setScrubMs] = useState<number | null>(null);
   const track = tracks[currentIndex];
@@ -52,6 +61,17 @@ export function PlayerScreen() {
       </View>
 
       <View style={styles.controls}>
+        <IconButton
+          name={repeat === 'one' ? 'repeat.1' : 'repeat'}
+          size={20}
+          color={repeat === 'off' ? colors.secondaryLabel : colors.tint}
+          onPress={() => {
+            const nextMode = cycleRepeat(repeat);
+            setRepeat(nextMode);
+            toast.show(REPEAT_LABEL[nextMode]);
+          }}
+          accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
+        />
         <IconButton name="backward.fill" size={30} onPress={previous} accessibilityLabel="Previous track" />
         <IconButton
           name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
@@ -61,6 +81,19 @@ export function PlayerScreen() {
           accessibilityLabel={playing ? 'Pause' : 'Play'}
         />
         <IconButton name="forward.fill" size={30} onPress={next} accessibilityLabel="Next track" />
+        <IconButton
+          name="shuffle"
+          size={20}
+          color={colors.secondaryLabel}
+          disabled={tracks.length < 2}
+          onPress={() => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }))}
+          accessibilityLabel="Shuffle the queue"
+        />
+      </View>
+      {/* The app-wide toast sits under this modal, so the player shows its own. */}
+      <ToastHost />
+      <View style={styles.secondary}>
+        <IconButton name="ellipsis.circle" size={24} color={colors.secondaryLabel} onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })} accessibilityLabel="More for this song" />
       </View>
     </View>
   );
@@ -77,8 +110,8 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xxl,
+    justifyContent: 'space-between',
     paddingTop: spacing.sm,
   },
+  secondary: { flexDirection: 'row', justifyContent: 'center' },
 });

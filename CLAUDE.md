@@ -24,3 +24,6 @@ There is no Mac. Native changes are compiled by `.github/workflows/ios-build.yml
 - Expo SDK 57's `expo-modules-jsi` only compiles with Xcode 27's Swift (ownership annotations on
   constructors, strict-concurrency `sending` rules). CI therefore runs on GitHub's preview `xcode-27`
   runner label. Do not pin an older Xcode; patching the vendored Swift sources was tried and is a dead end.
+- Typed routes live in `.expo/types/router.d.ts`, which only the dev server regenerates
+  (`expo export` does not). After adding or renaming a route, run
+  `CI=1 timeout 45 npx expo start --offline` once, or typecheck fails on the new paths.

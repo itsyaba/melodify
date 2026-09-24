@@ -1,0 +1,16 @@
+import { StyleSheet, View } from 'react-native';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { artSize, colors, radius } from '@/theme';
+
+/** An SF Symbol in an artwork-sized tile, for rows that have no art: folders, "New playlist". */
+export function IconTile({ name, size = artSize.row }: { name: SFSymbol; size?: number }) {
+  return (
+    <View style={[styles.tile, { width: size, height: size }]}>
+      <SymbolView name={name} size={size * 0.45} tintColor={colors.tint} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  tile: { alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: colors.fill },
+});

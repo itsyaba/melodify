@@ -3,6 +3,7 @@ import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
 
@@ -24,6 +25,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />
           </Stack>
+          <ToastHost />
         </SQLiteProvider>
       </Suspense>
     </ThemeProvider>

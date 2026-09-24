@@ -37,12 +37,17 @@ export interface AlbumSummary {
   track_count: number;
   art_key: string | null;
   first_track_id: number;
+  /** Newest track's, for the recently added sort. */
+  added_at: number;
 }
 
-export interface ArtistSummary {
-  artist: string;
-  album_count: number;
+export interface GroupSummary {
+  /** The artist, genre, composer or year, as text. */
+  name: string;
   track_count: number;
+  album_count: number;
+  art_key: string | null;
+  duration_ms: number | null;
 }
 
 export interface FolderEntry {

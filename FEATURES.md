@@ -17,14 +17,14 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Multiple queues | Create several independent playing queues, switch between them, each remembers its position | JS | todo |
-| Queue tabs | Queues shown as tabs on the player screen; swipe to switch | JS | todo |
-| Add to queue / Play next | From any list: add to end, insert after current, add to a specific queue | JS | todo |
-| Queue editing | Drag to reorder, swipe to remove, clear queue, remove duplicates | JS | todo |
-| Undo queue changes | Undo last add/remove/clear | JS | todo |
-| Save queue as playlist | Persist any queue as a named playlist | JS | todo |
-| Shuffle | Shuffle queue, shuffle all, shuffle by album | RN+ | todo |
-| Repeat modes | Off, repeat all, repeat one | RN+ | todo |
+| Multiple queues | Create several independent playing queues, switch between them, each remembers its position | JS | wip |
+| Queue tabs | Queues shown as tabs on the player screen; swipe to switch | JS | wip |
+| Add to queue / Play next | From any list: add to end, insert after current, add to a specific queue | JS | wip |
+| Queue editing | Drag to reorder, swipe to remove, clear queue, remove duplicates | JS | wip |
+| Undo queue changes | Undo last add/remove/clear | JS | wip |
+| Save queue as playlist | Persist any queue as a named playlist | JS | wip |
+| Shuffle | Shuffle queue, shuffle all, shuffle by album | JS | wip |
+| Repeat modes | Off, repeat all, repeat one | JS | wip |
 | Resume on launch | Restore last queue, track and position after app restart | JS | wip |
 | Gapless playback | No silence between consecutive tracks | Native | todo |
 | Crossfade | Fade between tracks with adjustable duration (verify) | Native | todo |
@@ -50,17 +50,17 @@ to double-check against the current Musicolet release.
 | --- | --- | --- | --- |
 | Folder browsing | Navigate storage as a folder tree, play a folder, add folder to queue | JS | wip |
 | Songs / Albums / Artists / Album artists / Genres / Composers / Years | Standard grouped views | JS | wip |
-| Playlists | Create, rename, reorder, delete; add from anywhere | JS | todo |
+| Playlists | Create, rename, reorder, delete; add from anywhere | JS | wip |
 | Auto playlists | Recently added, most played, recently played, favorites | JS | todo |
 | Favorites | Heart a track, favorites list | JS | todo |
-| Sorting | Per-list sort by title, artist, album, date added, duration, track number, play count | JS | todo |
+| Sorting | Per-list sort by title, artist, album, date added, duration, track number, play count | JS | wip |
 | Grid / list toggle | Switch layout per tab | JS | todo |
 | Custom tabs | Choose which tabs show and in what order | JS | todo |
-| Multi-select | Long-press to select many items, then batch action | JS | todo |
+| Multi-select | Long-press to select many items, then batch action | JS | wip |
 | Search | Search tracks, albums, artists, folders, playlists; recent searches | JS | wip |
 | Track details | Full tag dump, file path, bitrate, sample rate, size | JS | todo |
 | Album art from folder | Use `cover.jpg` / `folder.jpg` when embedded art is missing | JS | wip |
-| Disc / track numbers | Show and sort by disc and track number | JS | todo |
+| Disc / track numbers | Show and sort by disc and track number | JS | wip |
 | Hide short tracks | Exclude tracks under N seconds (ringtones, notifications) | JS | todo |
 | Exclude folders | Blacklist folders from the library | JS | todo |
 | Hidden tracks | Hide individual tracks without deleting | JS | todo |

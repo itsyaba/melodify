@@ -1,38 +1,63 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Artwork } from '@/components/artwork';
-import { TrackRow } from '@/components/track-row';
+import { IconButton } from '@/components/icon-button';
+import { groupHref, useTrackActions } from '@/components/track-actions';
+import { TrackList } from '@/components/track-list';
 import { listAlbumTracks } from '@/db/tracks';
+import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
-import { playTrackFromList } from '@/player/queue-actions';
+import { queue } from '@/player/queue-store';
 import { artSize, colors, spacing, type } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
+const NO_TRACKS: Track[] = [];
+
 export function AlbumScreen({ album, albumArtist }: { album: string; albumArtist: string | null }) {
+  const router = useRouter();
+  const actions = useTrackActions();
   const { data } = useLibraryQuery((db) => listAlbumTracks(db, album, albumArtist), [album, albumArtist]);
-  const tracks = data ?? [];
-  const total = tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0);
-  return (
-    <FlatList
-      style={styles.root}
-      data={tracks}
-      keyExtractor={(t) => String(t.id)}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <Artwork artKey={tracks[0]?.art_key ?? null} size={artSize.card} rounded="lg" />
-          <Text style={[type.title, { color: colors.label, textAlign: 'center' }]}>{album}</Text>
-          <Text style={[type.subhead, { color: colors.secondaryLabel }]}>{albumArtist ?? 'Unknown artist'}</Text>
-          <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>
-            {formatCount(tracks.length, 'song')} · {formatDuration(total)}
-          </Text>
+  const tracks = data ?? NO_TRACKS;
+  const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
+  const year = tracks.find((t) => t.year)?.year;
+
+  const header = (
+    <View style={styles.header}>
+      <Artwork artKey={tracks.find((t) => t.art_key)?.art_key ?? null} size={artSize.card} rounded="lg" />
+      <Text style={[type.title, { color: colors.label, textAlign: 'center' }]}>{album}</Text>
+      <Pressable
+        disabled={!albumArtist}
+        onPress={() => albumArtist && router.push(groupHref('album_artist', albumArtist))}
+        accessibilityRole="link"
+      >
+        <Text style={[type.subhead, { color: albumArtist ? colors.tint : colors.secondaryLabel }]}>
+          {albumArtist ?? 'Unknown artist'}
+        </Text>
+      </Pressable>
+      <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>
+        {[year, formatCount(tracks.length, 'song'), formatDuration(total)].filter(Boolean).join(' · ')}
+      </Text>
+      {tracks.length ? (
+        <View style={styles.buttons}>
+          <IconButton name="play.fill" color={colors.tint} onPress={() => void queue.replace(tracks, 0)} accessibilityLabel="Play album" />
+          <IconButton name="shuffle" color={colors.tint} onPress={() => void queue.playShuffled(tracks)} accessibilityLabel="Shuffle album" />
         </View>
-      }
-      renderItem={({ item }) => <TrackRow track={item} showNumber onPress={(t) => playTrackFromList(t, tracks)} />}
-      contentInsetAdjustmentBehavior="automatic"
+      ) : null}
+    </View>
+  );
+
+  return (
+    <TrackList
+      tracks={tracks}
+      header={header}
+      showNumber
+      onMenu={() => actions.collectionMenu(album, (db) => listAlbumTracks(db, album, albumArtist))}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: colors.background },
   header: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl },
+  buttons: { flexDirection: 'row', gap: spacing.xxl, paddingTop: spacing.sm },
 });

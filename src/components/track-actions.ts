@@ -1,0 +1,188 @@
+import { useMemo } from 'react';
+import { useRouter } from 'expo-router';
+import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
+import { addToPlaylist, createPlaylist, listPlaylists } from '@/db/playlists';
+import type { GroupKind } from '@/db/tracks';
+import type { Track } from '@/db/types';
+import { queue, queueSnapshot } from '@/player/queue-store';
+import { libraryEvents } from '@/utils/events';
+import { formatCount } from '@/utils/format';
+import { promptText, showMenu, type MenuItem } from './menus';
+import { toast } from './toast';
+
+const songs = (n: number) => formatCount(n, 'song');
+
+/** Offers undo for the queue edit just made; the undo stack is shared, so this is that edit. */
+function undoable(text: string) {
+  toast.show(text, { label: 'Undo', onPress: () => void queue.undo() });
+}
+
+function queueName(id: number): string {
+  return queueSnapshot().queues.find((q) => q.id === id)?.name ?? 'queue';
+}
+
+export async function appendTo(tracks: Track[], queueId = queueSnapshot().activeId) {
+  if (tracks.length === 0) return;
+  await queue.append(tracks, queueId);
+  undoable(`Added ${songs(tracks.length)} to ${queueName(queueId)}`);
+}
+
+export async function playNextIn(tracks: Track[], queueId = queueSnapshot().activeId) {
+  if (tracks.length === 0) return;
+  await queue.playNext(tracks, queueId);
+  undoable(`${songs(tracks.length)} will play next`);
+}
+
+/** Every queue plus a new one, for "Add to queue…". */
+export function chooseQueue(tracks: Track[]) {
+  const { queues, activeId } = queueSnapshot();
+  showMenu({
+    title: `Add ${songs(tracks.length)} to`,
+    items: [
+      ...queues.map((q) => ({
+        label: `${q.name}${q.id === activeId ? ' (playing)' : ''} · ${q.tracks.length}`,
+        onPress: () => void appendTo(tracks, q.id),
+      })),
+      {
+        label: 'New queue…',
+        onPress: async () => {
+          const name = await promptText('New queue', { message: 'Leave empty for a numbered name.', ok: 'Create' });
+          if (name === null) return;
+          const id = await queue.createQueue({ name, tracks });
+          if (id === null) toast.show('That is the most queues there can be');
+          else toast.show(`Created ${queueName(id)} with ${songs(tracks.length)}`);
+        },
+      },
+    ],
+  });
+}
+
+export async function newPlaylistWith(db: SQLiteDatabase, tracks: Track[], suggested = '') {
+  const name = await promptText('New playlist', { defaultValue: suggested, ok: 'Create' });
+  if (!name) return null;
+  const id = await createPlaylist(db, name, tracks.map((t) => t.id));
+  libraryEvents.emit('changed', undefined);
+  toast.show(tracks.length ? `Saved ${songs(tracks.length)} to ${name}` : `Created ${name}`);
+  return id;
+}
+
+export async function choosePlaylist(db: SQLiteDatabase, tracks: Track[]) {
+  const playlists = await listPlaylists(db, 'updated');
+  showMenu({
+    title: `Add ${songs(tracks.length)} to playlist`,
+    items: [
+      { label: 'New playlist…', onPress: () => void newPlaylistWith(db, tracks) },
+      ...playlists.map((p) => ({
+        label: `${p.name} · ${p.track_count}`,
+        onPress: async () => {
+          await addToPlaylist(db, p.id, tracks.map((t) => t.id));
+          libraryEvents.emit('changed', undefined);
+          toast.show(`Added ${songs(tracks.length)} to ${p.name}`);
+        },
+      })),
+    ],
+  });
+}
+
+export function groupHref(kind: GroupKind, value: string) {
+  return { pathname: '/group/[kind]/[value]', params: { kind, value } } as const;
+}
+
+export function albumHref(album: string, albumArtist: string | null) {
+  return { pathname: '/album/[id]', params: { id: album, artist: albumArtist ?? '' } } as const;
+}
+
+interface TrackMenuOptions {
+  /** Screen-specific items, shown after the queue items: "Remove from playlist" and so on. */
+  extra?: MenuItem[];
+  /** Adds "Select" to start multi-select with this track. */
+  onSelect?: () => void;
+  /** Runs before a "Go to" item navigates: the player uses it to close itself first. */
+  beforeNavigate?: () => void;
+}
+
+/**
+ * Long-press menus. A hook because the playlist items need the database and the "Go to" items
+ * need the router; the functions themselves are plain and can be called from any handler.
+ */
+export function useTrackActions() {
+  const db = useSQLiteContext();
+  const router = useRouter();
+  return useMemo(() => {
+    /** The items every list of tracks shares: queueing, playlists. */
+    const queueItems = (tracks: Track[]): MenuItem[] => [
+      { label: 'Play next', onPress: () => void playNextIn(tracks) },
+      { label: 'Add to queue', onPress: () => void appendTo(tracks) },
+      { label: 'Add to another queue…', onPress: () => chooseQueue(tracks) },
+      { label: 'Add to playlist…', onPress: () => void choosePlaylist(db, tracks) },
+    ];
+
+    return {
+      queueItems,
+      trackMenu(track: Track, opts: TrackMenuOptions = {}) {
+        const go = (href: Parameters<typeof router.push>[0]) => {
+          opts.beforeNavigate?.();
+          router.push(href);
+        };
+        showMenu({
+          title: track.title,
+          message: [track.artist, track.album].filter(Boolean).join(' — ') || undefined,
+          items: [
+            ...queueItems([track]),
+            ...(opts.extra ?? []),
+            {
+              label: 'Go to album',
+              hidden: !track.album,
+              onPress: () => go(albumHref(track.album!, track.album_artist ?? track.artist)),
+            },
+            {
+              label: 'Go to artist',
+              hidden: !track.artist,
+              onPress: () => go(groupHref('artist', track.artist!)),
+            },
+            {
+              label: 'Go to folder',
+              hidden: !track.folder,
+              onPress: () => go({ pathname: '/folder/[...path]', params: { path: track.folder.split('/') } }),
+            },
+            { label: 'Select', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
+          ],
+        });
+      },
+      /** For an album, artist, folder or playlist row: the tracks are loaded only if an item is picked. */
+      collectionMenu(title: string, load: (db: SQLiteDatabase) => Promise<Track[]>, extra: MenuItem[] = []) {
+        const withTracks = (fn: (tracks: Track[]) => unknown) => () => {
+          void load(db).then((tracks) => {
+            if (tracks.length === 0) toast.show('No songs in there');
+            else fn(tracks);
+          });
+        };
+        showMenu({
+          title,
+          items: [
+            { label: 'Play', onPress: withTracks((t) => queue.replace(t, 0)) },
+            { label: 'Shuffle', onPress: withTracks((t) => queue.playShuffled(t)) },
+            { label: 'Play next', onPress: withTracks((t) => playNextIn(t)) },
+            { label: 'Add to queue', onPress: withTracks((t) => appendTo(t)) },
+            { label: 'Add to another queue…', onPress: withTracks((t) => chooseQueue(t)) },
+            { label: 'Add to playlist…', onPress: withTracks((t) => choosePlaylist(db, t)) },
+            ...extra,
+          ],
+        });
+      },
+      /** For a multi-selection. */
+      batchMenu(tracks: Track[], extra: MenuItem[] = []) {
+        if (tracks.length === 0) return;
+        showMenu({
+          title: `${songs(tracks.length)} selected`,
+          items: [
+            { label: 'Play', onPress: () => void queue.replace(tracks, 0) },
+            { label: 'Shuffle', onPress: () => void queue.playShuffled(tracks) },
+            ...queueItems(tracks),
+            ...extra,
+          ],
+        });
+      },
+    };
+  }, [db, router]);
+}

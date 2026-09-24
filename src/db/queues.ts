@@ -1,8 +1,50 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { Track } from './types';
+import type { Queue, Track } from './types';
 
-/** Seeded by migration v1. Phase 1 plays from this one queue; Phase 2's queue tabs add the rest. */
+/** Seeded by migration v1, so there is always a queue to fall back to on a fresh install. */
 export const DEFAULT_QUEUE_ID = 1;
+/** Musicolet's limit. Past this many, tabs stop being a quick way to switch. */
+export const MAX_QUEUES = 20;
+
+export type QueueHead = Pick<Queue, 'id' | 'name' | 'position' | 'current_index' | 'current_ms' | 'repeat'>;
+
+/** Every queue in tab order, without its tracks. */
+export function listQueueHeads(db: SQLiteDatabase): Promise<QueueHead[]> {
+  return db.getAllAsync<QueueHead>(
+    'SELECT id, name, position, current_index, current_ms, repeat FROM queues ORDER BY position, id',
+  );
+}
+
+export async function createQueue(db: SQLiteDatabase, name: string, position: number): Promise<number> {
+  const result = await db.runAsync(
+    'INSERT INTO queues (name, position, created_at) VALUES (?, ?, ?)',
+    name,
+    position,
+    Date.now(),
+  );
+  return result.lastInsertRowId;
+}
+
+/** Its `queue_tracks` rows go with it through the foreign key's cascade. */
+export async function deleteQueue(db: SQLiteDatabase, queueId: number): Promise<void> {
+  await db.runAsync('DELETE FROM queues WHERE id = ?', queueId);
+}
+
+export async function renameQueue(db: SQLiteDatabase, queueId: number, name: string): Promise<void> {
+  await db.runAsync('UPDATE queues SET name = ? WHERE id = ?', name, queueId);
+}
+
+export async function setQueueRepeat(db: SQLiteDatabase, queueId: number, repeat: Queue['repeat']): Promise<void> {
+  await db.runAsync('UPDATE queues SET repeat = ? WHERE id = ?', repeat, queueId);
+}
+
+/** Rewrites tab order to match `ids`. A queue missing from it keeps its old position. */
+export async function saveQueueOrder(db: SQLiteDatabase, ids: number[]): Promise<void> {
+  await db.runAsync(
+    'UPDATE queues SET position = COALESCE((SELECT j.key FROM json_each(?) j WHERE j.value = queues.id), position)',
+    JSON.stringify(ids),
+  );
+}
 
 export interface SavedQueue {
   tracks: Track[];

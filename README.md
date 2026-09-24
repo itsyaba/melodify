@@ -121,12 +121,14 @@ src/
     (tabs)/      NativeTabs: Library, Folders, Queue, Settings, Search, and the mini player
                  in the tab bar's bottom accessory
   screens/      screen bodies rendered by the routes
-  components/   shared UI: track-row, list-row, artwork, segmented, empty-state,
-                mini-player, seek-bar, icon-button
-  db/           schema + migrations, typed queries
+  components/   shared UI: track-list (tap, long-press menu, multi-select), reorderable-list
+                (drag and swipe), track-actions (queue and playlist menus), menus (action
+                sheets, prompts), toast (with undo), chips, list-toolbar, rows, mini-player
+  db/           schema + migrations, typed queries, playlists, settings, a serial write chain
   scan/         Documents/ walker, filename-based tag guesses, native tag reading (+ tests)
-  player/       engine interface, native + fake engines, queue store (mirrored to SQLite)
-  hooks/        useLibraryQuery: DB query that refreshes when the library changes
+  player/       engine interface, native + fake engines, queue store (several queues,
+                mirrored to SQLite), pure queue operations (+ tests)
+  hooks/        useLibraryQuery (refreshes when the library changes), selection, stored choices
   utils/        events, formatting
   theme.ts      color / spacing / type tokens (iOS semantic colors)
 modules/
@@ -140,7 +142,9 @@ assets/         icons, splash
 See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is done as of 2026-09-20: the app is on the
 phone, scanning and browsing a real library. In Phase 1, playback, the lock screen and the player
 screens work on the device as of 2026-09-23; tag reading, interruption handling and restoring the
-queue on launch are written and waiting for a device test.
+queue on launch are written and waiting for a device test. Phase 2 (multiple queues, queue editing
+with undo, playlists, grouped library views, multi-select, search) is written, JS only, and waiting
+for the same.
 
 ## License
 

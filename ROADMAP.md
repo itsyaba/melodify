@@ -71,15 +71,35 @@ export, but stay unchecked until a CI build of them has been exercised on the ph
       every 5 s while playing and on leaving the app; restored paused before the first screen)
 
 ### Phase 2. Musicolet core
+
+All of Phase 2 is written and passes typecheck, tests and the bundle export; none of it has been
+on the phone yet, so every item stays unchecked. It is JS only: no module change, no new native
+dependency, so the Phase 1 IPA (module 0.4.0) runs it as it is.
+
 - [ ] Multiple queues with tabs, per-queue position
+      (written: up to 20 queues as tabs on the Queue screen; each keeps its list, current track,
+      position and repeat mode. Viewing a tab does not switch playback; tapping a song in it does.
+      Tabs are tapped, not swiped, and live on the Queue tab rather than the player)
 - [ ] Add to queue / play next / add to specific queue from every list
+      (written: long press on any song, album, artist, genre, year, folder, playlist or search
+      result, and the player's ⋯ button)
 - [ ] Drag reorder, swipe remove, clear, undo
+      (written: PanResponder drag handles with edge autoscroll, swipe either way to remove, and a
+      30-step undo stack offered as a toast after each edit. To try: long drags that autoscroll,
+      and that a drag never scrolls the list underneath)
 - [ ] Save queue as playlist; playlists CRUD
+      (written: create, rename, delete, add, remove, reorder; duplicates allowed)
 - [ ] Shuffle (queue, all, by album), repeat modes
+      (written: shuffling reorders the queue with the current song on top, as Musicolet does;
+      repeat off / queue / song per queue)
 - [ ] Folder browsing with play-folder and add-folder
+      (written: play and shuffle take in every subfolder; long press a folder for the queue items)
 - [ ] Albums / Artists / Album artists / Genres / Composers / Years views, sort options
+      (written: eight library views, sort remembered per view)
 - [ ] Multi-select and batch actions
+      (written: Select in the header or from a long press; batch play, queue, playlist, remove)
 - [ ] Search tab with recent searches
+      (written: songs, albums, artists, folders and playlists; twelve recent searches)
 
 ### Phase 3. Companion features
 - [ ] Bookmarks and per-track resume position
