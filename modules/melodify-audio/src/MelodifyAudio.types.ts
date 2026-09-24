@@ -43,7 +43,7 @@ export type MelodifyAudioEvents = {
   ended: () => void;
   error: (payload: { message: string }) => void;
   remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
-  /** Declared for the interruption item of Phase 1; nothing sends it yet. */
+  /** Sent after the player has already paused or resumed for it; see `EngineEvents.routeChange`. */
   routeChange: (payload: { reason: string }) => void;
 };
 

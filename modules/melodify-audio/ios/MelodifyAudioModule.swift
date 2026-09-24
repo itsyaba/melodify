@@ -27,8 +27,6 @@ internal struct LoadOptionsRecord: Record {
 /**
  The native half of `PlayerEngine` (src/player/engine.ts). Every function here has a counterpart
  on that interface, and `FakeEngine` is the reference for what each one is expected to do.
-
- `routeChange` is declared but never sent yet; interruptions and unplug are the next Phase 1 item.
  */
 public class MelodifyAudioModule: Module {
   private let player = MelodifyPlayer()
@@ -143,6 +141,9 @@ public class MelodifyAudioModule: Module {
     }
     player.onNowPlaying = { [weak self] state, position in
       self?.nowPlaying.update(state: state, position: position)
+    }
+    player.onRouteChange = { [weak self] event in
+      self?.emit("routeChange", ["reason": event.rawValue])
     }
     // Commands are not acted on here. They go to JS, where the queue store already knows what
     // "next" means; deciding in two places is how the lock screen and the app drift apart.

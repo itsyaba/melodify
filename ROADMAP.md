@@ -54,6 +54,9 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
       (2026-09-23: lock screen shows the track and its buttons drive playback. Bluetooth and headset
       use the same MPRemoteCommandCenter handlers but have not been tried on real hardware)
 - [ ] Interruptions, pause on unplug
+      (written: pauses on unplug and on interruption, resumes after one only if iOS allows it and
+      it was playing; restarts the engine when a new output changes the hardware format.
+      To try: pull headphones mid-song, take a call, connect and disconnect Bluetooth)
 - [x] Player screen: art, title, seek bar, controls (2026-09-23)
 - [x] Mini player above tab bar (2026-09-23, in the iOS 26 tab bar bottom accessory)
 - [ ] Tag reading via AVAsset in the module, art extraction and cache

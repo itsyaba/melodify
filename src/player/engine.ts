@@ -22,10 +22,21 @@ export interface EngineEvents {
   ended: void;
   /** Lock screen / headset / Bluetooth remote commands. */
   remote: RemoteCommand;
-  /** Route change or interruption the JS side may want to react to. */
-  routeChange: { reason: 'unplugged' | 'connected' | 'interruptionBegan' | 'interruptionEnded' | 'other' };
+  /**
+   * An interruption or route change, reported after the engine has already acted on it, since
+   * these are the cases where a bridge round trip would be audible:
+   * - `unplugged`: headphones or Bluetooth went away; the engine paused.
+   * - `interruptionBegan`: a call, alarm or another app took audio; the engine paused.
+   * - `interruptionEnded`: the engine resumed if iOS allows it and it was playing when the
+   *   interruption began. Anything the user had paused stays paused.
+   * - `connected`: new headphones; nothing happens on its own. Resume-on-plug is the queue's call.
+   * The resulting state changes arrive as ordinary `state` events.
+   */
+  routeChange: { reason: RouteChangeReason };
   error: { message: string };
 }
+
+export type RouteChangeReason = 'unplugged' | 'connected' | 'interruptionBegan' | 'interruptionEnded' | 'other';
 
 export type RemoteCommand =
   | { type: 'play' }

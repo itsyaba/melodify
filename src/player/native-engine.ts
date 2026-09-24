@@ -6,6 +6,7 @@ import type {
   PlaybackState,
   PlayerEngine,
   RemoteCommand,
+  RouteChangeReason,
 } from './engine';
 
 const STATES: readonly string[] = ['idle', 'loading', 'playing', 'paused', 'ended', 'error'];
@@ -13,6 +14,13 @@ const STATES: readonly string[] = ['idle', 'loading', 'playing', 'paused', 'ende
 /** The bridge hands over a plain string; anything unrecognised is treated as a fault. */
 function toState(raw: string): PlaybackState {
   return STATES.includes(raw) ? (raw as PlaybackState) : 'error';
+}
+
+const ROUTE_REASONS: readonly string[] = ['unplugged', 'connected', 'interruptionBegan', 'interruptionEnded'];
+
+/** A reason this build does not know yet still reaches listeners, as `other`. */
+function toRouteReason(raw: string): RouteChangeReason {
+  return ROUTE_REASONS.includes(raw) ? (raw as RouteChangeReason) : 'other';
 }
 
 /** The commands that carry nothing but their name. */
@@ -49,9 +57,6 @@ function toRemoteCommand(payload: {
  * `melodify-audio` behind the same contract FakeEngine implements. Listeners are attached once,
  * in the constructor, and fanned out through a local Emitter so `on()` returns an unsubscribe
  * the same way it does everywhere else.
- *
- * `routeChange` is part of the contract and is declared by the Swift module, but nothing sends it
- * until the interruption item lands, so this does not subscribe to it yet.
  */
 export class NativeEngine implements PlayerEngine {
   private events = new Emitter<EngineEvents>();
@@ -68,6 +73,9 @@ export class NativeEngine implements PlayerEngine {
     Native.addListener('remote', (payload) => {
       const command = toRemoteCommand(payload);
       if (command) this.events.emit('remote', command);
+    });
+    Native.addListener('routeChange', ({ reason }) => {
+      this.events.emit('routeChange', { reason: toRouteReason(reason) });
     });
   }
 

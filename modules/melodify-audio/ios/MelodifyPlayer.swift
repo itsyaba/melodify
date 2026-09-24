@@ -11,12 +11,20 @@ internal struct PlayerPosition {
   let durationMs: Double
 }
 
+/// Mirrors the `routeChange` reasons in src/player/engine.ts. The raw values cross the bridge as-is.
+internal enum PlayerRouteEvent: String {
+  case unplugged, connected, interruptionBegan, interruptionEnded
+}
+
 /**
  AVAudioEngine playback behind the `PlayerEngine` contract.
 
- Phase 1 v1: one player node, one file at a time. Gapless (a second player node), crossfade and
- EQ are Phase 6 and slot into the same graph. Now Playing info, remote commands and interruption
- handling are the next two Phase 1 items and are not wired here yet.
+ Phase 1: one player node, one file at a time. Gapless (a second player node), crossfade and
+ EQ are Phase 6 and slot into the same graph.
+
+ Interruptions and route changes are handled here rather than in JS, because they are the cases
+ where waiting a bridge round trip is audible: unplugging pauses at once instead of leaking a
+ moment through the speaker. The queue still hears about each one through `onRouteChange`.
  */
 internal final class MelodifyPlayer {
   /// Every mutation below happens here. AVAudioEngine is not thread safe, the position ticker
@@ -45,6 +53,10 @@ internal final class MelodifyPlayer {
   private var state: PlayerState = .idle
   private var ticker: DispatchSourceTimer?
   private var sessionActive = false
+  /// Whether the interruption in progress stopped running playback, which is what decides if its
+  /// end resumes. Pausing is the system's doing; resuming something the user had paused is not.
+  private var interruptedWhilePlaying = false
+  private var observers: [NSObjectProtocol] = []
 
   // Called on the audio queue. The module marshals them to the JS side.
   var onState: ((PlayerState) -> Void)?
@@ -55,6 +67,9 @@ internal final class MelodifyPlayer {
   /// ticker — MPNowPlayingInfoCenter works out elapsed time from the rate on its own, and only
   /// needs telling when that arithmetic would be wrong.
   var onNowPlaying: ((PlayerState, PlayerPosition) -> Void)?
+  /// Fired after the player has already reacted to an interruption or route change, to say why
+  /// playback moved without a command.
+  var onRouteChange: ((PlayerRouteEvent) -> Void)?
 
   init() {
     engine.attach(player)
@@ -66,6 +81,7 @@ internal final class MelodifyPlayer {
     engine.connect(player, to: timePitch, format: seed)
     engine.connect(timePitch, to: engine.mainMixerNode, format: seed)
     configureSessionCategory()
+    observeSystemEvents()
   }
 
   // MARK: - Transport
@@ -127,16 +143,7 @@ internal final class MelodifyPlayer {
   }
 
   func pause() {
-    queue.sync {
-      guard state == .playing else { return }
-      lastFrame = currentFrame()
-      // Only the node is paused; the engine keeps rendering silence. That preserves the node's
-      // sample clock, so resuming is instant and the position stays correct across a pause.
-      player.pause()
-      stopTicker()
-      setState(.paused)
-      emitPosition()
-    }
+    queue.sync { pauseLocked() }
   }
 
   func stop() {
@@ -203,6 +210,10 @@ internal final class MelodifyPlayer {
   }
 
   func teardown() {
+    for observer in observers {
+      NotificationCenter.default.removeObserver(observer)
+    }
+    observers = []
     queue.sync {
       invalidateSchedule()
       stopTicker()
@@ -217,9 +228,21 @@ internal final class MelodifyPlayer {
     onPosition = nil
     onEnded = nil
     onNowPlaying = nil
+    onRouteChange = nil
   }
 
   // MARK: - Scheduling
+
+  private func pauseLocked() {
+    guard state == .playing else { return }
+    lastFrame = currentFrame()
+    // Only the node is paused; the engine keeps rendering silence. That preserves the node's
+    // sample clock, so resuming is instant and the position stays correct across a pause.
+    player.pause()
+    stopTicker()
+    setState(.paused)
+    emitPosition()
+  }
 
   private func startPlayback() throws {
     try activateSession()
@@ -275,6 +298,24 @@ internal final class MelodifyPlayer {
   private func invalidateSchedule() {
     generation &+= 1
     player.stop()
+  }
+
+  /// Schedules again from the current position with the node stopped. For when the system stopped
+  /// the engine underneath the node: after that neither the node's schedule nor its clock can be
+  /// trusted, and starting from a fresh segment is what `startPlayback` then expects.
+  /// Returns false if that left nothing to play, as `schedule` does.
+  @discardableResult
+  private func park() -> Bool {
+    if state == .playing {
+      lastFrame = currentFrame()
+    }
+    stopTicker()
+    invalidateSchedule()
+    let scheduled = schedule(from: lastFrame)
+    if scheduled {
+      emitPosition()
+    }
+    return scheduled
   }
 
   private func finishNaturally() {
@@ -354,6 +395,102 @@ internal final class MelodifyPlayer {
 
   private func clampFrames(_ frames: AVAudioFramePosition, in opened: AVAudioFile) -> AVAudioFramePosition {
     min(max(0, frames), opened.length)
+  }
+
+  // MARK: - Interruptions and routes
+
+  /// Notifications post on whatever thread the session or engine happens to use, so each observer
+  /// reads its payload where it lands and hops onto `queue` before touching any state.
+  private func observeSystemEvents() {
+    let center = NotificationCenter.default
+    let session = AVAudioSession.sharedInstance()
+    observers = [
+      center.addObserver(
+        forName: AVAudioSession.interruptionNotification, object: session, queue: nil
+      ) { [weak self] note in
+        guard
+          let self,
+          let rawType = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: rawType)
+        else { return }
+        let rawOptions = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+        let shouldResume = AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume)
+        self.queue.async {
+          switch type {
+          case .began: self.interruptionBegan()
+          case .ended: self.interruptionEnded(shouldResume: shouldResume)
+          @unknown default: break
+          }
+        }
+      },
+      center.addObserver(
+        forName: AVAudioSession.routeChangeNotification, object: session, queue: nil
+      ) { [weak self] note in
+        guard
+          let self,
+          let rawReason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+          let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason)
+        else { return }
+        self.queue.async { self.routeChanged(reason) }
+      },
+      center.addObserver(
+        forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+      ) { [weak self] _ in
+        guard let self else { return }
+        self.queue.async { self.configurationChanged() }
+      },
+    ]
+  }
+
+  /// A call, Siri, an alarm, or another app taking the session. By the time this arrives the
+  /// system has already stopped the engine and deactivated the session; what is left is to make
+  /// the state say so, and to note that the next play has to activate the session again.
+  private func interruptionBegan() {
+    sessionActive = false
+    interruptedWhilePlaying = state == .playing
+    // Paused too: its node sat in an engine that has now been stopped. Never ended or idle, where
+    // rescheduling at the end of the file would report the track finished a second time.
+    if state == .playing || state == .paused, park() {
+      setState(.paused)
+    }
+    onRouteChange?(.interruptionBegan)
+  }
+
+  /// iOS only sets `shouldResume` when resuming is appropriate: after a call, not after the user
+  /// started music in another app. A failed restart leaves the player paused, which is also what
+  /// the user sees, so there is nothing further to report.
+  private func interruptionEnded(shouldResume: Bool) {
+    let resume = shouldResume && interruptedWhilePlaying && state == .paused
+    interruptedWhilePlaying = false
+    if resume {
+      try? startPlayback()
+    }
+    onRouteChange?(.interruptionEnded)
+  }
+
+  private func routeChanged(_ reason: AVAudioSession.RouteChangeReason) {
+    switch reason {
+    case .oldDeviceUnavailable:
+      // Headphones pulled or Bluetooth gone. iOS carries on through the speaker unless the app
+      // stops, and a music player is expected to stop.
+      pauseLocked()
+      onRouteChange?(.unplugged)
+    case .newDeviceAvailable:
+      // Resuming on plug is a Musicolet setting, off by default, so it is the queue's call.
+      onRouteChange?(.connected)
+    default:
+      break
+    }
+  }
+
+  /// A new output with a different sample rate or channel count, Bluetooth connecting for one,
+  /// makes the engine stop itself. The graph survives but playback does not, and without this
+  /// the state would still read playing over silence.
+  private func configurationChanged() {
+    guard state == .playing || state == .paused else { return }
+    let wasPlaying = state == .playing
+    guard park(), wasPlaying else { return }
+    try? startPlayback()
   }
 
   // MARK: - Session and files

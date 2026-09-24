@@ -1,5 +1,5 @@
 import { Emitter } from '@/utils/events';
-import type { EngineEvents, NowPlayingMeta, PlaybackState, PlayerEngine } from './engine';
+import type { EngineEvents, NowPlayingMeta, PlaybackState, PlayerEngine, RouteChangeReason } from './engine';
 
 /** Timer-driven engine for web / tests. Makes no sound. */
 export class FakeEngine implements PlayerEngine {
@@ -9,6 +9,7 @@ export class FakeEngine implements PlayerEngine {
   private durationMs = 0;
   private rate = 1;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private interruptedWhilePlaying = false;
 
   async load(_uri: string, meta: NowPlayingMeta, opts?: { autoplay?: boolean; startMs?: number }) {
     this.stopTimer();
@@ -56,6 +57,23 @@ export class FakeEngine implements PlayerEngine {
   }
   /** Test helper: simulate a lock-screen command. */
   simulateRemote(cmd: EngineEvents['remote']) { this.events.emit('remote', cmd); }
+  /**
+   * Test helper: simulate an unplug or interruption. Acts before it reports, as the Swift side
+   * does: pauses on unplug and interruption, resumes after one only if it had been playing.
+   */
+  async simulateRouteChange(reason: RouteChangeReason) {
+    if (reason === 'unplugged') {
+      await this.pause();
+    } else if (reason === 'interruptionBegan') {
+      this.interruptedWhilePlaying = this.state === 'playing';
+      await this.pause();
+    } else if (reason === 'interruptionEnded') {
+      const resume = this.interruptedWhilePlaying && this.state === 'paused';
+      this.interruptedWhilePlaying = false;
+      if (resume) await this.play();
+    }
+    this.events.emit('routeChange', { reason });
+  }
 
   private setState(s: PlaybackState) {
     this.state = s;
