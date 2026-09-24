@@ -48,6 +48,9 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
 
 ### Phase 1. Play music
 
+The three open items below are written (module 0.4.0) and pass typecheck, tests and the bundle
+export, but stay unchecked until a CI build of them has been exercised on the phone.
+
 - [x] `melodify-audio` Swift module v1: single player node, play / pause / seek / next, session config
       (2026-09-23: plays on device under LiveContainer, iOS 26.6.1; pause, seek and next all exercised)
 - [x] Now Playing info + remote commands (lock screen, Control Center, headset, Bluetooth)
@@ -64,6 +67,8 @@ Every phase that touches `modules/` or `app.json` plugins needs a new CI build.
       in `Documents/.artcache/` by content hash and beats folder art. To try: rescan the real
       library and check FLAC files in particular, whose Vorbis comments are matched by key)
 - [ ] Resume last queue and position on launch
+      (written: the queue is mirrored to `queue_tracks`, position saved on pause, on track change,
+      every 5 s while playing and on leaving the app; restored paused before the first screen)
 
 ### Phase 2. Musicolet core
 - [ ] Multiple queues with tabs, per-queue position

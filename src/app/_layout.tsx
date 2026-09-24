@@ -1,9 +1,16 @@
 import { Suspense } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
-import { SQLiteProvider } from 'expo-sqlite';
+import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { DB_NAME, migrate } from '@/db';
+import { restoreQueue } from '@/player/queue-store';
+
+/** Migrations first: the restore reads tables they create. */
+async function initDatabase(db: SQLiteDatabase) {
+  await migrate(db);
+  await restoreQueue(db);
+}
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -12,7 +19,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Suspense fallback={<Loading />}>
-        <SQLiteProvider databaseName={DB_NAME} onInit={migrate} useSuspense>
+        <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase} useSuspense>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />

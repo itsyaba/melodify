@@ -25,7 +25,7 @@ to double-check against the current Musicolet release.
 | Save queue as playlist | Persist any queue as a named playlist | JS | todo |
 | Shuffle | Shuffle queue, shuffle all, shuffle by album | RN+ | todo |
 | Repeat modes | Off, repeat all, repeat one | RN+ | todo |
-| Resume on launch | Restore last queue, track and position after app restart | JS | todo |
+| Resume on launch | Restore last queue, track and position after app restart | JS | wip |
 | Gapless playback | No silence between consecutive tracks | Native | todo |
 | Crossfade | Fade between tracks with adjustable duration (verify) | Native | todo |
 | Playback speed | 0.5x to 2x or wider, per session | RN+ | wip |

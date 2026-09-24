@@ -1,12 +1,15 @@
 import { useSyncExternalStore } from 'react';
+import { AppState } from 'react-native';
 import { Paths } from 'expo-file-system';
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { DEFAULT_QUEUE_ID, loadQueue, saveQueuePosition, saveQueueTracks } from '@/db/queues';
 import type { Track } from '@/db/types';
 import { artUri } from '@/components/artwork';
 import { engine, type PlaybackState } from './index';
 
 /**
- * Single in-memory queue driving the engine. Phase 2 turns this into multiple
- * persisted queues (tables `queues` / `queue_tracks`); the hook API stays the same.
+ * Single queue driving the engine, held in memory and mirrored to `queues` / `queue_tracks` so it
+ * survives a restart. Phase 2 turns this into multiple queues; the hook API stays the same.
  */
 interface QueueState {
   tracks: Track[];
@@ -28,14 +31,59 @@ function trackUri(track: Track): string {
   return Paths.join(Paths.document, track.path);
 }
 
-async function loadIndex(index: number, autoplay = true) {
+// Persistence. Set by `restoreQueue`, which runs before any screen can touch the queue.
+let db: SQLiteDatabase | null = null;
+let writes: Promise<void> = Promise.resolve();
+/** Position last written, so the 4 Hz position tick only writes every few seconds. */
+let savedMs = 0;
+const SAVE_EVERY_MS = 5000;
+
+/**
+ * Writes run one at a time, in order. Two overlapping transactions on one connection would fail
+ * outright, and a position save must not land before the track list it indexes into.
+ */
+function persist(op: (db: SQLiteDatabase) => Promise<void>): void {
+  const target = db;
+  if (!target) return;
+  writes = writes
+    .then(() => op(target))
+    .catch((err: unknown) => console.warn('[melodify] saving the queue failed:', err));
+}
+
+function saveTracks(): void {
+  const ids = state.tracks.map((t) => t.id);
+  persist((d) => saveQueueTracks(d, DEFAULT_QUEUE_ID, ids));
+}
+
+/**
+ * Where the current track should pick up again. A queue that ran out comes back at the start of
+ * its last track, not parked at the very end of it.
+ */
+function resumeMs(): number {
+  return state.state === 'ended' || state.state === 'idle' ? 0 : state.positionMs;
+}
+
+/**
+ * Callers that know the position pass it. The fallback reads the playback state, which lags
+ * behind during a load: while restoring, the engine still reads idle when the first tick lands.
+ */
+function savePosition(ms = resumeMs()): void {
+  if (state.currentIndex < 0) return;
+  const index = state.currentIndex;
+  savedMs = ms;
+  persist((d) => saveQueuePosition(d, DEFAULT_QUEUE_ID, index, ms));
+}
+
+async function loadIndex(index: number, opts: { autoplay?: boolean; startMs?: number } = {}) {
   const track = state.tracks[index];
   if (!track) return;
-  set({ currentIndex: index, positionMs: 0, durationMs: track.duration_ms ?? 0 });
+  const startMs = opts.startMs ?? track.resume_ms ?? 0;
+  set({ currentIndex: index, positionMs: startMs, durationMs: track.duration_ms ?? 0 });
+  savePosition(startMs);
   await engine.load(
     trackUri(track),
     { title: track.title, artist: track.artist, album: track.album, durationMs: track.duration_ms, artUri: artUri(track.art_key) },
-    { autoplay, startMs: track.resume_ms ?? 0 },
+    { autoplay: opts.autoplay ?? true, startMs },
   );
   const next = state.tracks[index + 1];
   if (next) void engine.preload(trackUri(next));
@@ -45,6 +93,7 @@ export const queue = {
   /** Replace the queue with `tracks` and start at `index`. */
   async replace(tracks: Track[], index: number) {
     set({ tracks });
+    saveTracks();
     await loadIndex(index);
   },
   async playAt(index: number) {
@@ -65,12 +114,31 @@ export const queue = {
   seek: (ms: number) => engine.seek(ms),
   append(tracks: Track[]) {
     set({ tracks: [...state.tracks, ...tracks] });
+    saveTracks();
   },
   playNext(tracks: Track[]) {
     const at = state.currentIndex + 1;
     set({ tracks: [...state.tracks.slice(0, at), ...tracks, ...state.tracks.slice(at)] });
+    saveTracks();
   },
 };
+
+/**
+ * Puts back the queue and position from the last run, paused. Called once from the database's
+ * `onInit`, so it has finished before the first screen renders. Never throws: a failure here
+ * should cost the saved queue, not the launch.
+ */
+export async function restoreQueue(database: SQLiteDatabase): Promise<void> {
+  db = database;
+  try {
+    const saved = await loadQueue(database, DEFAULT_QUEUE_ID);
+    if (saved.currentIndex < 0) return;
+    set({ tracks: saved.tracks });
+    await loadIndex(saved.currentIndex, { autoplay: false, startMs: saved.startMs });
+  } catch (err) {
+    console.warn('[melodify] restoring the queue failed:', err);
+  }
+}
 
 /**
  * Engine calls made from an event handler have no caller to await them, so a rejection would
@@ -83,8 +151,19 @@ function run(op: Promise<unknown>): void {
   });
 }
 
-engine.on('state', (s) => set({ state: s }));
-engine.on('position', (p) => set({ positionMs: p.positionMs, durationMs: p.durationMs }));
+engine.on('state', (s) => {
+  set({ state: s });
+  if (s === 'paused' || s === 'ended' || s === 'idle') savePosition();
+});
+engine.on('position', (p) => {
+  set({ positionMs: p.positionMs, durationMs: p.durationMs });
+  // Also catches a seek, which moves the position by more than this in one tick.
+  if (Math.abs(p.positionMs - savedMs) >= SAVE_EVERY_MS) savePosition(p.positionMs);
+});
+// Leaving the app is the last reliable moment before it may be killed without warning.
+AppState.addEventListener('change', (next) => {
+  if (next !== 'active') savePosition();
+});
 engine.on('ended', () => run(queue.next()));
 engine.on('remote', (cmd) => {
   switch (cmd.type) {

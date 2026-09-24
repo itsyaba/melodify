@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { ART_EXTENSIONS, ART_FILENAMES, AUDIO_EXTENSIONS, LYRICS_EXTENSION } from '@/constants';
+import { BUSY_TIMEOUT } from '@/db';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
 import { mergeTags, type GuessedColumns } from './merge-tags';
 import { guessTags } from './parse-filename';
@@ -99,6 +100,7 @@ async function tagPending(
     const batch = pending.slice(i, i + TAG_BATCH);
     const tags = await readTags(batch.map((r) => r.path));
     await db.withExclusiveTransactionAsync(async (tx) => {
+      await tx.execAsync(BUSY_TIMEOUT);
       const write = await tx.prepareAsync(
         `UPDATE tracks SET title = $title, artist = $artist, album = $album, album_artist = $album_artist,
            genre = $genre, composer = $composer, year = $year, track_no = $track_no, disc_no = $disc_no,
@@ -168,6 +170,7 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
     const seenPaths = new Set<string>();
 
     await db.withExclusiveTransactionAsync(async (tx) => {
+      await tx.execAsync(BUSY_TIMEOUT);
       const insert = await tx.prepareAsync(
         `INSERT INTO tracks (path, folder, filename, ext, size, mtime, title, artist, album,
            track_no, disc_no, art_key, lyrics_path, added_at)
@@ -222,13 +225,16 @@ export async function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
         await update.finalizeAsync();
         await reguess.finalizeAsync();
       }
-
-      const gone = existing.filter((r) => !seenPaths.has(r.path));
-      for (const r of gone) {
-        await tx.runAsync('DELETE FROM tracks WHERE id = ?', r.id);
-        progress.removed += 1;
-      }
     });
+
+    // On the main connection, not the transaction's: that one is opened fresh without
+    // `foreign_keys = ON`, which cannot be switched on inside a transaction, so deleting there
+    // would skip the cascade and leave the file behind in queues and playlists.
+    const gone = existing.filter((r) => !seenPaths.has(r.path)).map((r) => r.id);
+    if (gone.length > 0) {
+      await db.runAsync('DELETE FROM tracks WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify(gone));
+      progress.removed = gone.length;
+    }
 
     if (canReadTags()) {
       // The index is complete at this point, so let the lists pick up new files now rather than
