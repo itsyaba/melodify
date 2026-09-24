@@ -46,7 +46,7 @@ internal enum MelodifyTags {
   }
 
   private static func readOne(uri: String, cacheURL: URL) async -> TrackTagsRecord {
-    var record = TrackTagsRecord()
+    let record = TrackTagsRecord()
     record.uri = uri
 
     let url = fileURL(from: uri)
@@ -79,20 +79,18 @@ internal enum MelodifyTags {
       }
 
       let metadata = try await asset.load(.metadata)
-      record = await apply(metadata: metadata, to: record, cacheURL: cacheURL)
+      await apply(metadata: metadata, into: record, cacheURL: cacheURL)
     } catch {
       record.error = error.localizedDescription
     }
     return record
   }
 
-  /// Returns a modified copy rather than taking `inout`: the body mutates across `await`
-  /// boundaries, and an exclusive borrow held over a suspension is a trap worth not setting.
+  /// Writes into `result` in place. A Record's `@Field` storage is a class, so its setters do not
+  /// mutate the struct, and a record can be filled across `await`s without an `inout` borrow.
   private static func apply(
-    metadata: [AVMetadataItem], to record: TrackTagsRecord, cacheURL: URL
-  ) async -> TrackTagsRecord {
-    var result = record
-
+    metadata: [AVMetadataItem], into result: TrackTagsRecord, cacheURL: URL
+  ) async {
     for item in metadata {
       // Common keys first: they are the format-independent spelling and cover most files.
       switch item.commonKey {
@@ -167,7 +165,6 @@ internal enum MelodifyTags {
         break
       }
     }
-    return result
   }
 
   private static func text(_ item: AVMetadataItem) async -> String? {
