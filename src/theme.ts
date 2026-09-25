@@ -154,3 +154,23 @@ export const type = {
 } as const;
 
 export const artSize = { row: 48, cover: 60, card: 160, player: 320 } as const;
+
+/**
+ * The Search tab's Browse all tiles: Spotify's bright fills under white text (`onTint`), the same
+ * in every theme. A tile picks its colour by its name, so a genre keeps the same one.
+ */
+export const BROWSE_TILE_COLORS = [
+  '#dc148c',
+  '#8400e7',
+  '#006450',
+  '#e13300',
+  '#1e3264',
+  '#148a08',
+  '#0d73ec',
+  '#8d67ab',
+  '#ba5d07',
+  '#e91429',
+  '#27856a',
+  '#af2896',
+  '#477d95',
+] as const;

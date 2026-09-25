@@ -10,7 +10,8 @@ export default function LibraryLayout({ segment }: { segment: string }) {
   return (
     <Stack screenOptions={{ headerLargeTitleEnabled: true, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ title: 'Library' }} />
-      <Stack.Screen name="search" options={{ title: 'Search' }} />
+      {/* Search draws its own header, Spotify style: a title, then a field that pins to the top. */}
+      <Stack.Screen name="search" options={{ title: 'Search', headerShown: false }} />
       <Stack.Screen name="album/[id]" options={{ headerLargeTitleEnabled: false, title: '' }} />
       <Stack.Screen name="group/[kind]/[value]" options={{ headerLargeTitleEnabled: false }} />
       <Stack.Screen name="playlist/[id]" options={{ headerLargeTitleEnabled: false, title: '' }} />

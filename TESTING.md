@@ -72,7 +72,8 @@ Scan screen shows the first failure.
 - [ ] **Library views:** Songs, Albums, Artists, Album artists, Genres, Composers, Years, Playlists;
       each remembers its sort after a relaunch.
 - [ ] **Multi-select:** Select (header) › pick several › ⋯ › play, queue, add to playlist, hide.
-- [ ] **Search** finds songs, albums, artists, folders and playlists; recent searches stay listed.
+- [ ] **Search** finds songs, albums, artists, folders and playlists; recent searches stay listed
+      (see section 12 for the new page).
 
 ## 4. Phase 3: companion features
 
@@ -259,6 +260,38 @@ compact density (Settings › Appearance).
       added, Most played, Recently played, Bookmarks, New playlist. Each opens its list; holding an
       auto playlist gives its menu; New playlist asks for a name. Your playlists follow, with ⋯ for
       Rename and Delete.
+
+## 12. The Spotify-style Search tab
+
+JS only: no new IPA needed. The old Search tab showed an empty page (its field sat hidden under
+the title bar); this replaces it.
+
+- [ ] **Opens:** tapping the Search tab (the magnifier on its own at the right of the tab bar)
+      shows a large "Search" title and a big white field, "What do you want to listen to?" (dark on
+      light in a light theme). Scroll down: the title goes, the field stays pinned under the status
+      bar with the page sliding beneath it.
+- [ ] **Discover something new:** a row of tall album covers with the album and artist on them,
+      albums not played for a month, in a new order each time. Tap opens the album; hold for its
+      menu. Missing when every album was played lately.
+- [ ] **Browse all:** coloured tiles two a row: Favorites, Recently added, Most played, Recently
+      played, Bookmarks, then each genre, biggest first. Each has a tilted cover in the corner (the
+      song that tops it, or an icon while it is empty) and opens its list. A genre keeps its colour.
+- [ ] **Search mode:** tap the field: it moves to the top with the keyboard up and Cancel beside
+      it. With nothing typed: "Recent searches", the songs, albums, artists and playlists you opened
+      from Search, newest first, each with ✕ to forget it, and "Clear recent searches" (clears the
+      typed searches too). With none yet: "Play what you love". Cancel returns to the browse page.
+- [ ] **Typing** shows results at once, one list, best match first, each row saying what it is
+      ("Song · fun.", "Album · …", "Artist · 12 songs", "Playlist · …", "Folder · …"). Every word must
+      match somewhere: "fun we are young" finds We Are Young by fun.; "beyonce" finds Beyoncé.
+      Pills (Top, Songs, Artists, Albums, Playlists, Folders) show once two kinds match and narrow
+      the list; Top holds the best 50. Nothing found: "Couldn’t find “…”".
+- [ ] **Rows:** a song plays on the first tap, even with the keyboard up, and then the next songs
+      found; its title takes the accent while it plays. ⋯ opens its menu; ⊕ adds it to favorites (✓
+      in the accent, with a toast), tapping ✓ removes it. Albums, artists and playlists open their
+      page inside the Search tab (back returns to the results); folders open in the Folders tab.
+- [ ] **Suggestions:** after searching "fun we are young" once (press Search on the keyboard, or
+      open a result), typing "we are" lists it above the results with ↖; tapping fills the field.
+- [ ] **Shortcut:** holding the app icon › Search opens straight into search mode with the keyboard.
 
 ## What to send back
 

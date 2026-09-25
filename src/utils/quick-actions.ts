@@ -69,7 +69,7 @@ async function perform(db: SQLiteDatabase, type: string): Promise<void> {
       return;
     }
     case 'search':
-      router.push('/search');
+      router.push('/search?focus=1');
       return;
   }
 }

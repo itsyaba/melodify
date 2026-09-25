@@ -1,4 +1,4 @@
-import { SearchScreen } from '@/screens/library/search';
+import { SearchScreen } from '@/screens/search';
 
 export default function SearchRoute() {
   return <SearchScreen />;

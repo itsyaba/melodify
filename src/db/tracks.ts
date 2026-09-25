@@ -221,6 +221,30 @@ export async function searchFolders(db: SQLiteDatabase, query: string, limit = 2
     .slice(0, limit);
 }
 
+/** Every folder that holds a song directly, for Search to find by name. */
+export function listSongFolders(db: SQLiteDatabase): Promise<FolderEntry[]> {
+  return searchFolders(db, '', Number.MAX_SAFE_INTEGER);
+}
+
+/** A month: an album played more recently than this is not one to rediscover. */
+const REDISCOVER_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Albums with art that have not been played for a month or ever, in a random order. */
+export function listDiscoverAlbums(db: SQLiteDatabase, limit = 10, now = Date.now()): Promise<AlbumSummary[]> {
+  return db.getAllAsync<AlbumSummary>(
+    `SELECT album, COALESCE(album_artist, artist) AS album_artist, MAX(year) AS year,
+            COUNT(*) AS track_count, MAX(art_key) AS art_key, MIN(id) AS first_track_id,
+            MAX(added_at) AS added_at
+     FROM tracks
+     WHERE ${visible()} AND album IS NOT NULL AND album != ''
+     GROUP BY album, COALESCE(album_artist, artist)
+     HAVING MAX(art_key) IS NOT NULL AND COALESCE(MAX(last_played_at), 0) < ?
+     ORDER BY RANDOM() LIMIT ?`,
+    now - REDISCOVER_AFTER_MS,
+    limit,
+  );
+}
+
 /** The built-in playlists, filled by queries rather than by hand. */
 export type AutoPlaylist = 'favorites' | 'recently_added' | 'most_played' | 'recently_played';
 
@@ -242,6 +266,19 @@ export function listAutoPlaylist(db: SQLiteDatabase, kind: AutoPlaylist): Promis
   }[kind];
   const limit = kind === 'favorites' ? '' : `LIMIT ${AUTO_LIMIT}`;
   return db.getAllAsync<Track>(`SELECT * FROM tracks WHERE ${visible()} AND ${where} ORDER BY ${order} ${limit}`);
+}
+
+/** One cover for each built-in playlist, from the song that would top it; null while it is empty. */
+export async function autoPlaylistArt(db: SQLiteDatabase): Promise<Record<AutoPlaylist, string | null>> {
+  const first = (where: string, order: string) =>
+    `(SELECT art_key FROM tracks WHERE ${visible()} AND art_key IS NOT NULL AND ${where} ORDER BY ${order} LIMIT 1)`;
+  const row = await db.getFirstAsync<Record<AutoPlaylist, string | null>>(
+    `SELECT ${first('favorite = 1', 'title COLLATE NOCASE')} AS favorites,
+            ${first('1', 'added_at DESC')} AS recently_added,
+            ${first('play_count > 0', 'play_count DESC')} AS most_played,
+            ${first('last_played_at IS NOT NULL', 'last_played_at DESC')} AS recently_played`,
+  );
+  return row ?? { favorites: null, recently_added: null, most_played: null, recently_played: null };
 }
 
 export function listHiddenTracks(db: SQLiteDatabase): Promise<Track[]> {

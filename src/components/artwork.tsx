@@ -13,7 +13,10 @@ export const DEFAULT_ART: ImageSourcePropType = require('../../modules/melodify-
 interface Props {
   /** Relative path inside Documents/ (folder art) or a cache key (Phase 1). */
   artKey: string | null;
+  /** The width, and the height too unless `height` is given. */
   size: number;
+  /** For art that is not square, e.g. Search's tall Discover cards; the cover is cropped to fill. */
+  height?: number;
   rounded?: keyof typeof radius;
 }
 
@@ -28,14 +31,14 @@ export function artSource(artKey: string | null): ImageSourcePropType {
   return uri ? { uri } : DEFAULT_ART;
 }
 
-export function Artwork({ artKey, size, rounded = 'sm' }: Props) {
+export function Artwork({ artKey, size, height = size, rounded = 'sm' }: Props) {
   const styles = useStyles();
   // Keyed by uri rather than a plain flag, so a row reused for another song does not inherit
   // the previous song's failure.
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const uri = artUri(artKey);
   const source = uri && uri !== failedUri ? { uri } : DEFAULT_ART;
-  const box = { width: size, height: size, borderRadius: radius[rounded] };
+  const box = { width: size, height, borderRadius: radius[rounded] };
   return (
     <Image
       source={source}

@@ -106,7 +106,10 @@ dependency, so the Phase 1 IPA (module 0.4.0) runs it as it is.
 - [ ] Multi-select and batch actions
       (written: Select in the header or from a long press; batch play, queue, playlist, remove)
 - [ ] Search tab with recent searches
-      (written: songs, albums, artists, folders and playlists; twelve recent searches)
+      (written: songs, albums, artists, folders and playlists; twelve recent searches. Redone
+      2026-09-25 in Spotify's layout: the old page put its field under the large-title bar, where
+      it could not be seen or tapped, so the tab looked dead. Now it draws its own header, reads
+      the library into memory when a search starts and ranks matches in JS, word by word)
 
 ### Phase 3. Companion features
 
