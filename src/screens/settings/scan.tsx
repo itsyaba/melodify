@@ -10,6 +10,7 @@ import { canReadTags } from '@/scan/read-tags';
 import { scanLibrary, tagCoverage } from '@/scan/scanner';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { libraryEvents, type ImportProgress, type ScanProgress } from '@/utils/events';
+import { isLiveContainerGuest } from '@/utils/quick-actions';
 
 export function ScanScreen() {
   const styles = useStyles();
@@ -62,6 +63,13 @@ export function ScanScreen() {
           <Text style={[type.headline, { color: colors.tint }]}>Import songs</Text>
         </Pressable>
       </View>
+      {isLiveContainerGuest() ? (
+        <Text style={[type.footnote, { color: colors.secondaryLabel, textAlign: 'center' }]}>
+          In LiveContainer, the picker’s Open button does nothing until Fix File Picker is on for Melodify: hold
+          its card in LiveContainer, then Settings › Fixes. Use Fix File Picker, not the legacy one, which cannot
+          open folders.
+        </Text>
+      ) : null}
       {imported ? (
         <ImportStatus progress={imported} />
       ) : (

@@ -38,6 +38,9 @@ under its own name, subfolders, covers and `.lrc` files included; songs picked o
 `Documents/Imported/`. A scan follows. Importing the same folder again copies only files not there
 yet, and leaves the ones already imported alone (their tags may have been edited in the app).
 Download an iCloud Drive folder in Files first; songs still in the cloud are counted and skipped.
+As a LiveContainer guest, the picker's Open button does nothing until *Fix File Picker* is turned on
+for Melodify (hold its card in LiveContainer › Settings › Fixes). The legacy variant forces copies
+and cannot pick folders.
 
 **Over USB**, which is faster for a whole library:
 

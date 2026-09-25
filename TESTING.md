@@ -343,7 +343,9 @@ JS only: a Metro refresh picks it up.
 
 ## 13. Import from the Files app
 
-JS only: reload the app. Put a small test folder somewhere the Files app sees first: On My iPhone
+JS only: reload the app. **In LiveContainer, first turn on Fix File Picker for Melodify** (hold its
+card › Settings › Fixes; the plain one, not "legacy"). Without it the picker's Open button does
+nothing, and Import and scan says so under its buttons. Put a small test folder somewhere the Files app sees first: On My iPhone
 (outside Melodify's own folder), iCloud Drive, or a USB stick. Something like `Test Album/` with
 three songs, a `cover.jpg`, an `.lrc` for one song, and a subfolder `CD2/` with one more song.
 
