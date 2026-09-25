@@ -103,7 +103,7 @@ Scan screen shows the first failure.
 - [ ] **Player layouts:** standard, edge-to-edge artwork, compact with Up next. Blurred artwork
       behind the player can be switched off.
 - [ ] **Tabs and library views:** hide and reorder tabs (Library and Settings stay); hide and reorder
-      views. Albums grid/list toggle. Compact density fits more rows.
+      views. Grid/list toggle (see section 11). Compact density fits more rows.
 - [ ] **Keep screen on** while the player is open (when switched on).
 - [ ] **Rotation:** set to "Rotate freely"; the player turns side by side in landscape.
 
@@ -219,6 +219,38 @@ first, then once in light.
 - [ ] **Compact layout** keeps Up next in the top part and has no queue card below. **Edge** runs
       the artwork edge to edge. **Landscape** puts the controls beside the artwork, with the header.
 - [ ] **Blur off** (Settings › Appearance) gives a plain background; everything stays readable.
+
+## 11. The Spotify-style library
+
+JS only, like the player: no new IPA needed. Try it in dark first, then light, and once with
+compact density (Settings › Appearance).
+
+- [ ] **Pills:** the chosen view's pill is filled with the accent, white text; the others grey.
+      Nothing sits under the status bar or the large title.
+- [ ] **Sort row:** "⇅ Title" (or whatever the sort is) on the left opens Sort by and changes the
+      order; the magnifier and, on Albums, Artists, Album artists, Genres, Composers and Years, the
+      grid button sit on the right.
+- [ ] **Count row:** "1234 songs · 72:42:10" under it. On Songs, a shuffle button and a round accent
+      play button at its right end play the list shuffled or from the top. The same round play
+      button now shows on an artist, genre, folder and the auto playlists too.
+- [ ] **Find:** tap the magnifier; a field opens with the keyboard. Typing filters the list at once
+      ("beatles help" finds Help! by the Beatles; "beyonce" finds Beyoncé), and the count reads
+      "12 of 1234 songs". Tapping a result plays it on the first tap, with the keyboard up. Play and
+      shuffle play only what is found. Scrolling closes the keyboard. Cancel clears it and brings the
+      sort row back. Nothing found shows "No matches". Switching views starts with no filter.
+- [ ] **Rows:** albums, artists and playlists have bigger covers than songs; artists are round.
+      Every row ends in ⋯, which opens the same menu a long press does. Song rows show the length
+      and then ⋯, in the library and in album, artist, playlist and folder lists and Search. In
+      Select mode the ⋯ gives way to the check circles.
+- [ ] **Grid:** on Albums the grid button gives three columns (more on an iPad or in landscape)
+      with the title and artist under each cover. Artists, Album artists, Genres, Composers and
+      Years have the same button; artists come out as round tiles with centred names. Each view
+      remembers its own choice after a restart. Finding still works in the grid, and toggling the
+      grid keeps the filter.
+- [ ] **Playlists:** two-per-row cards at the top: Favorites (accent cover, white heart), Recently
+      added, Most played, Recently played, Bookmarks, New playlist. Each opens its list; holding an
+      auto playlist gives its menu; New playlist asks for a name. Your playlists follow, with ⋯ for
+      Rename and Delete.
 
 ## What to send back
 

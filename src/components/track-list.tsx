@@ -58,6 +58,9 @@ export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, 
     },
   });
 
+  const openMenu = (track: Track, index: number) =>
+    actions.trackMenu(track, { extra: menuExtra?.(index), onSelect: () => selection.start(index) });
+
   const play = useCallback(
     (index: number) => (onPlay ? onPlay(index) : void queue.replace(tracks, index)),
     [onPlay, tracks],
@@ -98,11 +101,8 @@ export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, 
               ) : undefined
             }
             onPress={() => (selection.active ? selection.toggle(index) : play(index))}
-            onLongPress={() =>
-              selection.active
-                ? selection.toggle(index)
-                : actions.trackMenu(track, { extra: menuExtra?.(index), onSelect: () => selection.start(index) })
-            }
+            onLongPress={() => (selection.active ? selection.toggle(index) : openMenu(track, index))}
+            onMore={selection.active ? undefined : () => openMenu(track, index)}
           />
         );
       }}
@@ -110,6 +110,9 @@ export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, 
       ListEmptyComponent={empty}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
+      // A header can hold a find field: the first tap on a row plays it rather than only closing
+      // the keyboard.
+      keyboardShouldPersistTaps="handled"
     />
   );
 }

@@ -9,10 +9,12 @@ interface Props<T extends string | number> {
   onLongPress?: (value: T) => void;
   /** A trailing chip that is an action rather than an option ("+" for a new queue). */
   action?: { label: string; onPress: () => void; accessibilityLabel: string };
+  /** The chosen pill in the accent color, as Spotify's library filters are, rather than the label's. */
+  tinted?: boolean;
 }
 
 /** Horizontally scrolling pills: the library views, the queue tabs. */
-export function Chips<T extends string | number>({ options, value, onChange, onLongPress, action }: Props<T>) {
+export function Chips<T extends string | number>({ options, value, onChange, onLongPress, action, tinted }: Props<T>) {
   const styles = useStyles();
   const colors = useTheme();
   return (
@@ -31,9 +33,14 @@ export function Chips<T extends string | number>({ options, value, onChange, onL
             onLongPress={onLongPress ? () => onLongPress(o.key) : undefined}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            style={({ pressed }) => [styles.chip, active && styles.active, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.chip, active && (tinted ? styles.activeTinted : styles.active), pressed && styles.pressed]}
           >
-            <Text style={[type.subhead, { color: active ? colors.background : colors.label, fontWeight: active ? '600' : '400' }]}>
+            <Text
+              style={[
+                type.subhead,
+                { color: active ? (tinted ? colors.onTint : colors.background) : colors.label, fontWeight: active ? '600' : '400' },
+              ]}
+            >
               {o.label}
             </Text>
           </Pressable>
@@ -62,5 +69,6 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.fill,
   },
   active: { backgroundColor: colors.label },
+  activeTinted: { backgroundColor: colors.tint },
   pressed: { opacity: 0.6 },
 }));

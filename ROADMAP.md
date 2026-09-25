@@ -152,7 +152,7 @@ includes them; on an older one they do nothing, since both are loaded behind a g
       layout in landscape. The blur is `Image` `blurRadius` under a scrim)
 - [ ] Custom tabs and tab order, grid / list toggle, density
       (written: Settings › Tabs and library views; Library and Settings cannot be switched off.
-      Albums have a grid. Compact density shrinks track rows)
+      Albums, artists, genres, composers and years have a grid. Compact density shrinks rows)
 - [ ] Keep screen on, landscape
       (written: keep awake only while the player is open; rotation free, portrait or landscape)
 
@@ -261,6 +261,12 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       row of quick-access shortcuts (Settings › Appearance › Player shortcuts), pills for whatever
       is changing playback, and cards: lyrics, next in queue, bookmarks, about this song. A–B
       repeat is new. The queue also opens as a sheet from the player. JS only, no new build needed
+- [ ] Library redesign (2026-09-25): Spotify's library, Musicolet's lists. Accent pills for the
+      views; a sort row with find and a grid toggle; the count and length with shuffle and a round
+      play button; bigger covers, artists drawn round; a ⋯ on every row (song rows everywhere, not
+      only in the library); a three-column grid for albums, artists, genres, composers and years;
+      Spotify-style shortcut cards for Favorites, the auto playlists, Bookmarks and New playlist.
+      Find in list is new. JS only, no new build needed
 
 ## Definition of done per phase
 

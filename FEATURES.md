@@ -56,9 +56,10 @@ to double-check against the current Musicolet release.
 | Auto playlists | Recently added, most played, recently played, favorites | JS | wip |
 | Favorites | Heart a track, favorites list | JS | wip |
 | Sorting | Per-list sort by title, artist, album, date added, duration, track number, play count | JS | wip |
-| Grid / list toggle | Switch layout per tab | JS | wip |
+| Grid / list toggle | Switch layout per tab: albums, artists (round), album artists, genres, composers and years each remember list or a three-column grid | JS | wip |
 | Custom tabs | Choose which tabs show and in what order | JS | wip |
 | Multi-select | Long-press to select many items, then batch action | JS | wip |
+| Find in list | Filter the open library list as you type (Musicolet's "Search in this list"): every word must match the title, artist, album or name, accents ignored | JS | wip |
 | Search | Search tracks, albums, artists, folders, playlists; recent searches | JS | wip |
 | Track details | Full tag dump, file path, bitrate, sample rate, size | JS | wip |
 | Album art from folder | Use `cover.jpg` / `folder.jpg` when embedded art is missing | JS | wip |

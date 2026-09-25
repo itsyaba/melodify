@@ -129,6 +129,7 @@ export function SearchScreen() {
               void queue.replace(data?.tracks ?? [item.track], item.index);
             }}
             onLongPress={(t) => actions.trackMenu(t)}
+            onMore={(t) => actions.trackMenu(t)}
           />
         );
       case 'album': {

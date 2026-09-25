@@ -5,6 +5,7 @@ import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { useDensity } from '@/hooks/use-density';
 import { formatDuration } from '@/utils/format';
 import { Artwork } from './artwork';
+import { IconButton } from './icon-button';
 
 interface Props {
   track: Track;
@@ -16,9 +17,11 @@ interface Props {
   trailing?: ReactNode;
   onPress?: (track: Track) => void;
   onLongPress?: (track: Track) => void;
+  /** A ⋯ button after the duration, opening the same menu a long press does. */
+  onMore?: (track: Track) => void;
 }
 
-export function TrackRow({ track, showNumber, active, trailing, onPress, onLongPress }: Props) {
+export function TrackRow({ track, showNumber, active, trailing, onPress, onLongPress, onMore }: Props) {
   const styles = useStyles();
   const colors = useTheme();
   const density = useDensity();
@@ -49,6 +52,15 @@ export function TrackRow({ track, showNumber, active, trailing, onPress, onLongP
       {trailing ?? (
         <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(track.duration_ms)}</Text>
       )}
+      {onMore && trailing === undefined ? (
+        <IconButton
+          name="ellipsis"
+          size={16}
+          color={colors.secondaryLabel}
+          onPress={() => onMore(track)}
+          accessibilityLabel={`More for ${track.title}`}
+        />
+      ) : null}
     </Pressable>
   );
 }

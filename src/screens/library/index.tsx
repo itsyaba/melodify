@@ -1,16 +1,16 @@
-import { useMemo, type ReactElement } from 'react';
-import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useDeferredValue, useMemo, useState, type ReactElement } from 'react';
+import { FlatList, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { AlbumCard, albumCardGap } from '@/components/album-card';
+import { AlbumCard } from '@/components/album-card';
 import { Artwork } from '@/components/artwork';
 import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
-import { IconTile } from '@/components/icon-tile';
 import { ListRow } from '@/components/list-row';
 import { ListToolbar, type SortOption } from '@/components/list-toolbar';
 import { confirm, promptText } from '@/components/menus';
+import { Tile, tileColumns, tileGap, tileSize } from '@/components/tile';
 import { albumHref, groupHref, newPlaylistWith, useTrackActions } from '@/components/track-actions';
 import { TrackList } from '@/components/track-list';
 import {
@@ -19,6 +19,7 @@ import {
   listPlaylistTracks,
   renamePlaylist,
   type PlaylistSort,
+  type PlaylistSummary,
 } from '@/db/playlists';
 import {
   listAlbums,
@@ -32,14 +33,17 @@ import {
   type GroupSort,
   type TrackSort,
 } from '@/db/tracks';
-import type { AlbumSummary, Track } from '@/db/types';
+import type { AlbumSummary, GroupSummary, Track } from '@/db/types';
+import { useDensity } from '@/hooks/use-density';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { useStoredChoice } from '@/hooks/use-stored-choice';
 import { usePrefs } from '@/prefs';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
+import { QuickCards, type QuickCard } from '@/screens/library/quick-cards';
 import { queue } from '@/player/queue-store';
-import { artSize, makeStyles, spacing } from '@/theme';
+import { makeStyles, spacing, useTheme } from '@/theme';
 import { libraryEvents } from '@/utils/events';
+import { findIn } from '@/utils/find';
 import { formatCount, formatDuration } from '@/utils/format';
 
 const VIEWS = [
@@ -90,16 +94,25 @@ const PLAYLIST_SORTS: readonly SortOption<PlaylistSort>[] = [
   { key: 'updated', label: 'Recently changed' },
   { key: 'tracks', label: 'Song count' },
 ];
+const LAYOUTS = [{ key: 'list' }, { key: 'grid' }] as const;
+type Layout = (typeof LAYOUTS)[number]['key'];
 
 const EMPTY_BODY =
   'Connect the phone over USB and rsync your music into the Melodify folder, then run a scan from Settings.';
 const NO_TRACKS: Track[] = [];
+const NO_ALBUMS: AlbumSummary[] = [];
+const NO_GROUPS: GroupSummary[] = [];
+const NO_PLAYLISTS: PlaylistSummary[] = [];
 
 interface ListProps {
-  /** The view chips, rendered at the top of each list. */
+  /** The view pills, rendered at the top of each list. */
   chips: ReactElement;
 }
 
+/**
+ * Spotify's library over Musicolet's views: accent pills for Songs, Albums, Artists and the rest,
+ * a sort row with find and a grid toggle, bigger covers with round artists, and a ⋯ on each row.
+ */
 export function LibraryScreen() {
   const styles = useStyles();
   const { libraryViews } = usePrefs();
@@ -110,10 +123,10 @@ export function LibraryScreen() {
   );
   const [stored, setView] = useStoredChoice<LibraryView>('library.view', shown[0]?.key ?? 'songs', shown);
   const view = shown.some((v) => v.key === stored) ? stored : (shown[0]?.key ?? 'songs');
-  // The chips go inside the lists rather than beside them: with a large-title header iOS lays
+  // The pills go inside the lists rather than beside them: with a large-title header iOS lays
   // content out under the nav bar and only a scroll view receives the matching content inset,
   // so a plain sibling View renders under the status bar.
-  const chips = <Chips options={shown} value={view} onChange={setView} />;
+  const chips = <Chips options={shown} value={view} onChange={setView} tinted />;
   const group = GROUP_VIEWS[view];
   return (
     <View style={styles.root}>
@@ -125,10 +138,66 @@ export function LibraryScreen() {
   );
 }
 
+/**
+ * The view's find query: what is typed, and a deferred copy to filter with, so typing stays quick
+ * in a long list. Each view keeps its own, so switching views starts afresh.
+ */
+function useFind(placeholder: string) {
+  const [query, setQuery] = useState('');
+  const deferred = useDeferredValue(query.trim());
+  return { query: deferred, find: { query, onChange: setQuery, placeholder } };
+}
+
+/** "12 of 212 albums" while finding, "212 albums" otherwise. */
+function countOf(query: string, found: number, all: number, singular: string, plural?: string): string {
+  const count = formatCount(all, singular, plural);
+  return query ? `${found} of ${count}` : count;
+}
+
+function noMatches(query: string) {
+  return <EmptyState title="No matches" body={`Nothing here matches “${query}”.`} />;
+}
+
+/** The ⋯ at the end of a row, opening the menu a long press does. */
+function MoreButton({ title, onPress }: { title: string; onPress: () => void }) {
+  const colors = useTheme();
+  return <IconButton name="ellipsis" size={16} color={colors.secondaryLabel} onPress={onPress} accessibilityLabel={`More for ${title}`} />;
+}
+
+function LayoutToggle({ layout, onChange }: { layout: Layout; onChange: (next: Layout) => void }) {
+  const grid = layout === 'grid';
+  return (
+    <IconButton
+      name={grid ? 'list.bullet' : 'square.grid.2x2'}
+      size={18}
+      onPress={() => onChange(grid ? 'list' : 'grid')}
+      accessibilityLabel={grid ? 'Show as a list' : 'Show as a grid'}
+    />
+  );
+}
+
+/** Columns and tile size for the current window, and the list props a grid needs. */
+function useGrid(grid: boolean) {
+  const { width } = useWindowDimensions();
+  const columns = tileColumns(width);
+  return {
+    size: tileSize(width, columns),
+    // numColumns cannot change on a mounted list, so each layout gets its own.
+    listKey: grid ? `grid-${columns}` : 'list',
+    listProps: {
+      numColumns: grid ? columns : 1,
+      columnWrapperStyle: grid ? { gap: tileGap, paddingHorizontal: spacing.lg } : undefined,
+      contentContainerStyle: grid ? { gap: spacing.lg, paddingBottom: spacing.lg } : undefined,
+    },
+  };
+}
+
 function Songs({ chips }: ListProps) {
   const [sort, setSort] = useStoredChoice<TrackSort>('sort.songs', 'title', SONG_SORTS);
   const { data } = useLibraryQuery((db) => listTracks(db, sort), [sort]);
-  const tracks = data ?? NO_TRACKS;
+  const { query, find } = useFind('Find in songs');
+  const all = data ?? NO_TRACKS;
+  const tracks = useMemo(() => findIn(all, query, (t) => [t.title, t.artist, t.album, t.album_artist]), [all, query]);
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   return (
     <TrackList
@@ -136,75 +205,70 @@ function Songs({ chips }: ListProps) {
       header={
         <>
           {chips}
-          {tracks.length ? (
+          {all.length ? (
             <ListToolbar
-              summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`}
+              summary={`${countOf(query, tracks.length, all.length, 'song')} · ${formatDuration(total)}`}
               sort={{ options: SONG_SORTS, value: sort, onChange: setSort }}
-              onShuffle={() => void queue.playShuffled(tracks)}
-              onPlay={() => void queue.replace(tracks, 0)}
+              find={find}
+              onShuffle={tracks.length ? () => void queue.playShuffled(tracks) : undefined}
+              onPlay={tracks.length ? () => void queue.replace(tracks, 0) : undefined}
             />
           ) : null}
         </>
       }
-      empty={data ? <EmptyState title="No songs yet" body={EMPTY_BODY} /> : null}
+      empty={query ? noMatches(query) : data ? <EmptyState title="No songs yet" body={EMPTY_BODY} /> : null}
     />
   );
 }
 
-const ALBUM_LAYOUTS = [{ key: 'list' }, { key: 'grid' }] as const;
-
 function Albums({ chips }: ListProps) {
   const router = useRouter();
   const actions = useTrackActions();
-  const { width } = useWindowDimensions();
+  const density = useDensity();
   const [sort, setSort] = useStoredChoice<AlbumSort>('sort.albums', 'name', ALBUM_SORTS);
-  const [layout, setLayout] = useStoredChoice<'list' | 'grid'>('layout.albums', 'list', ALBUM_LAYOUTS);
+  const [layout, setLayout] = useStoredChoice<Layout>('layout.albums', 'list', LAYOUTS);
   const { data } = useLibraryQuery((db) => listAlbums(db, sort), [sort]);
+  const { query, find } = useFind('Find in albums');
+  const all = data ?? NO_ALBUMS;
+  const albums = useMemo(() => findIn(all, query, (a) => [a.album, a.album_artist, a.year]), [all, query]);
   const grid = layout === 'grid';
-  const columns = width >= 700 ? 4 : width >= 500 ? 3 : 2;
-  const cardSize = Math.floor((width - spacing.lg * 2 - albumCardGap * (columns - 1)) / columns);
+  const { size, listKey, listProps } = useGrid(grid);
   const open = (a: AlbumSummary) => router.push(albumHref(a.album, a.album_artist));
   const menu = (a: AlbumSummary) =>
     actions.collectionMenu(a.album, (db) => listAlbumTracks(db, a.album, a.album_artist));
   return (
     <FlatList
-      // numColumns cannot change on a mounted list, so each layout gets its own.
-      key={grid ? `grid-${columns}` : 'list'}
-      data={data}
-      numColumns={grid ? columns : 1}
-      columnWrapperStyle={grid ? { gap: albumCardGap, paddingHorizontal: spacing.lg } : undefined}
-      contentContainerStyle={grid ? { gap: spacing.lg, paddingBottom: spacing.lg } : undefined}
+      key={listKey}
+      {...listProps}
+      data={albums}
       keyExtractor={(a) => `${a.album_artist ?? ''}::${a.album}`}
       renderItem={({ item }) =>
         grid ? (
-          <AlbumCard album={item} size={cardSize} subtitle="artist" onPress={() => open(item)} onLongPress={() => menu(item)} />
+          <AlbumCard album={item} size={size} subtitle="artist" onPress={() => open(item)} onLongPress={() => menu(item)} />
         ) : (
           <ListRow
             title={item.album}
             subtitle={[item.album_artist, item.year, formatCount(item.track_count, 'song')].filter(Boolean).join(' · ')}
-            leading={<Artwork artKey={item.art_key} size={artSize.row} />}
+            leading={<Artwork artKey={item.art_key} size={density.cover} />}
+            trailing={<MoreButton title={item.album} onPress={() => menu(item)} />}
             onPress={() => open(item)}
             onLongPress={() => menu(item)}
           />
         )
       }
-      ListEmptyComponent={data ? <EmptyState title="No albums yet" body={EMPTY_BODY} /> : null}
+      ListEmptyComponent={query ? noMatches(query) : data ? <EmptyState title="No albums yet" body={EMPTY_BODY} /> : null}
       contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
           {chips}
-          {data?.length ? (
+          {all.length ? (
             <ListToolbar
-              summary={formatCount(data.length, 'album')}
+              summary={countOf(query, albums.length, all.length, 'album')}
               sort={{ options: ALBUM_SORTS, value: sort, onChange: setSort }}
-              trailing={
-                <IconButton
-                  name={grid ? 'list.bullet' : 'square.grid.2x2'}
-                  size={18}
-                  onPress={() => setLayout(grid ? 'list' : 'grid')}
-                  accessibilityLabel={grid ? 'Show as a list' : 'Show as a grid'}
-                />
-              }
+              find={find}
+              trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
             />
           ) : null}
         </>
@@ -216,32 +280,66 @@ function Albums({ chips }: ListProps) {
 function Groups({ chips, kind, singular, plural }: ListProps & { kind: GroupKind; singular: string; plural: string }) {
   const router = useRouter();
   const actions = useTrackActions();
+  const density = useDensity();
   const [sort, setSort] = useStoredChoice<GroupSort>(`sort.${kind}`, 'name', GROUP_SORTS);
+  const [layout, setLayout] = useStoredChoice<Layout>(`layout.${kind}`, 'list', LAYOUTS);
   const { data } = useLibraryQuery((db) => listGroups(db, kind, sort), [kind, sort]);
+  const { query, find } = useFind(`Find in ${plural}`);
+  const all = data ?? NO_GROUPS;
+  const groups = useMemo(() => findIn(all, query, (g) => [g.name]), [all, query]);
+  const grid = layout === 'grid';
+  const { size, listKey, listProps } = useGrid(grid);
+  // Artists are drawn round, as Spotify draws them; the art is one of their albums'.
+  const round = kind === 'artist' || kind === 'album_artist';
+  const open = (g: GroupSummary) => router.push(groupHref(kind, g.name));
+  const menu = (g: GroupSummary) => actions.collectionMenu(g.name, (db) => listGroupTracks(db, kind, g.name));
   return (
     <FlatList
-      data={data}
+      key={listKey}
+      {...listProps}
+      data={groups}
       keyExtractor={(g) => g.name}
-      renderItem={({ item }) => (
-        <ListRow
-          title={item.name}
-          subtitle={`${formatCount(item.album_count, 'album')} · ${formatCount(item.track_count, 'song')}`}
-          leading={kind === 'artist' || kind === 'album_artist' ? undefined : <Artwork artKey={item.art_key} size={artSize.row} />}
-          onPress={() => router.push(groupHref(kind, item.name))}
-          onLongPress={() => actions.collectionMenu(item.name, (db) => listGroupTracks(db, kind, item.name))}
-        />
-      )}
+      renderItem={({ item }) =>
+        grid ? (
+          <Tile
+            artKey={item.art_key}
+            title={item.name}
+            subtitle={formatCount(item.track_count, 'song')}
+            size={size}
+            round={round}
+            onPress={() => open(item)}
+            onLongPress={() => menu(item)}
+          />
+        ) : (
+          <ListRow
+            title={item.name}
+            subtitle={`${formatCount(item.album_count, 'album')} · ${formatCount(item.track_count, 'song')}`}
+            leading={<Artwork artKey={item.art_key} size={density.cover} rounded={round ? 'full' : 'sm'} />}
+            trailing={<MoreButton title={item.name} onPress={() => menu(item)} />}
+            onPress={() => open(item)}
+            onLongPress={() => menu(item)}
+          />
+        )
+      }
       ListEmptyComponent={
-        data ? <EmptyState title={`No ${plural} yet`} body={`Songs show up here once their ${singular} tag has been read.`} /> : null
+        query ? (
+          noMatches(query)
+        ) : data ? (
+          <EmptyState title={`No ${plural} yet`} body={`Songs show up here once their ${singular} tag has been read.`} />
+        ) : null
       }
       contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
           {chips}
-          {data?.length ? (
+          {all.length ? (
             <ListToolbar
-              summary={formatCount(data.length, singular, plural)}
+              summary={countOf(query, groups.length, all.length, singular, plural)}
               sort={{ options: GROUP_SORTS, value: sort, onChange: setSort }}
+              find={find}
+              trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
             />
           ) : null}
         </>
@@ -254,44 +352,66 @@ function Playlists({ chips }: ListProps) {
   const router = useRouter();
   const db = useSQLiteContext();
   const actions = useTrackActions();
+  const density = useDensity();
   const [sort, setSort] = useStoredChoice<PlaylistSort>('sort.playlists', 'name', PLAYLIST_SORTS);
   const { data } = useLibraryQuery((d) => listPlaylists(d, sort), [sort]);
+  const { query, find } = useFind('Find in playlists');
+  const all = data ?? NO_PLAYLISTS;
+  const playlists = useMemo(() => findIn(all, query, (p) => [p.name]), [all, query]);
+
+  const cards: QuickCard[] = [
+    ...AUTO_PLAYLISTS.map((p) => ({
+      key: p.kind,
+      title: p.title,
+      icon: p.icon,
+      filled: p.kind === 'favorites',
+      onPress: () => router.push({ pathname: '/auto/[kind]', params: { kind: p.kind } }),
+      onLongPress: () => actions.collectionMenu(p.title, (d) => listAutoPlaylist(d, p.kind)),
+    })),
+    { key: 'bookmarks', title: 'Bookmarks', icon: 'bookmark.fill', onPress: () => router.push('/bookmarks') },
+    { key: 'new', title: 'New playlist', icon: 'plus', onPress: () => void newPlaylistWith(db, []) },
+  ];
+
+  const menu = (p: PlaylistSummary) =>
+    actions.collectionMenu(p.name, (d) => listPlaylistTracks(d, p.id), [
+      {
+        label: 'Rename…',
+        onPress: async () => {
+          const name = await promptText('Rename playlist', { defaultValue: p.name, ok: 'Rename' });
+          if (!name) return;
+          await renamePlaylist(db, p.id, name);
+          libraryEvents.emit('changed', undefined);
+        },
+      },
+      {
+        label: 'Delete playlist',
+        destructive: true,
+        onPress: async () => {
+          if (!(await confirm(`Delete “${p.name}”?`, 'The songs stay in your library.', 'Delete'))) return;
+          await deletePlaylist(db, p.id);
+          libraryEvents.emit('changed', undefined);
+        },
+      },
+    ]);
+
   return (
     <FlatList
-      data={data}
+      data={playlists}
       keyExtractor={(p) => String(p.id)}
       renderItem={({ item }) => (
         <ListRow
           title={item.name}
           subtitle={`${formatCount(item.track_count, 'song')}${item.duration_ms ? ` · ${formatDuration(item.duration_ms)}` : ''}`}
-          leading={<Artwork artKey={item.art_key} size={artSize.row} />}
+          leading={<Artwork artKey={item.art_key} size={density.cover} />}
+          trailing={<MoreButton title={item.name} onPress={() => menu(item)} />}
           onPress={() => router.push({ pathname: '/playlist/[id]', params: { id: String(item.id) } })}
-          onLongPress={() =>
-            actions.collectionMenu(item.name, (d) => listPlaylistTracks(d, item.id), [
-              {
-                label: 'Rename…',
-                onPress: async () => {
-                  const name = await promptText('Rename playlist', { defaultValue: item.name, ok: 'Rename' });
-                  if (!name) return;
-                  await renamePlaylist(db, item.id, name);
-                  libraryEvents.emit('changed', undefined);
-                },
-              },
-              {
-                label: 'Delete playlist',
-                destructive: true,
-                onPress: async () => {
-                  if (!(await confirm(`Delete “${item.name}”?`, 'The songs stay in your library.', 'Delete'))) return;
-                  await deletePlaylist(db, item.id);
-                  libraryEvents.emit('changed', undefined);
-                },
-              },
-            ])
-          }
+          onLongPress={() => menu(item)}
         />
       )}
       ListEmptyComponent={
-        data ? (
+        query ? (
+          noMatches(query)
+        ) : data ? (
           <EmptyState
             title="No playlists yet"
             body="Long-press any song, album or folder and choose Add to playlist, or save a queue as one."
@@ -299,34 +419,17 @@ function Playlists({ chips }: ListProps) {
         ) : null
       }
       contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
           {chips}
-          {AUTO_PLAYLISTS.map((p) => (
-            <ListRow
-              key={p.kind}
-              title={p.title}
-              leading={<IconTile name={p.icon} />}
-              onPress={() => router.push({ pathname: '/auto/[kind]', params: { kind: p.kind } })}
-              onLongPress={() => actions.collectionMenu(p.title, (d) => listAutoPlaylist(d, p.kind))}
-            />
-          ))}
-          <ListRow
-            title="Bookmarks"
-            leading={<IconTile name="bookmark.fill" />}
-            onPress={() => router.push('/bookmarks')}
-          />
-          <ListRow
-            title="New playlist"
-            tinted
-            leading={<IconTile name="plus" />}
-            trailing={null}
-            onPress={() => void newPlaylistWith(db, [])}
-          />
-          {data?.length ? (
+          <QuickCards cards={cards} />
+          {all.length ? (
             <ListToolbar
-              summary={formatCount(data.length, 'playlist')}
+              summary={countOf(query, playlists.length, all.length, 'playlist')}
               sort={{ options: PLAYLIST_SORTS, value: sort, onChange: setSort }}
+              find={find}
             />
           ) : null}
         </>
