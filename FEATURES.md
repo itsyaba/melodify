@@ -119,7 +119,7 @@ to double-check against the current Musicolet release.
 | Headset button actions | Single, double, triple click and long press mapped to actions. iOS turns the clicks into play/pause, next and previous itself and keeps long press for Siri; a headset's next cannot be told from the lock screen's, so there is nothing to remap | iOS≈ | skip |
 | Bluetooth controls | AVRCP play/pause/next/prev, track info on car / headphones | RN+ | wip |
 | Pause on unplug / resume on plug | Headphone jack and Bluetooth disconnect handling | RN+ | wip |
-| Auto play on headphone connect | Start playing when headphones connect (verify) | Native | skip |
+| Auto play on headphone connect | Start playing when headphones connect (verify): resumes only what an unplug paused, off by default | Native | wip |
 | Home screen widgets | 4x1, 4x2 player widgets | iOS≈ WidgetKit (native) | skip |
 | Android Auto | Car head unit UI | iOS≈ CarPlay (needs entitlement, not on free account) | skip |
 | Lock screen shortcuts | Shortcuts / quick actions | iOS≈ Home screen quick actions (not under LiveContainer) | wip |
@@ -144,7 +144,7 @@ to double-check against the current Musicolet release.
 | Play counts | Per track, album, artist | JS | wip |
 | Last played timestamp | Per track | JS | wip |
 | Recently played list | Ordered history | JS | wip |
-| Skip counts | Tracks skipped early (verify) | JS | skip |
+| Skip counts | Tracks skipped early (verify): next pressed before the song counted as a play | JS | wip |
 
 ## 11. Data management
 

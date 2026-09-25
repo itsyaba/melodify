@@ -73,6 +73,7 @@ export function TrackDetailsScreen({ id }: { id: number }) {
       title: 'Listening',
       rows: [
         ['Plays', String(track.play_count)],
+        ['Skips', track.skip_count ? String(track.skip_count) : null],
         ['Last played', track.last_played_at ? formatDate(track.last_played_at) : 'Never'],
         ['Added', formatDate(track.added_at)],
         ['Favorite', track.favorite ? 'Yes' : 'No'],

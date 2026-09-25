@@ -17,7 +17,7 @@ import {
 } from '@/db/queues';
 import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
-import { recordPlay, setFavorite, setResumeMs } from '@/db/tracks';
+import { recordPlay, recordSkip, setFavorite, setResumeMs } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { getPrefs, subscribePrefs } from '@/prefs';
 import { libraryEvents } from '@/utils/events';
@@ -367,6 +367,9 @@ export const queue = {
   /** `manual` is false only for a track that ended by itself, which is when repeat-one applies. */
   async next(manual = true) {
     const q = active();
+    // Passed over before it counted as a play: a skip, for the statistics.
+    const leaving = q.tracks[q.currentIndex];
+    if (manual && leaving && !counted && state.positionMs > 0) persist((d) => recordSkip(d, leaving.id));
     const i = ops.nextIndex(q.tracks.length, q.currentIndex, q.repeat, manual);
     if (i < 0) await engine.stop();
     else await loadIndex(i);
@@ -695,6 +698,24 @@ async function onTrackEnded() {
 }
 
 engine.on('ended', () => run(onTrackEnded()));
+
+/**
+ * Pulled headphones pause playback (the engine does that itself); with the preference on, the
+ * same song carries on when headphones connect again. Only after an unplug: plugging in never
+ * starts music that was paused on purpose.
+ */
+let pausedByUnplug = false;
+engine.on('routeChange', ({ reason }) => {
+  if (reason === 'unplugged') {
+    pausedByUnplug = true;
+  } else if (reason === 'connected' && pausedByUnplug) {
+    pausedByUnplug = false;
+    if (getPrefs().resumeOnConnect && state.state === 'paused') run(engine.play());
+  }
+});
+engine.on('state', (s) => {
+  if (s === 'playing') pausedByUnplug = false;
+});
 
 /**
  * The engine moved on to the armed track by itself. The queue catches up: the key says which

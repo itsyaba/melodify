@@ -264,6 +264,11 @@ export async function recordPlay(db: SQLiteDatabase, id: number, at: number): Pr
   await db.runAsync('UPDATE tracks SET play_count = play_count + 1, last_played_at = ? WHERE id = ?', at, id);
 }
 
+/** A song passed over with next before it counted as played. */
+export async function recordSkip(db: SQLiteDatabase, id: number): Promise<void> {
+  await db.runAsync('UPDATE tracks SET skip_count = skip_count + 1 WHERE id = ?', id);
+}
+
 /** Null clears it, for a track played to the end. */
 export async function setResumeMs(db: SQLiteDatabase, id: number, ms: number | null): Promise<void> {
   await db.runAsync('UPDATE tracks SET resume_ms = ? WHERE id = ?', ms === null ? null : Math.round(ms), id);

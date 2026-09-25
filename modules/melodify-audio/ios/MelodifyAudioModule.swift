@@ -62,7 +62,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.9.0" }
+    Constant("version") { "0.9.1" }
     // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
     Constant("tagVersion") { 2 }
 

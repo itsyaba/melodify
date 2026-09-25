@@ -748,6 +748,9 @@ internal final class MelodifyPlayer {
     Float(min(1, pow(10, (gainDb - headroomDb) / 20)))
   }
 
+  /// Bands are never bypassed, only set to 0 dB, which a peaking filter passes unchanged: the
+  /// unit then always processes, so its global gain, which carries the ReplayGain headroom,
+  /// cannot be skipped along with the bands.
   private func applyEqualizerLocked() {
     let on = equalizer.enabled
     for (i, frequency) in Self.frequencies.enumerated() {
@@ -755,15 +758,15 @@ internal final class MelodifyPlayer {
       band.filterType = .parametric
       band.frequency = frequency
       band.bandwidth = 1
-      let gain = i < equalizer.gains.count ? equalizer.gains[i] : 0
+      let gain = on && i < equalizer.gains.count ? equalizer.gains[i] : 0
       band.gain = Float(min(max(gain, -Self.bandRangeDb), Self.bandRangeDb))
-      band.bypass = !on || gain == 0
+      band.bypass = false
     }
     let shelf = eq.bands[Self.frequencies.count]
     shelf.filterType = .lowShelf
     shelf.frequency = Self.bassShelfHz
-    shelf.gain = Float(min(max(equalizer.bassBoost, 0), 1)) * Self.bassBoostMaxDb
-    shelf.bypass = !on || equalizer.bassBoost <= 0
+    shelf.gain = on ? Float(min(max(equalizer.bassBoost, 0), 1)) * Self.bassBoostMaxDb : 0
+    shelf.bypass = false
     // The headroom stays whether or not the equalizer is on: ReplayGain relies on it.
     let preamp = on ? min(max(equalizer.preampDb, -Self.bandRangeDb), Self.bandRangeDb) : 0
     eq.globalGain = Float(preamp + Self.headroomDb)

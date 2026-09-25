@@ -113,6 +113,11 @@ export function SettingsScreen() {
           />
         ) : null}
         <ToggleRow title="Volume slider in the player" value={prefs.showVolume} onChange={(v) => setPref('showVolume', v)} />
+        <ToggleRow
+          title="Resume when headphones reconnect"
+          value={prefs.resumeOnConnect}
+          onChange={(v) => setPref('resumeOnConnect', v)}
+        />
         <ChoiceRow pref="skipSeconds" title="Skip back and forward" options={SKIP_CHOICES} label={(s) => `${s} seconds`} />
         <ChoiceRow pref="resumeMinMs" title="Remember position in long songs" options={RESUME_CHOICES} label={minutesLabel} />
         <ToggleRow title="Fade out before the sleep timer stops" value={prefs.sleepFade} onChange={(v) => setPref('sleepFade', v)} />

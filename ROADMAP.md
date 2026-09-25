@@ -246,6 +246,12 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       install, and Ogg needs a bundled decoder feeding the engine)
 - [ ] Split-screen lyrics (from the Musicolet list): in landscape, lyrics take the artwork's side
       and a small artwork stays by the title
+- [ ] Skip counts (from the Musicolet list): pressing next before a song counts as played adds a
+      skip, shown in song details
+- [ ] Resume on reconnect (from the Musicolet list): Settings › Playback, off by default. Only a
+      song that an unplug paused carries on; plugging in never starts music paused on purpose
+- [ ] Equalizer bands stay active at 0 dB when it is off (module 0.9.1), so the unit's gain,
+      which carries the ReplayGain headroom, is always applied
 
 ## Definition of done per phase
 

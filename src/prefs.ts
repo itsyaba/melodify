@@ -54,6 +54,8 @@ export interface Prefs {
   volume: number;
   /** A volume slider under the player's controls. */
   showVolume: boolean;
+  /** Carry on playing when headphones come back after being pulled out mid-song. */
+  resumeOnConnect: boolean;
 }
 
 export interface EqPreset {
@@ -112,6 +114,7 @@ export const DEFAULT_PREFS: Prefs = {
   replayGainPreampDb: 0,
   volume: 1,
   showVolume: false,
+  resumeOnConnect: false,
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number) =>
