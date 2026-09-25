@@ -275,7 +275,11 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       title, artist and length, then searches, then searches again without "(feat. …)" or
       "- Remastered" and with only the first artist. Synced lyrics of the same length win. What
       it finds is saved as a `.lrc` beside the song, so each song goes online once; a toast offers
-      Undo. Never runs on its own. JS only, no new build needed
+      Undo. Never runs on its own. JS only, no new build needed. Second pass after "always none"
+      on the phone: the title alone (held to the song's length) for artists the scanner guessed
+      from a folder, "Artist - Title" titles as free text, first artist split on , & x too, one
+      retry when LRCLIB is busy (its 503s are common), and after a miss the message names what
+      was searched and Search for… lists matches for typed words
 
 ## Definition of done per phase
 

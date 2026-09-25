@@ -4,14 +4,16 @@ import { useLyricsSearch } from '@/hooks/use-lyrics-search';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 
 /**
- * "Search online" for a song with no lyrics, and how that went. The lyrics view centres it under
- * its "No lyrics"; the player's lyrics card lines it up at the start.
+ * "Search online" for a song with no lyrics, and how that went. After a miss it offers "Search
+ * for…", the user's own words, since the miss is usually the tags. The lyrics view centres it
+ * under its "No lyrics"; the player's lyrics card lines it up at the start.
  */
 export function LyricsSearch({ track, align = 'center' }: { track: Track; align?: 'center' | 'start' }) {
   const styles = useStyles();
   const colors = useTheme();
-  const [state, start] = useLyricsSearch(track);
+  const { state, search, searchWords } = useLyricsSearch(track);
   const alignItems = align === 'center' ? 'center' : 'flex-start';
+  const next = state.status === 'failed' ? state.next : 'search';
 
   if (state.status === 'searching') {
     return (
@@ -28,15 +30,21 @@ export function LyricsSearch({ track, align = 'center' }: { track: Track; align?
           {state.message}
         </Text>
       ) : null}
-      <Pressable
-        onPress={start}
-        hitSlop={spacing.sm}
-        accessibilityRole="button"
-        accessibilityHint="Looks the song up on LRCLIB and saves what it finds as a .lrc file beside it"
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-      >
-        <Text style={[type.subhead, styles.label]}>{state.status === 'failed' ? 'Try again' : 'Search online'}</Text>
-      </Pressable>
+      {next ? (
+        <Pressable
+          onPress={next === 'words' ? searchWords : search}
+          hitSlop={spacing.sm}
+          accessibilityRole="button"
+          accessibilityHint={
+            next === 'words'
+              ? 'Searches LRCLIB for words you type, and lets you choose the lyrics'
+              : 'Looks the song up on LRCLIB and saves what it finds as a .lrc file beside it'
+          }
+          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        >
+          <Text style={[type.subhead, styles.label]}>{next === 'words' ? 'Search for…' : next === 'retry' ? 'Try again' : 'Search online'}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

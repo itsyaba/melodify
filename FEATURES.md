@@ -81,7 +81,7 @@ to double-check against the current Musicolet release.
 | Lyrics editor | Edit / paste lyrics and save to tag or `.lrc` | Native | wip |
 | Lyrics on player | Swipe up or toggle to show lyrics over album art | JS | wip |
 | Split-screen lyrics | Lyrics beside controls in landscape or split view (landscape: lyrics on the left, a small artwork by the title) | JS | wip |
-| Online lyrics search | For a song with no lyrics, Search online (lyrics view and the player's lyrics card) looks it up on LRCLIB and saves synced or plain lyrics as a `.lrc` beside it, with Undo. Only when tapped, never on its own. Musicolet never goes online; this is Melodify's one exception | JS | wip |
+| Online lyrics search | For a song with no lyrics, Search online (lyrics view and the player's lyrics card) looks it up on LRCLIB and saves synced or plain lyrics as a `.lrc` beside it, with Undo. After a miss, Search for… takes typed words and lists matches to choose from. Only when tapped, never on its own. Musicolet never goes online; this is Melodify's one exception | JS | wip |
 
 ## 5. Tag editor
 

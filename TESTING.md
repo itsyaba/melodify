@@ -222,9 +222,13 @@ first, then once in light.
       the lyrics appear (synced ones follow the song) and a toast says they were saved. Both the
       card and the view show the same search. A `.lrc` now sits beside the song in Files. Undo
       removes it and brings the button back. In Airplane Mode: "Could not reach LRCLIB" and Try
-      again. A made-up title: "LRCLIB has no lyrics for this song." A classical piece: usually
-      "listed as instrumental". With a `.lrc` copied beside a song but not yet rescanned, it
-      refuses and says to rescan, leaving your file alone.
+      again. A classical piece: usually "listed as instrumental". With a `.lrc` copied beside a
+      song but not yet rescanned, it refuses and says to rescan, leaving your file alone.
+- [ ] **When it finds nothing** it says what it searched for ("Nothing on LRCLIB for “Title” by
+      Artist"). If that title or artist looks wrong, the tags are the problem. **Search for…**
+      opens a prompt filled with the artist and title; edit the words, tap Search, and a list of
+      matches appears (length and Synced shown). Picking one saves it like the automatic search.
+      If a song you expected fails, write down the exact message here.
 - [ ] **Compact layout** keeps Up next in the top part and has no queue card below. **Edge** runs
       the artwork edge to edge. **Landscape** puts the controls beside the artwork, with the header.
 - [ ] **Blur off** (Settings › Appearance) gives a plain background; everything stays readable.
