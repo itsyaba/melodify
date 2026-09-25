@@ -254,6 +254,13 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       song that an unplug paused carries on; plugging in never starts music paused on purpose
 - [ ] Equalizer bands stay active at 0 dB when it is off (module 0.9.1), so the unit's gain,
       which carries the ReplayGain headroom, is always applied
+- [ ] Now Playing redesign (2026-09-25): Spotify's layout, Musicolet's features. A header naming
+      the playing queue (tap to switch queues), artwork that swipes to the next or previous song,
+      a + / ✓ favorite button by the title (hold for playlists), a round play button, shuffle and
+      repeat marked with a dot, and seconds-skip buttons in their place for long songs. Under it a
+      row of quick-access shortcuts (Settings › Appearance › Player shortcuts), pills for whatever
+      is changing playback, and cards: lyrics, next in queue, bookmarks, about this song. A–B
+      repeat is new. The queue also opens as a sheet from the player. JS only, no new build needed
 
 ## Definition of done per phase
 

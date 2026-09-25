@@ -44,6 +44,8 @@ export interface Palette {
   destructive: ColorValue;
   /** Text and icons drawn on a tint-colored fill. */
   onTint: ColorValue;
+  /** Drop shadows, such as the one under the player's artwork. The same in every theme. */
+  shadow: ColorValue;
 }
 
 function palette(theme: ThemeName, accent: AccentName): Palette {
@@ -59,6 +61,7 @@ function palette(theme: ThemeName, accent: AccentName): Palette {
     fill: ios('systemFill', '#78788033'),
     destructive: ios('systemRed', '#ff3b30'),
     onTint: ios('white', '#ffffff'),
+    shadow: 'rgba(0, 0, 0, 0.4)',
   };
   if (theme === 'dark') {
     // Charcoal rather than black: every surface one step up the system's dark scale.

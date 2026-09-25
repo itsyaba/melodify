@@ -30,6 +30,8 @@ export interface Prefs {
   tabs: TabKey[];
   /** Library views in order; the ones left out are not shown. */
   libraryViews: LibraryViewKey[];
+  /** The player's quick-access buttons under the controls, in order. The rest stay in its menu. */
+  playerShortcuts: PlayerShortcut[];
 
   // Data.
   autoBackup: AutoBackup;
@@ -80,12 +82,17 @@ export type OrientationChoice = 'auto' | 'portrait' | 'landscape';
 export type TabKey = 'library' | 'folders' | 'queue' | 'search' | 'settings';
 export type LibraryViewKey =
   | 'songs' | 'albums' | 'artists' | 'album_artists' | 'genres' | 'composers' | 'years' | 'playlists';
+export type PlayerShortcut =
+  | 'lyrics' | 'sleep' | 'abRepeat' | 'bookmark' | 'sound' | 'queue' | 'details' | 'playlist' | 'share';
 
 export const ALL_TABS: readonly TabKey[] = ['library', 'folders', 'queue', 'settings', 'search'];
 /** Tabs that cannot be switched off: every "Go to album" lands in Library, and Settings is the way back. */
 export const REQUIRED_TABS: readonly TabKey[] = ['library', 'settings'];
 export const ALL_LIBRARY_VIEWS: readonly LibraryViewKey[] = [
   'songs', 'albums', 'artists', 'album_artists', 'genres', 'composers', 'years', 'playlists',
+];
+export const ALL_PLAYER_SHORTCUTS: readonly PlayerShortcut[] = [
+  'lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue', 'details', 'playlist', 'share',
 ];
 
 export const DEFAULT_PREFS: Prefs = {
@@ -102,6 +109,7 @@ export const DEFAULT_PREFS: Prefs = {
   orientation: 'portrait',
   tabs: [...ALL_TABS],
   libraryViews: [...ALL_LIBRARY_VIEWS],
+  playerShortcuts: ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'],
   autoBackup: 'weekly',
   playbackRate: 1,
   pitchSemitones: 0,
@@ -134,11 +142,16 @@ function sanitize(p: Prefs): Prefs {
   const tabs = p.tabs.filter((t, i) => ALL_TABS.includes(t) && p.tabs.indexOf(t) === i);
   for (const t of REQUIRED_TABS) if (!tabs.includes(t)) tabs.push(t);
   const views = p.libraryViews.filter((v, i) => ALL_LIBRARY_VIEWS.includes(v) && p.libraryViews.indexOf(v) === i);
+  // Unlike the views, all of these may be switched off: the player's menu still has every one.
+  const shortcuts = Array.isArray(p.playerShortcuts)
+    ? p.playerShortcuts.filter((k, i) => ALL_PLAYER_SHORTCUTS.includes(k) && p.playerShortcuts.indexOf(k) === i)
+    : [...DEFAULT_PREFS.playerShortcuts];
   const eq = { ...DEFAULT_PREFS.equalizer, ...(p.equalizer ?? {}) };
   return {
     ...p,
     tabs,
     libraryViews: views.length ? views : [...ALL_LIBRARY_VIEWS],
+    playerShortcuts: shortcuts,
     playbackRate: clamp(p.playbackRate, 0.5, 2, 1),
     pitchSemitones: clamp(p.pitchSemitones, -12, 12, 0),
     equalizer: {

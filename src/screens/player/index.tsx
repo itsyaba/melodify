@@ -1,30 +1,36 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { Pressable, ScrollView, Text, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { SFSymbol } from 'expo-symbols';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Artwork, artSource } from '@/components/artwork';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { LyricsView } from '@/components/lyrics-view';
-import { promptText, showMenu } from '@/components/menus';
+import type { MenuItem } from '@/components/menus';
 import { SeekBar } from '@/components/seek-bar';
 import { Slider } from '@/components/slider';
 import { toast, ToastHost } from '@/components/toast';
-import { useTrackActions } from '@/components/track-actions';
-import { addBookmark, listBookmarks } from '@/db/bookmarks';
-import { cycleRepeat } from '@/player/queue-ops';
+import { albumHref, choosePlaylist, groupHref, useTrackActions } from '@/components/track-actions';
+import { useAbLoop } from '@/player/ab-repeat';
+import { cycleRepeat, nextIndex, previousIndex } from '@/player/queue-ops';
 import { queue, useQueue, type RepeatMode } from '@/player/queue-store';
-import { sleepTimer, useSleepTimer, type SleepTimer } from '@/player/sleep-timer';
+import { useSleepTimer, type SleepTimer } from '@/player/sleep-timer';
 import { previewSound } from '@/player/sound';
-import { setPref, usePrefs } from '@/prefs';
-import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
+import { shareTrack } from '@/player/track-edits';
+import { ALL_PLAYER_SHORTCUTS, setPref, usePrefs, type PlayerShortcut } from '@/prefs';
+import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { setKeepAwake } from '@/utils/device';
-import { libraryEvents } from '@/utils/events';
 import { formatDuration } from '@/utils/format';
+import { AboutCard, BookmarksCard, LyricsCard, UpNextCard } from './cards';
+import { Backdrop, FavoriteButton, ModeButton, PlayButton, PlayerHeader, StatusPills, type Pill } from './controls';
+import { abMark, abMenu, bookmarkHere, bookmarksMenu, queueMenu, sleepLabel, sleepMenu } from './menus';
+import { SHORTCUTS } from './shortcuts';
+import { SwipeArt } from './swipe-art';
 
 const REPEAT_LABEL: Record<RepeatMode, string> = { off: 'Repeat off', all: 'Repeat queue', one: 'Repeat song' };
+const REPEAT_STATE: Record<RepeatMode, string> = { off: 'off', all: 'queue', one: 'this song' };
 
 /** SF Symbols ship numbered skip glyphs for these intervals only. */
 const NUMBERED = new Set([5, 10, 15, 30, 45, 60, 75, 90]);
@@ -36,6 +42,8 @@ function skipIcon(direction: 'back' | 'forward', seconds: number): SFSymbol {
 /** Songs listed under Up next in the compact layout. */
 const UP_NEXT = 6;
 const COMPACT_ART = 96;
+/** How much of the first card shows under the controls, hinting that the player scrolls. */
+const CARD_PEEK = 44;
 
 /** While previous or next is held, the position moves this far every tick. */
 const HOLD_STEP_MS = 5000;
@@ -43,12 +51,19 @@ const HOLD_TICK_MS = 200;
 /** Two taps on the artwork within this long count as a double tap. */
 const DOUBLE_TAP_MS = 300;
 
-function sleepLabel(timer: SleepTimer, remainingMs: number): string | null {
-  if (timer.mode === 'minutes') return `Sleep in ${formatDuration(remainingMs)}`;
-  if (timer.mode === 'songs') return timer.left === 1 ? 'Stops after this song' : `Stops after ${timer.left} songs`;
-  return null;
+function sleepPill(timer: SleepTimer, remainingMs: number): string {
+  if (timer.mode === 'minutes') return formatDuration(remainingMs);
+  if (timer.mode === 'songs') return timer.left === 1 ? 'After this song' : `${timer.left} songs`;
+  return '';
 }
 
+/**
+ * Now Playing, laid out like Spotify's: a header naming the queue, big artwork that swipes to
+ * the next or previous song, the title with an add button, a thin seek bar, round play button,
+ * and a row of shortcuts; then cards that scroll up from under it. What goes in it is
+ * Musicolet's: several queues, A–B repeat, bookmarks, the sleep timer, speed, pitch and equalizer,
+ * skipping by seconds in long songs, and the lyrics and details from the files themselves.
+ */
 export function PlayerScreen() {
   const styles = useStyles();
   const colors = useTheme();
@@ -60,16 +75,23 @@ export function PlayerScreen() {
   const actions = useTrackActions();
   const prefs = usePrefs();
   const { timer, remainingMs } = useSleepTimer();
-  const { tracks, currentIndex, state, positionMs, durationMs, repeat, toggle, next, previous, seek, shuffle, undo, setRepeat } =
-    useQueue();
+  const {
+    queues, activeId, tracks, currentIndex, state, positionMs, durationMs, repeat,
+    toggle, next, previous, seek, shuffle, undo, setRepeat, playAt,
+  } = useQueue();
   // While the thumb is down the labels follow it, not the engine, which keeps ticking underneath.
   const [scrubMs, setScrubMs] = useState<number | null>(null);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [swiping, setSwiping] = useState(false);
+  const [viewport, setViewport] = useState(0);
+  const [artBox, setArtBox] = useState({ width: 0, height: 0 });
+  const scroll = useRef<ScrollView>(null);
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTap = useRef({ at: 0, side: 'left' as 'left' | 'right' });
   const latest = useRef({ positionMs, durationMs });
   latest.current = { positionMs, durationMs };
   const track = tracks[currentIndex];
+  const loop = useAbLoop(track?.id);
   const layout = prefs.playerLayout;
 
   useEffect(() => () => {
@@ -83,15 +105,48 @@ export function PlayerScreen() {
     return () => setKeepAwake(false);
   }, [prefs.keepAwake]);
 
+  // Albums, artists and bookmarks live under the tabs, behind the player, so it closes first.
+  const leave = useCallback(
+    (href: Parameters<typeof router.push>[0]) => {
+      router.back();
+      router.push(href);
+    },
+    [router],
+  );
+  const openQueue = useCallback(() => router.push('/queue'), [router]);
+  const goAlbum = useCallback(() => {
+    if (track?.album) leave(albumHref(track.album, track.album_artist ?? track.artist));
+  }, [track, leave]);
+  const goArtist = useCallback(() => {
+    if (track?.artist) leave(groupHref('artist', track.artist));
+  }, [track, leave]);
+  const openDetails = useCallback(() => {
+    if (track) router.push({ pathname: '/track/[id]', params: { id: String(track.id) } });
+  }, [track, router]);
+  const editLyrics = useCallback(() => {
+    if (track) router.push({ pathname: '/lyrics/[id]', params: { id: String(track.id) } });
+  }, [track, router]);
+  // Lyrics take the artwork's place at the top, so a card asking for them scrolls back up there.
+  const toggleLyrics = useCallback(() => {
+    setShowLyrics((v) => !v);
+    scroll.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
   if (!track) {
     return <EmptyState title="Nothing playing" body="Pick a song from the library to start a queue." />;
   }
 
   const playing = state === 'playing';
   const shown = scrubMs ?? positionMs;
-  const art = Math.min(artSize.player, width - spacing.xl * 2);
-  const subtitle = [track.artist, track.album].filter(Boolean).join(' — ');
   const skipMs = prefs.skipSeconds * 1000;
+  // Audiobooks, podcasts and mixes: the songs long enough to remember their place get Spotify's
+  // podcast controls, skipping by seconds where shuffle and repeat would be.
+  const longForm = prefs.resumeMinMs > 0 && (durationMs || track.duration_ms || 0) >= prefs.resumeMinMs;
+  const canNext = nextIndex(tracks.length, currentIndex, repeat, true) >= 0;
+  const canPrevious = currentIndex > 0 || (repeat === 'all' && tracks.length > 1);
+  const queueName = queues.find((q) => q.id === activeId)?.name ?? 'Queue';
+  const sleeping = sleepLabel(timer, remainingMs);
+  const soundChanged = prefs.playbackRate !== 1 || prefs.pitchSemitones !== 0 || prefs.pitchFollowsSpeed || prefs.equalizer.enabled;
 
   const skip = (ms: number) => {
     const { positionMs: at, durationMs: total } = latest.current;
@@ -106,9 +161,8 @@ export function PlayerScreen() {
     if (holdTimer.current) clearInterval(holdTimer.current);
     holdTimer.current = null;
   };
-
-  const onArtTap = (x: number) => {
-    const side = x < art / 2 ? 'left' : 'right';
+  const onArtTap = (x: number, size: number) => {
+    const side = x < size / 2 ? 'left' : 'right';
     const now = Date.now();
     if (now - lastTap.current.at < DOUBLE_TAP_MS && lastTap.current.side === side) {
       skip(side === 'left' ? -skipMs : skipMs);
@@ -119,118 +173,187 @@ export function PlayerScreen() {
     }
   };
 
-  const sleepMenu = () =>
-    showMenu({
-      title: 'Sleep timer',
-      message: sleepLabel(timer, remainingMs) ?? (prefs.sleepFade ? 'Fades out over the last 30 seconds.' : undefined),
-      items: [
-        { label: 'Turn off', hidden: timer.mode === 'off', destructive: true, onPress: () => sleepTimer.cancel() },
-        { label: 'Add 10 minutes', hidden: timer.mode !== 'minutes', onPress: () => sleepTimer.extend(10) },
-        ...[15, 30, 45, 60, 90].map((m) => ({
-          label: m < 60 ? `${m} minutes` : m === 60 ? '1 hour' : '1 hour 30 minutes',
-          onPress: () => {
-            sleepTimer.minutes(m);
-            toast.show(`Sleep in ${m} minutes`);
-          },
-        })),
-        {
-          label: 'Custom…',
-          onPress: async () => {
-            const text = await promptText('Sleep in how many minutes?', { ok: 'Start' });
-            const minutes = Number(text);
-            if (text && Number.isFinite(minutes) && minutes > 0) sleepTimer.minutes(minutes);
-          },
-        },
-        { label: 'End of this song', onPress: () => sleepTimer.songs(1) },
-        {
-          label: 'After a number of songs…',
-          onPress: async () => {
-            const text = await promptText('Stop after how many songs?', { message: 'This song counts as the first.', ok: 'Start' });
-            const count = Number(text);
-            if (text && Number.isInteger(count) && count > 0) sleepTimer.songs(count);
-          },
-        },
+  const doShuffle = () => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }));
+  const doRepeat = () => {
+    const mode = cycleRepeat(repeat);
+    setRepeat(mode);
+    toast.show(REPEAT_LABEL[mode]);
+  };
+  const openSound = () => router.push('/sound');
+  const openAbMenu = () => abMenu(track, latest.current.positionMs, latest.current.durationMs, (ms) => void seek(ms));
+  const openBookmarks = () =>
+    void bookmarksMenu(db, track, {
+      positionMs: () => latest.current.positionMs,
+      seek: (ms) => void seek(ms),
+      openAll: () => leave('/bookmarks'),
+    });
+
+  const shortcut = (key: PlayerShortcut): { active: boolean; label: string; hint?: string; onPress: () => void; onLongPress?: () => void } => {
+    switch (key) {
+      case 'lyrics':
+        return { active: showLyrics, label: showLyrics ? 'Show artwork' : 'Show lyrics', onPress: toggleLyrics };
+      case 'sleep':
+        return { active: timer.mode !== 'off', label: sleeping ?? 'Sleep timer', onPress: sleepMenu };
+      case 'abRepeat':
+        return {
+          active: loop !== null,
+          label: loop ? 'A–B repeat is on. Next step' : 'A–B repeat: set A here',
+          hint: 'Hold for more',
+          onPress: () => abMark(track, latest.current.positionMs, latest.current.durationMs),
+          onLongPress: openAbMenu,
+        };
+      case 'bookmark':
+        return {
+          active: false,
+          label: 'Bookmark this spot',
+          hint: 'Hold for this song’s bookmarks',
+          onPress: () => void bookmarkHere(db, track, latest.current.positionMs),
+          onLongPress: openBookmarks,
+        };
+      case 'sound':
+        return {
+          active: soundChanged,
+          label: prefs.playbackRate !== 1 ? `Speed and sound, playing at ${prefs.playbackRate} times` : 'Speed and sound',
+          onPress: openSound,
+        };
+      case 'queue':
+        return { active: false, label: 'Open the queue', onPress: openQueue };
+      case 'details':
+        return { active: false, label: 'Song details', onPress: openDetails };
+      case 'playlist':
+        return { active: false, label: 'Add to playlist', onPress: () => void choosePlaylist(db, [track]) };
+      case 'share':
+        return { active: false, label: 'Share the file', onPress: () => void shareTrack(track) };
+    }
+  };
+
+  // The shortcuts switched off still belong somewhere: the menu. Details, playlists and sharing
+  // are in every song's menu already.
+  const menuItem: Partial<Record<PlayerShortcut, MenuItem>> = {
+    lyrics: { label: showLyrics ? 'Hide lyrics' : 'Show lyrics', onPress: toggleLyrics },
+    sleep: { label: 'Sleep timer…', onPress: sleepMenu },
+    abRepeat: { label: 'A–B repeat…', onPress: openAbMenu },
+    bookmark: { label: 'Bookmarks…', onPress: openBookmarks },
+    sound: { label: 'Speed and sound', onPress: openSound },
+    queue: { label: 'Open the queue', onPress: openQueue },
+  };
+  const moreMenu = () =>
+    actions.trackMenu(track, {
+      beforeNavigate: () => router.back(),
+      extra: [
+        ...(longForm
+          ? [
+              { label: 'Shuffle the queue', hidden: tracks.length < 2, onPress: doShuffle },
+              { label: `Repeat: ${REPEAT_STATE[repeat]}`, onPress: doRepeat },
+            ]
+          : []),
+        ...ALL_PLAYER_SHORTCUTS.filter((k) => !prefs.playerShortcuts.includes(k)).flatMap((k) => menuItem[k] ?? []),
       ],
     });
 
-  const bookmarkHere = async () => {
-    const at = latest.current.positionMs;
-    const label = await promptText(`Bookmark at ${formatDuration(at)}`, { message: 'A name is optional.', ok: 'Save' });
-    if (label === null) return;
-    await addBookmark(db, track.id, at, label || null);
-    libraryEvents.emit('changed', undefined);
-    toast.show(`Bookmarked at ${formatDuration(at)}`);
-  };
-  const bookmarksMenu = async () => {
-    const marks = await listBookmarks(db, track.id);
-    showMenu({
-      title: marks.length ? 'Bookmarks in this song' : 'No bookmarks in this song yet',
-      items: [
-        ...marks.map((b) => ({
-          label: `${formatDuration(b.position_ms)}${b.label ? ` — ${b.label}` : ''}`,
-          onPress: () => void seek(b.position_ms),
-        })),
-        { label: 'Bookmark this spot…', onPress: () => void bookmarkHere() },
-        {
-          label: 'All bookmarks',
-          onPress: () => {
-            router.back();
-            router.push('/bookmarks');
-          },
-        },
-      ],
-    });
-  };
+  const pills: Pill[] = [];
+  if (sleeping) {
+    pills.push({ key: 'sleep', icon: 'moon.zzz.fill', text: sleepPill(timer, remainingMs), onPress: sleepMenu, accessibilityLabel: `${sleeping}. Change the sleep timer` });
+  }
+  if (loop) {
+    const text = loop.bMs === null ? `A ${formatDuration(loop.aMs)} · set B` : `${formatDuration(loop.aMs)} – ${formatDuration(loop.bMs)}`;
+    pills.push({ key: 'ab', icon: 'arrow.triangle.capsulepath', text, onPress: openAbMenu, accessibilityLabel: `A–B repeat, ${text}. Change it` });
+  }
+  if (prefs.playbackRate !== 1) {
+    pills.push({ key: 'speed', icon: 'speedometer', text: `${prefs.playbackRate}×`, onPress: openSound, accessibilityLabel: `Playing at ${prefs.playbackRate} times. Change the speed` });
+  }
+  if (!prefs.pitchFollowsSpeed && prefs.pitchSemitones !== 0) {
+    const text = `Pitch ${prefs.pitchSemitones > 0 ? '+' : '−'}${Math.abs(prefs.pitchSemitones)}`;
+    pills.push({ key: 'pitch', icon: 'music.note', text, onPress: openSound, accessibilityLabel: `${text} semitones. Change the pitch` });
+  }
+  if (prefs.equalizer.enabled) {
+    const text = `EQ ${prefs.equalizer.name || 'custom'}`;
+    pills.push({ key: 'eq', icon: 'slider.vertical.3', text, onPress: openSound, accessibilityLabel: `Equalizer on, ${prefs.equalizer.name || 'custom'}. Change it` });
+  }
 
-  const sleeping = sleepLabel(timer, remainingMs);
-  const soundChanged = prefs.playbackRate !== 1 || prefs.pitchSemitones !== 0 || prefs.pitchFollowsSpeed || prefs.equalizer.enabled;
-  const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
-
-  const artArea = (size: number) =>
-    showLyrics ? (
-      <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
-    ) : (
+  const measureArt = (e: LayoutChangeEvent) => {
+    const { width: w, height: h } = e.nativeEvent.layout;
+    setArtBox((box) => (Math.abs(box.width - w) < 1 && Math.abs(box.height - h) < 1 ? box : { width: w, height: h }));
+  };
+  const artwork = (size: number, rounded: 'none' | 'md') => (
+    <SwipeArt
+      width={size}
+      canNext={canNext}
+      canPrevious={canPrevious}
+      onNext={() => void next()}
+      onPrevious={() => void playAt(previousIndex(tracks.length, currentIndex, repeat))}
+      onActive={setSwiping}
+    >
       <Pressable
-        onPress={(e) => onArtTap(e.nativeEvent.locationX)}
+        onPress={(e) => onArtTap(e.nativeEvent.locationX, size)}
         accessibilityRole="image"
-        accessibilityLabel="Artwork"
-        accessibilityHint={`Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
+        accessibilityLabel={`Artwork for ${track.title}`}
+        accessibilityHint={`Swipe sideways for the next or previous song. Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
       >
-        <Artwork artKey={track.art_key} size={size} rounded={layout === 'edge' && !landscape ? 'none' : 'lg'} />
+        <View style={[styles.artShadow, { borderRadius: radius[rounded] }]}>
+          <Artwork artKey={track.art_key} size={size} rounded={rounded} />
+        </View>
       </Pressable>
-    );
-  const meta = (align: 'center' | 'left') => (
-    <View style={styles.meta}>
-      <Text numberOfLines={2} style={[type.title, { color: colors.label, textAlign: align }]}>
-        {track.title}
-      </Text>
-      {subtitle ? (
-        <Text numberOfLines={1} style={[type.subhead, styles.subtitle, { textAlign: align }]}>{subtitle}</Text>
-      ) : null}
-      {sleeping ? <Text style={[type.caption, { color: colors.tint, textAlign: align }]}>{sleeping}</Text> : null}
+    </SwipeArt>
+  );
+  const lyrics = <LyricsView track={track} positionMs={positionMs} onSeek={seek} />;
+
+  const header = (
+    <PlayerHeader
+      from={queueName}
+      detail={`${currentIndex + 1} of ${tracks.length}`}
+      onClose={() => router.back()}
+      onFrom={() => queueMenu(openQueue)}
+      onMore={moreMenu}
+    />
+  );
+  const titleRow = (
+    <View style={styles.titleRow}>
+      <View style={styles.titleText}>
+        <Text
+          numberOfLines={1}
+          onPress={track.album ? goAlbum : undefined}
+          accessibilityRole={track.album ? 'link' : 'header'}
+          accessibilityHint={track.album ? 'Goes to the album' : undefined}
+          style={styles.title}
+        >
+          {track.title}
+        </Text>
+        <Text
+          numberOfLines={1}
+          onPress={track.artist ? goArtist : undefined}
+          accessibilityRole={track.artist ? 'link' : 'text'}
+          accessibilityHint={track.artist ? 'Goes to the artist' : undefined}
+          style={styles.artist}
+        >
+          {track.artist ?? track.album ?? track.folder}
+        </Text>
+      </View>
+      <FavoriteButton
+        favorite={!!track.favorite}
+        onPress={() => void queue.setFavorite(track, !track.favorite)}
+        onLongPress={() => void choosePlaylist(db, [track])}
+      />
     </View>
   );
   const seekRow = (
-    <View style={styles.seek}>
-      <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} />
+    <View>
+      <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} color={colors.label} loop={loop} />
       <View style={styles.times}>
         <Text style={[type.caption, styles.time]}>{formatDuration(shown)}</Text>
-        <Text style={[type.caption, styles.time]}>
-          {durationMs > 0 ? `-${formatDuration(durationMs - shown)}` : '--:--'}
-        </Text>
+        <Text style={[type.caption, styles.time]}>{durationMs > 0 ? `-${formatDuration(durationMs - shown)}` : '--:--'}</Text>
       </View>
     </View>
   );
-  const controls = (
-    <View style={styles.controls}>
+  const transport = (
+    <View style={styles.transport}>
+      {longForm ? (
+        <IconButton name={skipIcon('back', prefs.skipSeconds)} size={26} onPress={() => skip(-skipMs)} accessibilityLabel={`Back ${prefs.skipSeconds} seconds`} />
+      ) : (
+        <ModeButton name="shuffle" active={false} disabled={tracks.length < 2} onPress={doShuffle} accessibilityLabel="Shuffle the queue" />
+      )}
       <IconButton
-        name={skipIcon('back', prefs.skipSeconds)}
-        size={26}
-        onPress={() => skip(-skipMs)}
-        accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
-      />
-      <IconButton
-        name="backward.fill"
+        name="backward.end.fill"
         size={30}
         onPress={previous}
         onLongPress={() => startHold(-1)}
@@ -238,15 +361,9 @@ export function PlayerScreen() {
         accessibilityLabel="Previous track"
         accessibilityHint="Hold to rewind"
       />
+      <PlayButton playing={playing} onPress={toggle} />
       <IconButton
-        name={playing ? 'pause.circle.fill' : 'play.circle.fill'}
-        size={64}
-        color={colors.tint}
-        onPress={toggle}
-        accessibilityLabel={playing ? 'Pause' : 'Play'}
-      />
-      <IconButton
-        name="forward.fill"
+        name="forward.end.fill"
         size={30}
         onPress={next}
         onLongPress={() => startHold(1)}
@@ -254,81 +371,16 @@ export function PlayerScreen() {
         accessibilityLabel="Next track"
         accessibilityHint="Hold to fast-forward"
       />
-      <IconButton
-        name={skipIcon('forward', prefs.skipSeconds)}
-        size={26}
-        onPress={() => skip(skipMs)}
-        accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
-      />
-    </View>
-  );
-  const secondary = (
-    <View style={styles.secondary}>
-      <IconButton
-        name={repeat === 'one' ? 'repeat.1' : 'repeat'}
-        size={20}
-        color={repeat === 'off' ? colors.secondaryLabel : colors.tint}
-        onPress={() => {
-          const nextMode = cycleRepeat(repeat);
-          setRepeat(nextMode);
-          toast.show(REPEAT_LABEL[nextMode]);
-        }}
-        accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
-      />
-      <IconButton
-        name="shuffle"
-        size={20}
-        color={colors.secondaryLabel}
-        disabled={tracks.length < 2}
-        onPress={() => void shuffle().then(() => toast.show('Queue shuffled', { label: 'Undo', onPress: () => void undo() }))}
-        accessibilityLabel="Shuffle the queue"
-      />
-      <IconButton
-        name={showLyrics ? 'quote.bubble.fill' : 'quote.bubble'}
-        size={20}
-        color={showLyrics ? colors.tint : colors.secondaryLabel}
-        onPress={() => setShowLyrics((v) => !v)}
-        accessibilityLabel={showLyrics ? 'Show artwork' : 'Show lyrics'}
-      />
-      <IconButton
-        name={timer.mode === 'off' ? 'moon.zzz' : 'moon.zzz.fill'}
-        size={20}
-        color={timer.mode === 'off' ? colors.secondaryLabel : colors.tint}
-        onPress={sleepMenu}
-        accessibilityLabel={sleeping ?? 'Sleep timer'}
-      />
-      <IconButton
-        name="bookmark"
-        size={20}
-        color={colors.secondaryLabel}
-        onPress={() => void bookmarkHere()}
-        onLongPress={() => void bookmarksMenu()}
-        accessibilityLabel="Bookmark this spot"
-        accessibilityHint="Hold for this song’s bookmarks"
-      />
-      <IconButton
-        name={track.favorite ? 'heart.fill' : 'heart'}
-        size={20}
-        color={track.favorite ? colors.tint : colors.secondaryLabel}
-        onPress={() => void queue.setFavorite(track, !track.favorite)}
-        accessibilityLabel={track.favorite ? 'Remove from favorites' : 'Add to favorites'}
-      />
-      <IconButton
-        name="slider.horizontal.3"
-        size={20}
-        color={soundChanged ? colors.tint : colors.secondaryLabel}
-        onPress={() => router.push('/sound')}
-        accessibilityLabel={
-          prefs.playbackRate !== 1 ? `Speed and sound, playing at ${prefs.playbackRate} times` : 'Speed and sound'
-        }
-      />
-      <IconButton
-        name="ellipsis.circle"
-        size={20}
-        color={colors.secondaryLabel}
-        onPress={() => actions.trackMenu(track, { beforeNavigate: () => router.back() })}
-        accessibilityLabel="More for this song"
-      />
+      {longForm ? (
+        <IconButton name={skipIcon('forward', prefs.skipSeconds)} size={26} onPress={() => skip(skipMs)} accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`} />
+      ) : (
+        <ModeButton
+          name={repeat === 'one' ? 'repeat.1' : 'repeat'}
+          active={repeat !== 'off'}
+          onPress={doRepeat}
+          accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
+        />
+      )}
     </View>
   );
   const volumeRow = prefs.showVolume ? (
@@ -349,110 +401,141 @@ export function PlayerScreen() {
       <IconButton name="speaker.wave.3.fill" size={14} color={colors.secondaryLabel} onPress={() => setPref('volume', 1)} accessibilityLabel="Full volume" />
     </View>
   ) : null;
-
-  const background =
-    prefs.blurBackground ? (
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Image source={artSource(track.art_key)} blurRadius={60} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        <View style={[StyleSheet.absoluteFill, styles.scrim]} />
-      </View>
-    ) : null;
+  const shortcutRow = prefs.playerShortcuts.length ? (
+    <View style={[styles.shortcuts, prefs.playerShortcuts.length < 4 && styles.fewShortcuts]}>
+      {prefs.playerShortcuts.map((key) => {
+        const s = shortcut(key);
+        const def = SHORTCUTS[key];
+        return (
+          <IconButton
+            key={key}
+            name={s.active && def.activeIcon ? def.activeIcon : def.icon}
+            size={20}
+            color={s.active ? colors.tint : colors.secondaryLabel}
+            onPress={s.onPress}
+            onLongPress={s.onLongPress}
+            accessibilityLabel={s.label}
+            accessibilityHint={s.hint}
+          />
+        );
+      })}
+    </View>
+  ) : null;
+  const controls = (
+    <>
+      <StatusPills pills={pills} />
+      {seekRow}
+      {transport}
+      {volumeRow}
+      {shortcutRow}
+    </>
+  );
 
   let body: ReactElement;
   if (landscape) {
     // Side by side: the artwork as tall as the screen allows, everything else beside it.
-    const size = Math.min(height - insets.top - insets.bottom - spacing.xl * 2, width * 0.45);
+    const size = Math.min(height - insets.top - insets.bottom - spacing.xl * 2, width * 0.42);
     body = (
       <View style={[styles.landscape, { paddingLeft: insets.left + spacing.xl, paddingRight: insets.right + spacing.xl }]}>
-        <View style={[styles.artWrap, { flex: 0, width: size }]}>{artArea(size)}</View>
-        <View style={styles.side}>
+        <View style={{ width: size, height: size }}>{showLyrics ? lyrics : artwork(size, 'md')}</View>
+        <ScrollView
+          style={styles.side}
+          contentContainerStyle={styles.sideContent}
+          scrollEnabled={scrubMs === null}
+          showsVerticalScrollIndicator={false}
+        >
+          {header}
           {showLyrics ? (
             // Lyrics took the artwork's place, so a small copy of it stays beside the title.
             <View style={styles.compactHead}>
-              <Artwork artKey={track.art_key} size={COMPACT_ART / 1.5} />
-              <View style={{ flex: 1 }}>{meta('left')}</View>
+              <Artwork artKey={track.art_key} size={COMPACT_ART / 1.5} rounded="md" />
+              <View style={{ flex: 1 }}>{titleRow}</View>
             </View>
           ) : (
-            meta('left')
+            titleRow
           )}
-          {seekRow}
           {controls}
-          {volumeRow}
-          {secondary}
-        </View>
+        </ScrollView>
       </View>
-    );
-  } else if (layout === 'compact') {
-    // Smaller artwork beside the title, and the next few songs where the artwork was.
-    body = (
-      <View style={styles.padded}>
-        <View style={styles.compactHead}>
-          {showLyrics ? null : artArea(COMPACT_ART)}
-          <View style={{ flex: 1 }}>{meta('left')}</View>
-        </View>
-        <View style={styles.upNext}>
-          {showLyrics ? (
-            <LyricsView track={track} positionMs={positionMs} onSeek={seek} />
-          ) : (
-            <>
-              <Text style={[type.footnote, styles.upNextTitle]}>{upNext.length ? 'UP NEXT' : 'END OF THE QUEUE'}</Text>
-              {upNext.map((t, i) => (
-                <Pressable
-                  key={`${t.id}:${i}`}
-                  onPress={() => void queue.playAt(currentIndex + 1 + i)}
-                  style={({ pressed }) => [styles.upNextRow, pressed && { opacity: 0.5 }]}
-                  accessibilityRole="button"
-                >
-                  <Artwork artKey={t.art_key} size={36} />
-                  <View style={{ flex: 1 }}>
-                    <Text numberOfLines={1} style={[type.subhead, { color: colors.label }]}>{t.title}</Text>
-                    <Text numberOfLines={1} style={[type.caption, { color: colors.secondaryLabel }]}>
-                      {t.artist ?? t.folder}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </>
-          )}
-        </View>
-        {seekRow}
-        {controls}
-        {volumeRow}
-        {secondary}
-      </View>
-    );
-  } else if (layout === 'edge') {
-    // Artwork edge to edge at the top, square, with the rest padded below it.
-    body = (
-      <>
-        {/* Full width where the screen is tall enough, otherwise as large as fits. */}
-        <View style={styles.edgeArt}>{artArea(Math.min(width, Math.round(height * 0.5)))}</View>
-        <View style={[styles.padded, { flex: 0 }]}>
-          {meta('center')}
-          {seekRow}
-          {controls}
-          {volumeRow}
-          {secondary}
-        </View>
-      </>
     );
   } else {
+    // One screen of player, then the cards; the first card peeks out at the bottom.
+    const heroHeight = Math.max(0, (viewport || height) - insets.bottom - CARD_PEEK);
+    const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
+    const size = Math.floor(Math.min(artBox.width, artBox.height));
+    const hero =
+      layout === 'compact' ? (
+        // Smaller artwork beside the title, and the next few songs where the artwork was.
+        <View style={[styles.hero, { height: heroHeight }]}>
+          {header}
+          <View style={styles.compactHead}>
+            {showLyrics ? null : <Artwork artKey={track.art_key} size={COMPACT_ART} rounded="md" />}
+            <View style={{ flex: 1 }}>{titleRow}</View>
+          </View>
+          <View style={styles.upNext}>
+            {showLyrics ? (
+              lyrics
+            ) : (
+              <>
+                <Text style={[type.footnote, styles.upNextTitle]}>{upNext.length ? 'UP NEXT' : 'END OF THE QUEUE'}</Text>
+                {upNext.map((t, i) => (
+                  <Pressable
+                    key={`${t.id}:${i}`}
+                    onPress={() => void playAt(currentIndex + 1 + i)}
+                    style={({ pressed }) => [styles.upNextRow, pressed && { opacity: 0.5 }]}
+                    accessibilityRole="button"
+                  >
+                    <Artwork artKey={t.art_key} size={36} />
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={[type.subhead, { color: colors.label }]}>{t.title}</Text>
+                      <Text numberOfLines={1} style={[type.caption, { color: colors.secondaryLabel }]}>{t.artist ?? t.folder}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </>
+            )}
+          </View>
+          {controls}
+        </View>
+      ) : (
+        // Standard: Spotify's rounded artwork. Edge: the artwork from one side to the other.
+        <View style={[styles.hero, { height: heroHeight }]}>
+          {header}
+          <View style={[styles.artArea, layout === 'edge' && styles.edgeArt]} onLayout={measureArt}>
+            {showLyrics ? lyrics : size > 0 ? artwork(size, layout === 'edge' ? 'none' : 'md') : null}
+          </View>
+          {titleRow}
+          {controls}
+        </View>
+      );
     body = (
-      <View style={styles.padded}>
-        <View style={styles.artWrap}>{artArea(art)}</View>
-        {meta('center')}
-        {seekRow}
-        {controls}
-        {volumeRow}
-        {secondary}
-      </View>
+      <ScrollView
+        ref={scroll}
+        onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
+        scrollEnabled={!swiping && scrubMs === null}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
+      >
+        {hero}
+        <View style={styles.cards}>
+          <LyricsCard track={track} positionMs={positionMs} showing={showLyrics} onToggle={toggleLyrics} onEdit={editLyrics} />
+          {layout === 'compact' ? null : (
+            <UpNextCard queues={queues} activeId={activeId} tracks={tracks} currentIndex={currentIndex} onOpen={openQueue} />
+          )}
+          <BookmarksCard trackId={track.id} onSeek={seek} />
+          <AboutCard track={track} onAlbum={goAlbum} onArtist={goArtist} onDetails={openDetails} />
+        </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>
-      {background}
-      {body}
+    <View style={styles.root}>
+      {prefs.blurBackground ? <Backdrop artKey={track.art_key} /> : null}
+      {/* The sheet's own top edge, not the phone's; the sides and bottom are padded by hand. */}
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        {body}
+      </SafeAreaView>
       {/* The app-wide toast sits under this modal, so the player shows its own. */}
       <ToastHost />
     </View>
@@ -461,27 +544,27 @@ export function PlayerScreen() {
 
 const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
-  padded: { flex: 1, paddingHorizontal: spacing.xl, gap: spacing.lg },
-  artWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0 },
-  edgeArt: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 0, marginBottom: spacing.lg },
-  landscape: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xl },
-  side: { flex: 1, gap: spacing.md, justifyContent: 'center' },
-  compactHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingTop: spacing.lg },
+  safe: { flex: 1 },
+  hero: { paddingHorizontal: spacing.xl, gap: spacing.lg, paddingBottom: spacing.sm },
+  artArea: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' },
+  edgeArt: { marginHorizontal: -spacing.xl },
+  artShadow: { boxShadow: [{ offsetX: 0, offsetY: 10, blurRadius: 30, color: colors.shadow }] },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  titleText: { flex: 1, gap: 2 },
+  title: { fontSize: 22, fontWeight: '700', color: colors.label },
+  artist: { ...type.body, color: colors.secondaryLabel },
+  times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -spacing.xs },
+  time: { color: colors.secondaryLabel, fontVariant: ['tabular-nums'] },
+  transport: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  volume: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  shortcuts: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xs },
+  fewShortcuts: { justifyContent: 'space-around' },
+  cards: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  compactHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   upNext: { flex: 1, minHeight: 0, gap: spacing.sm },
   upNextTitle: { color: colors.secondaryLabel, paddingTop: spacing.sm },
   upNextRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 2 },
-  // Keeps text legible over the blurred artwork in both light and dark.
-  scrim: { backgroundColor: colors.background, opacity: 0.55 },
-  meta: { gap: spacing.xs },
-  subtitle: { color: colors.secondaryLabel },
-  seek: { gap: 2 },
-  times: { flexDirection: 'row', justifyContent: 'space-between' },
-  time: { color: colors.secondaryLabel },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm },
-  volume: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  landscape: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xl },
+  side: { flex: 1, alignSelf: 'stretch' },
+  sideContent: { flexGrow: 1, justifyContent: 'center', gap: spacing.md, paddingVertical: spacing.md },
 }));

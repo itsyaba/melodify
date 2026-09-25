@@ -86,7 +86,8 @@ Scan screen shows the first failure.
       song; tapping a line seeks there. Embedded lyrics show too.
 - [ ] **Play counts:** a song played past half (or 4 min) counts; Recently played, Most played and
       Recently added (Playlists view) fill up.
-- [ ] **Favorites:** heart in the player and in menus; the Favorites auto playlist lists them.
+- [ ] **Favorites:** the + / ✓ button by the player's title, and in menus; the Favorites auto
+      playlist lists them.
 - [ ] **Song details:** long press › Details shows tags, file info, plays and skips.
 - [ ] **Hide short songs** (Settings) hides songs under 30 s; **Hidden songs** and **Excluded
       folders** (Folders › long press a folder) take songs out of the library and bring them back.
@@ -174,6 +175,50 @@ Scan screen shows the first failure.
 - [ ] **Landscape lyrics:** rotate with lyrics shown: lyrics on the left, a small artwork by the title.
 - [ ] **Big library feel:** with your whole library, Songs, Albums and Artists open without a
       noticeable wait, and launch is not slower than before.
+
+## 10. The Spotify-style player
+
+JS only: the current build picks it up through Metro, no new IPA needed. Try it in a dark theme
+first, then once in light.
+
+- [ ] **Looks right:** the artwork's colours wash the background, darker towards the bottom; big
+      rounded artwork with a shadow; bold title and artist on the left, a + button on the right;
+      thin white seek bar; white round play button. Nothing is cut off on a small phone.
+- [ ] **Header:** the chevron closes the player (so does pulling it down). The middle says
+      "Playing from queue" and "Queue 1 · 3 of 24"; tapping it lists the queues, and picking another
+      one switches to it. ••• opens the song's menu.
+- [ ] **Swipe the artwork** left: next song, the art slides out and the new one in. Right: previous
+      song (always the previous one, not the start of this one). At the ends of a queue with repeat
+      off it only springs back. The page does not scroll while you swipe. Double-tapping the left or
+      right half still skips seconds.
+- [ ] **Title and artist** go to the album and the artist (the player closes first).
+- [ ] **+ / ✓:** tap to add to favorites (turns into an accent check), tap again to remove. Hold it
+      for Add to playlist.
+- [ ] **Shuffle and repeat** sit either side of the transport; repeat turns accent-coloured with a
+      dot under it, and shows a 1 for repeat song.
+- [ ] **Long songs** (10 min or more, Settings › Remember position): shuffle and repeat swap for
+      skip back / forward by the Settings interval; ••• then offers shuffle and repeat instead.
+- [ ] **Shortcut row** under the controls: lyrics, sleep timer, A–B repeat, bookmark, speed and
+      sound, queue. Each lights up in the accent while its thing is on. Settings › Appearance ›
+      Player shortcuts switches them on and off and reorders them (details, add to playlist and
+      share are there too); the switched-off ones show up in the player's ••• menu.
+- [ ] **A–B repeat:** tap the loop button at one spot (toast: "A set at…"), again a few seconds
+      later: from then on the song jumps back to A whenever it reaches B, and the seek bar shows
+      the stretch in the accent. A third tap turns it off. Hold the button for set A / set B / play
+      from A / turn off. Next song: the loop ends. B within a second of A is refused.
+- [ ] **Pills** appear under the title only while something is on: the sleep timer counting
+      down, the A–B stretch, a speed other than 1×, a pitch shift, the equalizer. Tapping one opens
+      its control.
+- [ ] **Scroll down:** the first card peeks out at the bottom. Lyrics shows a few lines from where
+      the song is (Show puts the full lyrics in place of the artwork and scrolls back up), or Add
+      when there are none. Next in queue lists the next five songs (tap one to play it), chips to
+      switch queues when there are several, and Open, which shows the queue as a sheet over the
+      player. Bookmarks appears once the song has some; tapping one seeks there. About this song
+      lists the tags, the file, plays and skips; Details opens song details.
+- [ ] **Hearting the song** does not make the lyrics card blink or the cards jump.
+- [ ] **Compact layout** keeps Up next in the top part and has no queue card below. **Edge** runs
+      the artwork edge to edge. **Landscape** puts the controls beside the artwork, with the header.
+- [ ] **Blur off** (Settings › Appearance) gives a plain background; everything stays readable.
 
 ## What to send back
 

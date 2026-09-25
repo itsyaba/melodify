@@ -7,6 +7,7 @@ import { countTracks } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { engineInfo } from '@/player';
 import { setPref, usePrefs, type Prefs } from '@/prefs';
+import { SHORTCUTS } from '@/screens/player/shortcuts';
 import { ACCENTS, makeStyles, type AccentName, type ThemeName } from '@/theme';
 import { canLockOrientation } from '@/utils/device';
 import { libraryEvents } from '@/utils/events';
@@ -82,6 +83,11 @@ export function SettingsScreen() {
           label={(l) => LAYOUTS[l]}
         />
         <ToggleRow title="Blurred artwork behind the player" value={prefs.blurBackground} onChange={(v) => setPref('blurBackground', v)} />
+        <ListRow
+          title="Player shortcuts"
+          subtitle={prefs.playerShortcuts.length ? prefs.playerShortcuts.map((k) => SHORTCUTS[k].label).join(', ') : 'None, all in the menu'}
+          onPress={() => router.push('/shortcuts')}
+        />
         <ChoiceRow pref="density" title="List density" options={Object.keys(DENSITIES) as Prefs['density'][]} label={(d) => DENSITIES[d]} />
         <ListRow title="Tabs and library views" subtitle="Choose which show, and in what order" onPress={() => router.push('/tabs')} />
       </Section>

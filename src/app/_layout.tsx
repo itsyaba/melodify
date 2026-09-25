@@ -61,7 +61,9 @@ export default function RootLayout() {
         <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase} useSuspense>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />
+            {/* The player draws its own header, Spotify style: a chevron to close, the queue, a menu. */}
+            <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing', headerShown: false }} />
+            <Stack.Screen name="queue" options={{ presentation: 'modal', title: 'Queue' }} />
             <Stack.Screen name="track/[id]" options={{ presentation: 'modal', title: 'Song Details' }} />
             <Stack.Screen name="sound" options={{ presentation: 'modal', title: 'Speed and Sound' }} />
             <Stack.Screen name="tags" options={{ presentation: 'modal', title: 'Edit Tags' }} />

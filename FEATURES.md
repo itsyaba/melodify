@@ -33,6 +33,8 @@ to double-check against the current Musicolet release.
 | Skip silence | Skip silent segments in tracks (verify) | Native | skip |
 | Seek by fixed amount | Configurable skip forward/back (e.g. 10s / 30s) | RN+ | wip |
 | Fast seek gestures | Long-press or swipe on player to seek | JS | wip |
+| Swipe artwork for next / previous | Swipe the player's artwork sideways to change song | JS | wip |
+| A-B repeat | Loop one stretch of a song between two marked points (A, then B, then off) | JS | wip |
 | Volume in app | Volume slider inside the player | RN+ | wip |
 | ReplayGain / volume leveling | Apply track or album gain tags (verify) | Native | wip |
 
@@ -131,7 +133,8 @@ to double-check against the current Musicolet release.
 | Themes | Light, dark, black (AMOLED) | JS | wip |
 | Accent colors | Pick accent color | JS | wip |
 | Follow system theme | Automatic light / dark | JS | wip |
-| Player layouts | Multiple now-playing layouts | JS | wip |
+| Player layouts | Multiple now-playing layouts (standard, edge-to-edge, compact), all in a Spotify-style player with scrolling cards for lyrics, the queue, bookmarks and song details | JS | wip |
+| Quick access shortcuts | Choose which shortcut buttons show under the player's controls, and their order; the rest stay in the player's menu | JS | wip |
 | Album art blur background | Blurred art behind the player | JS | wip |
 | Font size / density | Compact vs comfortable lists | JS | wip |
 | Keep screen on | Prevent sleep while player is open | JS | wip |

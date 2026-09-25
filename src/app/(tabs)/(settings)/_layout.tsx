@@ -8,6 +8,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="hidden" options={{ title: 'Hidden songs', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="excluded" options={{ title: 'Excluded folders', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="tabs" options={{ title: 'Tabs and views', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="shortcuts" options={{ title: 'Player shortcuts', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="backup" options={{ title: 'Backup and restore', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="restore" options={{ title: 'Restore', headerLargeTitleEnabled: false }} />
     </Stack>
