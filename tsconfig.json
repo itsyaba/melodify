@@ -17,6 +17,7 @@
   "exclude": [
     "node_modules",
     "**/*.test.ts",
-    "src/test-utils"
+    "src/test-utils",
+    "scripts"
   ]
 }
