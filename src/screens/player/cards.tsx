@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Artwork } from '@/components/artwork';
 import { Chips } from '@/components/chips';
+import { LyricsSearch } from '@/components/lyrics-search';
 import { listBookmarks, type BookmarkWithTrack } from '@/db/bookmarks';
 import type { Track } from '@/db/types';
 import { activeLine } from '@/lyrics/lrc';
@@ -14,9 +15,10 @@ import { formatBytes, formatCount, formatDate, formatDuration } from '@/utils/fo
 
 /**
  * What scrolls up under the controls, Spotify's cards: lyrics, the queue, bookmarks, and the
- * song's own details, all from the files and the library, never from the internet. Each is
- * memoised on its own inputs so the four-times-a-second position ticks pass them by; only the
- * lyrics card follows the position, to show the line being sung.
+ * song's own details, all from the files and the library (lyrics go online only when the user
+ * taps Search online on a song with none). Each is memoised on its own inputs so the
+ * four-times-a-second position ticks pass them by; only the lyrics card follows the position, to
+ * show the line being sung.
  */
 
 const LYRIC_LINES = 4;
@@ -99,8 +101,10 @@ export function LyricsCard({
     return (
       <Card title="Lyrics" action={{ label: 'Add', onPress: onEdit, accessibilityLabel: 'Add lyrics' }}>
         <Text style={[type.subhead, styles.muted]}>
-          None for this song. Put a .lrc file with the same name next to it, embed them in its tags, or write them here.
+          None for this song. Put a .lrc file with the same name next to it, embed them in its tags, write them here, or
+          look them up online.
         </Text>
+        <LyricsSearch track={track} align="start" />
       </Card>
     );
   }

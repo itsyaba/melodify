@@ -132,6 +132,7 @@ src/
   db/           schema + migrations, typed queries, playlists, settings, a serial write chain
   scan/         Documents/ walker, filename-based tag guesses, native tag reading (+ tests)
   tags/         tag editor fields and writes through TagLib, lyrics saving
+  lyrics/       .lrc parsing, loading from sidecar files and tags, the LRCLIB lookup (+ tests)
   player/       engine interface, native + fake engines, queue store (several queues,
                 mirrored to SQLite), pure queue operations (+ tests)
   hooks/        useLibraryQuery (refreshes when the library changes), selection, stored choices

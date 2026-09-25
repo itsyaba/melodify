@@ -216,6 +216,14 @@ first, then once in light.
       player. Bookmarks appears once the song has some; tapping one seeks there. About this song
       lists the tags, the file, plays and skips; Details opens song details.
 - [ ] **Hearting the song** does not make the lyrics card blink or the cards jump.
+- [ ] **Search online** (needs internet): on a well-known song with no `.lrc` and no embedded
+      lyrics, tap Search online in the lyrics card or the lyrics view. "Searching LRCLIB…", then
+      the lyrics appear (synced ones follow the song) and a toast says they were saved. Both the
+      card and the view show the same search. A `.lrc` now sits beside the song in Files. Undo
+      removes it and brings the button back. In Airplane Mode: "Could not reach LRCLIB" and Try
+      again. A made-up title: "LRCLIB has no lyrics for this song." A classical piece: usually
+      "listed as instrumental". With a `.lrc` copied beside a song but not yet rescanned, it
+      refuses and says to rescan, leaving your file alone.
 - [ ] **Compact layout** keeps Up next in the top part and has no queue card below. **Edge** runs
       the artwork edge to edge. **Landscape** puts the controls beside the artwork, with the header.
 - [ ] **Blur off** (Settings › Appearance) gives a plain background; everything stays readable.

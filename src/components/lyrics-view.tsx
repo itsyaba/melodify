@@ -4,6 +4,7 @@ import type { Track } from '@/db/types';
 import { activeLine } from '@/lyrics/lrc';
 import { loadLyrics, type LoadedLyrics } from '@/lyrics/load';
 import { makeStyles, spacing, type, useTheme } from '@/theme';
+import { LyricsSearch } from './lyrics-search';
 
 /** After the user scrolls the lyrics by hand, leave them there this long before following again. */
 const MANUAL_SCROLL_HOLD_MS = 4000;
@@ -76,8 +77,10 @@ export function LyricsView({ track, positionMs, onSeek }: { track: Track; positi
       <View style={[styles.root, styles.center]}>
         <Text style={[type.headline, { color: colors.label }]}>No lyrics</Text>
         <Text style={[type.subhead, styles.hint]}>
-          Put a .lrc file with the same name next to the song and rescan, or embed lyrics in its tags.
+          Put a .lrc file with the same name next to the song and rescan, embed lyrics in its tags, or look them up
+          online.
         </Text>
+        <LyricsSearch track={track} />
       </View>
     );
   }

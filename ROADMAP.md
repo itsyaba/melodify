@@ -267,6 +267,12 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       only in the library); a three-column grid for albums, artists, genres, composers and years;
       Spotify-style shortcut cards for Favorites, the auto playlists, Bookmarks and New playlist.
       Find in list is new. JS only, no new build needed
+- [ ] Online lyrics (2026-09-25): a song with no `.lrc` and no embedded lyrics gets Search online
+      in the lyrics view and the lyrics card. It asks LRCLIB (free, no key) for an exact match on
+      title, artist and length, then searches, then searches again without "(feat. …)" or
+      "- Remastered" and with only the first artist. Synced lyrics of the same length win. What
+      it finds is saved as a `.lrc` beside the song, so each song goes online once; a toast offers
+      Undo. Never runs on its own. JS only, no new build needed
 
 ## Definition of done per phase
 

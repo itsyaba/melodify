@@ -10,7 +10,9 @@ Read README.md (workflow), FEATURES.md (scope, status per feature), ROADMAP.md (
 - Schema changes are appended migrations in `src/db/schema.ts`; never edit a shipped one.
 - Every color goes through `src/theme.ts` tokens, read in components with `useTheme()` or a
   `makeStyles` hook so theme changes apply live. Never capture `colors` in a plain StyleSheet.
-- No network calls, analytics, or online lookups. The app is offline by design.
+- No network calls, analytics, or online lookups. The app is offline by design. The one exception is
+  `src/lyrics/online.ts` (LRCLIB), which runs only when the user taps Search online on a song with
+  no lyrics. Ask before adding any other.
 - Keep FEATURES.md status columns current when a feature lands.
 
 ## Verify before committing
