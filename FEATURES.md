@@ -75,7 +75,7 @@ to double-check against the current Musicolet release.
 | --- | --- | --- | --- |
 | Embedded lyrics | Show USLT / lyrics tags from the file | Native | wip |
 | .lrc synced lyrics | Load sidecar `.lrc`, highlight current line, tap line to seek | JS | wip |
-| Lyrics editor | Edit / paste lyrics and save to tag or `.lrc` | Native | todo |
+| Lyrics editor | Edit / paste lyrics and save to tag or `.lrc` | Native | wip |
 | Lyrics on player | Swipe up or toggle to show lyrics over album art | JS | wip |
 | Split-screen lyrics | Lyrics beside controls in landscape or split view | JS | todo |
 | No online lyrics | Musicolet never fetches lyrics from the internet (kept as a design rule) | – | – |
@@ -84,10 +84,10 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Edit tags | Title, artist, album, album artist, genre, year, track/disc number, composer, comment | Native | todo |
-| Batch tag edit | Edit album-wide fields across many tracks | Native | todo |
-| Album art edit | Set art from an image, remove art | Native | todo |
-| Format coverage | MP3, M4A, FLAC, OGG, Opus, WAV tags | Native | todo |
+| Edit tags | Title, artist, album, album artist, genre, year, track/disc number, composer, comment | Native | wip |
+| Batch tag edit | Edit album-wide fields across many tracks | Native | wip |
+| Album art edit | Set art from an image, remove art | Native | wip |
+| Format coverage | MP3, M4A, FLAC, WAV and AIFF (the formats iOS plays); TagLib also handles OGG and Opus, which the app does not play | Native | wip |
 | Auto-fix tags | Trim, capitalize, fill from filename pattern (verify) | Native | skip |
 
 ## 6. Audio effects

@@ -331,3 +331,51 @@ export function readPendingTags(db: SQLiteDatabase): Promise<void> {
     libraryEvents.emit('changed', undefined);
   });
 }
+
+/** The cover image in `folder` (relative to Documents/), found the way a scan finds it. */
+function findFolderArt(folder: string): string | null {
+  try {
+    const dir = folder ? new Directory(Paths.document, ...folder.split('/')) : Paths.document;
+    for (const entry of dir.list()) {
+      if (!(entry instanceof File)) continue;
+      const ext = entry.extension.replace(/^\./, '').toLowerCase();
+      const stem = entry.name.replace(/\.[^.]+$/, '').toLowerCase();
+      if (ART_EXTENSIONS.has(ext) && ART_FILENAMES.includes(stem)) return folder ? `${folder}/${entry.name}` : entry.name;
+    }
+  } catch {
+    // A folder that cannot be listed has no cover as far as the library is concerned.
+  }
+  return null;
+}
+
+/**
+ * Reads these songs' tags again straight away, after the tag editor wrote to their files, and
+ * records the files' new size and date so the next scan does not count them as changed. The
+ * filename guesses are the fallback rather than the old values, so a field the user cleared
+ * comes back empty (or guessed) instead of keeping what it was.
+ */
+export function retagTracks(db: SQLiteDatabase, tracks: { id: number; path: string; folder: string }[]): Promise<void> {
+  return exclusive(async () => {
+    if (!canReadTags() || tracks.length === 0) return;
+    const folderArt = new Map<string, string>();
+    for (const folder of new Set(tracks.map((t) => t.folder))) {
+      const art = findFolderArt(folder);
+      if (art) folderArt.set(folder, art);
+    }
+    const rows: PendingRow[] = tracks.map((t) => ({ id: t.id, path: t.path, folder: t.folder, art_key: null, ...guessTags(t.path) }));
+    const progress: ScanProgress = {
+      phase: 'tagging', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
+    };
+    await tagPending(db, rows, folderArt, progress, () => undefined);
+    for (const t of tracks) {
+      const file = new File(Paths.document, ...t.path.split('/'));
+      if (!file.exists) continue;
+      await db.runAsync(
+        'UPDATE tracks SET size = ?, mtime = ? WHERE id = ?',
+        file.size ?? 0,
+        Math.round(file.modificationTime ?? 0),
+        t.id,
+      );
+    }
+  });
+}

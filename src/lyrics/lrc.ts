@@ -74,3 +74,12 @@ export function activeLine(lines: LyricLine[], positionMs: number): number {
   }
   return found;
 }
+
+/** A position as an LRC timestamp, `mm:ss.xx`, for the lyrics editor's line stamping. */
+export function formatStamp(ms: number): string {
+  const hundredths = Math.max(0, Math.round(ms / 10));
+  const minutes = Math.floor(hundredths / 6000);
+  const seconds = Math.floor((hundredths % 6000) / 100);
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${two(minutes)}:${two(seconds)}.${two(hundredths % 100)}`;
+}

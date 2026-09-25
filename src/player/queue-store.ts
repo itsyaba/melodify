@@ -599,6 +599,29 @@ export async function restoreQueue(database: SQLiteDatabase): Promise<void> {
 }
 
 /**
+ * Runs `write` with the engine's hold on these songs' files let go. A tag write can move the audio
+ * inside a file, which an open reader would then read from the wrong place, so the playing song
+ * is stopped and loaded again afterwards, where it was and playing if it was, and whatever was
+ * armed to follow is armed again from the new file.
+ */
+export async function withTracksReleased<T>(ids: number[], write: () => Promise<T>): Promise<T> {
+  const wanted = new Set(ids);
+  const q = active();
+  const current = q.tracks[q.currentIndex];
+  const holdsCurrent = current !== undefined && wanted.has(current.id);
+  const wasPlaying = isPlaying();
+  const at = state.positionMs;
+  await engine.setNext(null).catch(() => undefined);
+  if (holdsCurrent) await engine.stop().catch(() => undefined);
+  try {
+    return await write();
+  } finally {
+    if (holdsCurrent) await loadIndex(active().currentIndex, { autoplay: wasPlaying, startMs: at }).catch(() => undefined);
+    else armNext();
+  }
+}
+
+/**
  * Throws away every queue in memory and loads them again from the database, stopped and cued
  * paused, as at launch. For after a restore has replaced the tables underneath the store; the
  * undo history refers to the old queues, so it goes too.

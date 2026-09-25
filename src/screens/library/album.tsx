@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Artwork } from '@/components/artwork';
 import { IconButton } from '@/components/icon-button';
-import { groupHref, useTrackActions } from '@/components/track-actions';
+import { groupHref, tagsHref, useTrackActions } from '@/components/track-actions';
 import { TrackList } from '@/components/track-list';
 import { listAlbumTracks } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue } from '@/player/queue-store';
+import { canEditTags } from '@/tags';
 import { artSize, spacing, type, useTheme } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
@@ -53,7 +54,11 @@ export function AlbumScreen({ album, albumArtist }: { album: string; albumArtist
       tracks={tracks}
       header={header}
       showNumber
-      onMenu={() => actions.collectionMenu(album, (db) => listAlbumTracks(db, album, albumArtist))}
+      onMenu={() =>
+        actions.collectionMenu(album, (db) => listAlbumTracks(db, album, albumArtist), [
+          { label: 'Edit album tags…', hidden: !canEditTags() || tracks.length === 0, onPress: () => router.push(tagsHref(tracks)) },
+        ])
+      }
     />
   );
 }

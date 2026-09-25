@@ -7,6 +7,7 @@ import type { Track } from '@/db/types';
 import { queue, queueSnapshot } from '@/player/queue-store';
 import { deleteTrackFiles, setFavorites, setTracksHidden, shareTrack } from '@/player/track-edits';
 import { getPrefs } from '@/prefs';
+import { canEditTags } from '@/tags';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
 import { confirm, promptText, showMenu, type MenuItem } from './menus';
@@ -108,6 +109,10 @@ export function albumHref(album: string, albumArtist: string | null) {
   return { pathname: '/album/[id]', params: { id: album, artist: albumArtist ?? '' } } as const;
 }
 
+export function tagsHref(tracks: Track[]) {
+  return { pathname: '/tags', params: { ids: tracks.map((t) => t.id).join(',') } } as const;
+}
+
 interface TrackMenuOptions {
   /** Screen-specific items, shown after the queue items: "Remove from playlist" and so on. */
   extra?: MenuItem[];
@@ -167,8 +172,10 @@ export function useTrackActions() {
               onPress: () => go({ pathname: '/folder/[...path]', params: { path: track.folder.split('/') } }),
             },
             { label: 'Select', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
-            // Not through `go`: details open as a sheet, so over the player is fine.
+            // Not through `go`: details and the editors open as sheets, so over the player is fine.
             { label: 'Details', onPress: () => router.push({ pathname: '/track/[id]', params: { id: String(track.id) } }) },
+            { label: 'Edit tags…', hidden: !canEditTags(), onPress: () => router.push(tagsHref([track])) },
+            { label: 'Edit lyrics…', onPress: () => router.push({ pathname: '/lyrics/[id]', params: { id: String(track.id) } }) },
             { label: 'Share file…', onPress: () => void shareTrack(track) },
             {
               label: track.hidden ? 'Show in library' : 'Hide from library',
@@ -212,6 +219,7 @@ export function useTrackActions() {
             { label: 'Shuffle', onPress: () => void queue.playShuffled(tracks) },
             ...queueItems(tracks),
             { label: 'Add to favorites', onPress: () => void setFavorites(db, tracks, true).then(() => toast.show(`Added ${songs(tracks.length)} to favorites`)) },
+            { label: 'Edit tags…', hidden: !canEditTags(), onPress: () => router.push(tagsHref(tracks)) },
             ...extra,
             {
               label: 'Hide from library',

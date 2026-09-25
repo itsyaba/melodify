@@ -22,6 +22,7 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | Library index | expo-sqlite | tracks, albums, artists, folders, play counts, bookmarks, queues |
 | File access | expo-file-system | reads the app's own `Documents/` folder |
 | Tag reading | AVAsset metadata inside `melodify-audio` | read during a scan, and at launch for anything a scan left unread; filename-based guesses stand in until then, and on builds without the reader |
+| Tag writing | TagLib 2.1.1, vendored into `melodify-audio` | behind a small C API; used under the MPL 1.1 (see `modules/melodify-audio/ios/Vendor/`) |
 
 Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
 The UI, queue and database layers program against `src/player/engine.ts`. `src/player/index.ts` picks the
@@ -128,6 +129,7 @@ src/
   backup/       backup file format, restore matching (moved folders), M3U, and the file side
   db/           schema + migrations, typed queries, playlists, settings, a serial write chain
   scan/         Documents/ walker, filename-based tag guesses, native tag reading (+ tests)
+  tags/         tag editor fields and writes through TagLib, lyrics saving
   player/       engine interface, native + fake engines, queue store (several queues,
                 mirrored to SQLite), pure queue operations (+ tests)
   hooks/        useLibraryQuery (refreshes when the library changes), selection, stored choices
@@ -136,7 +138,8 @@ src/
                 useTheme / makeStyles
   prefs.ts      user preferences, one JSON object in the settings table
 modules/
-  melodify-audio/  Swift Expo Module: AVAudioEngine playback
+  melodify-audio/  Swift Expo Module: AVAudioEngine playback (two decks for gapless and crossfade,
+                   EQ, speed and pitch), AVAsset tag reading, TagLib tag writing (Vendor/, TagWriter/)
 .github/workflows/ios-build.yml   unsigned IPA build
 assets/         icons, splash
 ```
@@ -150,7 +153,8 @@ queue on launch are written and waiting for a device test. Phase 2 (multiple que
 with undo, playlists, grouped library views, multi-select, search), Phase 3 (bookmarks, sleep timer,
 lyrics, play counts, favorites, song details, hiding and deleting) and Phase 4 (themes, accents,
 player layouts, custom tabs, density, rotation) and Phase 5 (backup, restore onto a moved library,
-M3U import and export, automatic backups) are written and waiting for the same.
+M3U import and export, automatic backups), Phase 6 (gapless, crossfade, equalizer, speed and pitch,
+ReplayGain) and Phase 7 (tag, artwork and lyrics editing) are written and waiting for the same.
 
 ## License
 

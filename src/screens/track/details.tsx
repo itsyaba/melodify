@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { getTrack } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { canEditTags, readAllTags } from '@/tags';
 import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { formatBytes, formatDate, formatDuration } from '@/utils/format';
 
@@ -15,6 +17,25 @@ export function TrackDetailsScreen({ id }: { id: number }) {
     (db) => db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM bookmarks WHERE track_id = ?', id).then((r) => r?.n ?? 0),
     [id],
   );
+  // Everything the file carries, read by TagLib; builds before 0.8.0 do not have it.
+  const [inFile, setInFile] = useState<[string, string][] | null>(null);
+  useEffect(() => {
+    if (!track || !canEditTags()) return;
+    let cancelled = false;
+    void readAllTags(track)
+      .then((all) => {
+        if (cancelled || !all) return;
+        const rows = Object.entries(all).map(([key, value]): [string, string] =>
+          key === '_pictures' ? ['Embedded pictures', String(value)] : [key, Array.isArray(value) ? value.join('\n') : String(value)],
+        );
+        setInFile(rows);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [track]);
+
   if (!track) return loading ? null : <EmptyState title="Song not found" body="It may have been deleted or rescanned away." />;
 
   const number = (n: number | null, of?: string) => (n == null ? null : of ? `${n} ${of}` : String(n));
@@ -60,6 +81,7 @@ export function TrackDetailsScreen({ id }: { id: number }) {
         ['Bookmarks', bookmarks ? String(bookmarks) : null],
       ],
     },
+    ...(inFile?.length ? [{ title: 'Every tag in the file', rows: inFile }] : []),
   ];
 
   return (

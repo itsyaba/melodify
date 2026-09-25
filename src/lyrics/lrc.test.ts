@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeLine, parseLyrics } from './lrc.ts';
+import { activeLine, formatStamp, parseLyrics } from './lrc.ts';
 
 test('parses timestamps in every common spelling', () => {
   const { synced, lines } = parseLyrics('[00:01.5]a\n[00:02.25]b\n[00:03.125]c\n[00:04]d\n[01:05:50]e');
@@ -40,4 +40,12 @@ test('active line follows the position', () => {
   assert.equal(activeLine(lines, 1000), 0);
   assert.equal(activeLine(lines, 7000), 1);
   assert.equal(activeLine(lines, 60_000), 2);
+});
+
+test('stamps format as mm:ss.xx and parse back to the same time', () => {
+  assert.equal(formatStamp(0), '00:00.00');
+  assert.equal(formatStamp(61_234), '01:01.23');
+  assert.equal(formatStamp(605_999), '10:06.00');
+  const parsed = parseLyrics(`[${formatStamp(83_450)}]Line`);
+  assert.equal(parsed.lines[0].timeMs, 83_450);
 });

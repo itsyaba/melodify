@@ -210,9 +210,24 @@ on an older one the new calls are skipped and playback carries on as before, wit
       player. The sleep timer's fade now multiplies into it instead of resetting it.
 
 ### Phase 7. Tag editing
+
+Written: module 0.8.0 and the screens. Passes typecheck, tests and the bundle export, and the
+module (TagLib included) compiles in CI; not yet on the phone. The C side was also built and run on
+Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
+
 - [ ] TagLib in the Swift module
+      (written: TagLib 2.1.1 vendored under `modules/melodify-audio/ios/Vendor/`, behind a small C
+      API in `TagWriter/` that Swift calls directly)
 - [ ] Tag editor screen, batch album edit, album art set / remove
+      (written: "Edit tags…" in every song's menu and the multi-select menu, "Edit album tags…" in
+      an album's menu. Several songs show the fields they share; the ones they disagree on are left
+      alone unless typed over. Artwork from any image in Files, converted to JPEG when it is not
+      JPEG or PNG; removing it falls back to the folder's cover. The playing song is stopped and
+      picked up again where it was while its file is written. Song details list every tag in the file)
 - [ ] Lyrics editor writing to tag or `.lrc`
+      (written: "Edit lyrics…" in a song's menu. Lyrics from a `.lrc` go back to it; others save to
+      the tags or a new `.lrc`. While the song plays, "Stamp line" puts the current time on the
+      cursor's line, for turning plain lyrics into synced ones)
 
 ### Phase 8. Polish and stretch
 - [ ] Home screen quick actions
