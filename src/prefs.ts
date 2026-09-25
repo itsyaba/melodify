@@ -58,6 +58,8 @@ export interface Prefs {
   showVolume: boolean;
   /** Carry on playing when headphones come back after being pulled out mid-song. */
   resumeOnConnect: boolean;
+  /** Which of the one-time changes in `migrate` the stored preferences have had. */
+  version: number;
 }
 
 export interface EqPreset {
@@ -109,7 +111,8 @@ export const DEFAULT_PREFS: Prefs = {
   orientation: 'portrait',
   tabs: [...ALL_TABS],
   libraryViews: [...ALL_LIBRARY_VIEWS],
-  playerShortcuts: ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'],
+  // Spotify keeps three under its controls; A–B repeat, bookmarks and sound are in the menu.
+  playerShortcuts: ['lyrics', 'sleep', 'queue'],
   autoBackup: 'weekly',
   playbackRate: 1,
   pitchSemitones: 0,
@@ -123,7 +126,24 @@ export const DEFAULT_PREFS: Prefs = {
   volume: 1,
   showVolume: false,
   resumeOnConnect: false,
+  version: 1,
 };
+
+/** Version 1 trimmed the player's default row from these six; a row the user chose stays as it was. */
+const SIX_SHORTCUTS: readonly PlayerShortcut[] = ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'];
+
+/**
+ * One-time changes to stored preferences, for defaults that changed after they were saved: a
+ * stored value is the whole object, so a new default would never reach it otherwise.
+ */
+function migrate(stored: Partial<Prefs>): Partial<Prefs> {
+  const out = { ...stored };
+  if ((stored.version ?? 0) < 1 && String(stored.playerShortcuts) === String(SIX_SHORTCUTS)) {
+    out.playerShortcuts = [...DEFAULT_PREFS.playerShortcuts];
+  }
+  out.version = DEFAULT_PREFS.version;
+  return out;
+}
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
@@ -185,7 +205,7 @@ export async function loadPrefs(database: SQLiteDatabase): Promise<void> {
   db = database;
   try {
     const stored = await getSetting(database, 'prefs');
-    prefs = sanitize({ ...DEFAULT_PREFS, ...(stored ?? {}) });
+    prefs = sanitize({ ...DEFAULT_PREFS, ...(stored ? migrate(stored) : {}) });
   } catch (err) {
     console.warn('[melodify] loading preferences failed:', err);
   }

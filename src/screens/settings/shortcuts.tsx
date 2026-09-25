@@ -14,7 +14,7 @@ export function ShortcutsSettingsScreen() {
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <OrderedToggles
         title="Player shortcuts"
-        footer="A row of buttons under the player's controls. Six fit comfortably. Whatever is switched off here is still in the player's ••• menu."
+        footer="A row of buttons under the player's controls: three to start with, and six still fit. Whatever is switched off here is at the top of the player's ••• menu."
         all={ALL_PLAYER_SHORTCUTS}
         shown={prefs.playerShortcuts}
         required={[]}

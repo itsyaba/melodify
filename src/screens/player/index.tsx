@@ -227,20 +227,20 @@ export function PlayerScreen() {
     }
   };
 
-  // The shortcuts switched off still belong somewhere: the menu. Details, playlists and sharing
-  // are in every song's menu already.
+  // The shortcuts switched off still belong somewhere: the top of the menu, above the song's own
+  // items, saying what is on. Details, playlists and sharing are in every song's menu already.
   const menuItem: Partial<Record<PlayerShortcut, MenuItem>> = {
     lyrics: { label: showLyrics ? 'Hide lyrics' : 'Show lyrics', onPress: toggleLyrics },
-    sleep: { label: 'Sleep timer…', onPress: sleepMenu },
-    abRepeat: { label: 'A–B repeat…', onPress: openAbMenu },
+    sleep: { label: `${sleeping ?? 'Sleep timer'}…`, onPress: sleepMenu },
+    abRepeat: { label: loop ? 'A–B repeat: on…' : 'A–B repeat…', onPress: openAbMenu },
     bookmark: { label: 'Bookmarks…', onPress: openBookmarks },
-    sound: { label: 'Speed and sound', onPress: openSound },
+    sound: { label: prefs.playbackRate !== 1 ? `Speed and sound: ${prefs.playbackRate}×` : 'Speed and sound', onPress: openSound },
     queue: { label: 'Open the queue', onPress: openQueue },
   };
   const moreMenu = () =>
     actions.trackMenu(track, {
       beforeNavigate: () => router.back(),
-      extra: [
+      first: [
         ...(longForm
           ? [
               { label: 'Shuffle the queue', hidden: tracks.length < 2, onPress: doShuffle },

@@ -263,7 +263,9 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       repeat marked with a dot, and seconds-skip buttons in their place for long songs. Under it a
       row of quick-access shortcuts (Settings › Appearance › Player shortcuts), pills for whatever
       is changing playback, and cards: lyrics, next in queue, bookmarks, about this song. A–B
-      repeat is new. The queue also opens as a sheet from the player. JS only, no new build needed
+      repeat is new. The queue also opens as a sheet from the player. JS only, no new build needed.
+      Later the same day the shortcut row went from six to three (lyrics, sleep timer, queue), as
+      Spotify keeps it; the rest open the ••• menu, above the song's own items
 - [ ] Library redesign (2026-09-25): Spotify's library, Musicolet's lists. Accent pills for the
       views; a sort row with find and a grid toggle; the count and length with shuffle and a round
       play button; bigger covers, artists drawn round; a ⋯ on every row (song rows everywhere, not

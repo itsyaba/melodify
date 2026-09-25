@@ -77,8 +77,9 @@ Scan screen shows the first failure.
 
 ## 4. Phase 3: companion features
 
-- [ ] **Bookmarks:** player › bookmark button saves the spot (name optional). Hold it for this song's
-      bookmarks; Library › Playlists › Bookmarks lists all. Tapping one plays from there.
+- [ ] **Bookmarks:** player › ••• › Bookmarks… › Bookmark this spot saves it (name optional); the
+      same sheet lists this song's bookmarks. Library › Playlists › Bookmarks lists all. Tapping
+      one plays from there.
 - [ ] **Long songs resume:** a song of 10 min or more, left at 12:00 and played again later, starts
       at 12:00 (Settings › Playback › Remember position).
 - [ ] **Sleep timer** (moon): 15 minutes fades over the last 30 s then pauses. "End of this song" and
@@ -135,7 +136,7 @@ Scan screen shows the first failure.
       song normally; seeking back from there works too.
 - [ ] **Crossfade** (Settings › Playback): at 6 s the end of one song fades under the next. Pressing
       next still cuts straight over. Pausing mid-fade finishes the fade and pauses.
-- [ ] **Speed** (player › sliders button › Speed and Sound): 1.5× plays faster at the same pitch;
+- [ ] **Speed** (player › ••• › Speed and sound): 1.5× plays faster at the same pitch;
       the lock screen's progress bar keeps up with the song.
 - [ ] **Pitch:** +3 semitones raises the pitch without changing speed; "Pitch follows speed" makes
       1.5× sound higher, like a record.
@@ -199,14 +200,18 @@ first, then once in light.
       dot under it, and shows a 1 for repeat song.
 - [ ] **Long songs** (10 min or more, Settings › Remember position): shuffle and repeat swap for
       skip back / forward by the Settings interval; ••• then offers shuffle and repeat instead.
-- [ ] **Shortcut row** under the controls: lyrics, sleep timer, A–B repeat, bookmark, speed and
-      sound, queue. Each lights up in the accent while its thing is on. Settings › Appearance ›
-      Player shortcuts switches them on and off and reorders them (details, add to playlist and
-      share are there too); the switched-off ones show up in the player's ••• menu.
-- [ ] **A–B repeat:** tap the loop button at one spot (toast: "A set at…"), again a few seconds
-      later: from then on the song jumps back to A whenever it reaches B, and the seek bar shows
-      the stretch in the accent. A third tap turns it off. Hold the button for set A / set B / play
-      from A / turn off. Next song: the loop ends. B within a second of A is refused.
+- [ ] **Shortcut row** under the controls: three now, lyrics, sleep timer and queue (it was six;
+      an unchanged row of six is trimmed on the first launch of this version, a row you chose
+      stays). Each lights up in the accent while its thing is on. The ••• menu opens with the
+      rest: A–B repeat…, Bookmarks…, Speed and sound, saying what is on (e.g. "Speed and sound:
+      1.5×"), then the song's own items. Settings › Appearance › Player shortcuts switches them
+      on and off and reorders them (details, add to playlist and share are there too).
+- [ ] **A–B repeat:** ••• › A–B repeat… › Set A here, then again › Set B a few seconds later:
+      from then on the song jumps back to A whenever it reaches B, and the seek bar shows the
+      stretch in the accent; the pill under the title opens the same sheet (Turn off). As a
+      shortcut (Settings › Player shortcuts) the loop button sets A, then B, then turns it off,
+      with a toast each time, and holding it opens the sheet. Next song: the loop ends. B within
+      a second of A is refused.
 - [ ] **Pills** appear under the title only while something is on: the sleep timer counting
       down, the A–B stretch, a speed other than 1×, a pitch shift, the equalizer. Tapping one opens
       its control.

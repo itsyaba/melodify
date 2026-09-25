@@ -135,7 +135,7 @@ to double-check against the current Musicolet release.
 | Accent colors | Pick accent color | JS | wip |
 | Follow system theme | Automatic light / dark | JS | wip |
 | Player layouts | Multiple now-playing layouts (standard, edge-to-edge, compact), all in a Spotify-style player with scrolling cards for lyrics, the queue, bookmarks and song details | JS | wip |
-| Quick access shortcuts | Choose which shortcut buttons show under the player's controls, and their order; the rest stay in the player's menu | JS | wip |
+| Quick access shortcuts | Choose which shortcut buttons show under the player's controls, and their order (lyrics, sleep timer and queue to start with); the rest go at the top of the player's ••• menu | JS | wip |
 | Album art blur background | Blurred art behind the player | JS | wip |
 | Font size / density | Compact vs comfortable lists | JS | wip |
 | Keep screen on | Prevent sleep while player is open | JS | wip |

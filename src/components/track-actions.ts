@@ -114,6 +114,8 @@ export function tagsHref(tracks: Track[]) {
 }
 
 interface TrackMenuOptions {
+  /** Screen-specific items shown before anything else: the player's own tools. */
+  first?: MenuItem[];
   /** Screen-specific items, shown after the queue items: "Remove from playlist" and so on. */
   extra?: MenuItem[];
   /** Adds "Select" to start multi-select with this track. */
@@ -149,6 +151,7 @@ export function useTrackActions() {
           title: track.title,
           message: [track.artist, track.album].filter(Boolean).join(' — ') || undefined,
           items: [
+            ...(opts.first ?? []),
             ...queueItems([track]),
             ...(opts.extra ?? []),
             {
