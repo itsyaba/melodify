@@ -38,6 +38,12 @@ declare class MelodifyAudioModule
   readTags(uris: string[], artCacheDirectory: string): Promise<NativeTrackTags[]>;
   /** Since 0.5.0. Embedded lyrics (ID3 USLT, iTunes, Vorbis LYRICS), or null. */
   readLyrics(uri: string): Promise<string | null>;
+  /** Since 0.8.0: TagLib property names to values; an empty value removes the field. */
+  writeTags?(uri: string, fields: Record<string, string>): Promise<void>;
+  /** Since 0.8.0: embeds an image file as the only artwork; null removes all artwork. */
+  setArtwork?(uri: string, imageUri: string | null): Promise<void>;
+  /** Since 0.8.0: every property name to its values, plus `_pictures`, the embedded picture count. */
+  readAllTags?(uri: string): Promise<Record<string, string[] | number>>;
   /** Widened to string here; `src/player/native-engine.ts` narrows it to PlaybackState. */
   getState(): string;
 }

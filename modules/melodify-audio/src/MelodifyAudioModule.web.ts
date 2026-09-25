@@ -15,7 +15,7 @@ import type {
 /** No audio on web; `src/player` falls back to FakeEngine there. */
 class MelodifyAudioModule extends NativeModule<MelodifyAudioEvents> {
   implementation = 'web-stub';
-  version = '0.7.0';
+  version = '0.8.0';
 
   async load(_uri: string, _meta: NativeNowPlayingMeta, _options: NativeLoadOptions): Promise<void> {}
   async updateNowPlaying(_meta: NativeNowPlayingPatch): Promise<void> {}
@@ -38,6 +38,11 @@ class MelodifyAudioModule extends NativeModule<MelodifyAudioEvents> {
   }
   async readLyrics(_uri: string): Promise<string | null> {
     return null;
+  }
+  async writeTags(_uri: string, _fields: Record<string, string>): Promise<void> {}
+  async setArtwork(_uri: string, _imageUri: string | null): Promise<void> {}
+  async readAllTags(_uri: string): Promise<Record<string, string[] | number>> {
+    return {};
   }
   getState(): string {
     return 'idle';

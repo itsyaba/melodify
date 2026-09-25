@@ -61,7 +61,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.7.0" }
+    Constant("version") { "0.8.0" }
     // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
     Constant("tagVersion") { 2 }
 
@@ -170,6 +170,26 @@ public class MelodifyAudioModule: Module {
     // Embedded lyrics for one file, on demand. Nil when there are none.
     AsyncFunction("readLyrics") { (uri: String) -> String? in
       await MelodifyTags.lyrics(uri: uri)
+    }
+
+    // Since 0.8.0: tag writing through TagLib. Keys are TagLib property names; an empty value
+    // removes the field. The library row is the caller's to refresh afterwards.
+    AsyncFunction("writeTags") { (uri: String, fields: [String: String]) in
+      let url = try Self.fileURL(from: uri)
+      try MelodifyTagEditor.write(path: url.path, fields: fields)
+    }
+
+    // Since 0.8.0: embeds an image file as the artwork, or with nil removes all artwork.
+    AsyncFunction("setArtwork") { (uri: String, imageUri: String?) in
+      let url = try Self.fileURL(from: uri)
+      let image = try imageUri.map { try Self.fileURL(from: $0) }
+      try MelodifyTagEditor.setArtwork(path: url.path, imageURL: image)
+    }
+
+    // Since 0.8.0: every tag in the file, for the song details.
+    AsyncFunction("readAllTags") { (uri: String) -> [String: Any] in
+      let url = try Self.fileURL(from: uri)
+      return try MelodifyTagEditor.readAll(path: url.path)
     }
 
     // Synchronous so the Settings diagnostic can read the engine without awaiting. The JS engine
