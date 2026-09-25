@@ -61,6 +61,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing' }} />
             <Stack.Screen name="track/[id]" options={{ presentation: 'modal', title: 'Song Details' }} />
+            <Stack.Screen name="sound" options={{ presentation: 'modal', title: 'Speed and Sound' }} />
           </Stack>
           <ToastHost />
         </SQLiteProvider>

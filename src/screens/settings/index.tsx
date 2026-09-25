@@ -22,6 +22,13 @@ const LAYOUTS: Record<Prefs['playerLayout'], string> = {
   compact: 'Compact, with up next',
 };
 const DENSITIES: Record<Prefs['density'], string> = { comfortable: 'Comfortable', compact: 'Compact' };
+const CROSSFADE_CHOICES = [0, 1, 2, 3, 4, 6, 8, 10, 12].map((s) => s * 1000);
+const REPLAY_GAIN: Record<Prefs['replayGain'], string> = {
+  off: 'Off',
+  track: 'Track: every song evened out',
+  album: 'Album: albums keep their dynamics',
+};
+const RG_PREAMP_CHOICES = [-6, -3, 0, 3, 6];
 const ORIENTATIONS: Record<Prefs['orientation'], string> = {
   auto: 'Rotate freely',
   portrait: 'Portrait only',
@@ -31,6 +38,15 @@ const ORIENTATIONS: Record<Prefs['orientation'], string> = {
 function minutesLabel(ms: number): string {
   return ms === 0 ? 'Off' : `${ms / 60_000} min or longer`;
 }
+function soundSummary(p: Prefs): string {
+  const parts = [
+    p.playbackRate !== 1 ? `${p.playbackRate}×` : null,
+    p.pitchFollowsSpeed ? 'pitch follows speed' : p.pitchSemitones !== 0 ? `pitch ${p.pitchSemitones > 0 ? '+' : ''}${p.pitchSemitones}` : null,
+    p.equalizer.enabled ? `equalizer: ${p.equalizer.name || 'custom'}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(', ') : 'Normal speed, equalizer off';
+}
+
 function secondsLabel(ms: number): string {
   if (ms === 0) return 'Off';
   return ms < 60_000 ? `Under ${ms / 1000} s` : `Under ${ms / 60_000} min`;
@@ -70,6 +86,33 @@ export function SettingsScreen() {
         <ListRow title="Tabs and library views" subtitle="Choose which show, and in what order" onPress={() => router.push('/tabs')} />
       </Section>
       <Section title="Playback">
+        <ListRow
+          title="Speed, pitch and equalizer"
+          subtitle={soundSummary(prefs)}
+          onPress={() => router.push('/sound')}
+        />
+        <ChoiceRow
+          pref="crossfadeMs"
+          title="Crossfade"
+          options={CROSSFADE_CHOICES}
+          label={(ms) => (ms === 0 ? 'Off' : `${ms / 1000} seconds`)}
+        />
+        <ToggleRow title="Gapless playback" value={prefs.gapless} onChange={(v) => setPref('gapless', v)} />
+        <ChoiceRow
+          pref="replayGain"
+          title="ReplayGain"
+          options={Object.keys(REPLAY_GAIN) as Prefs['replayGain'][]}
+          label={(m) => REPLAY_GAIN[m]}
+        />
+        {prefs.replayGain !== 'off' ? (
+          <ChoiceRow
+            pref="replayGainPreampDb"
+            title="ReplayGain pre-amp"
+            options={RG_PREAMP_CHOICES}
+            label={(db) => (db === 0 ? '0 dB' : `${db > 0 ? '+' : '−'}${Math.abs(db)} dB`)}
+          />
+        ) : null}
+        <ToggleRow title="Volume slider in the player" value={prefs.showVolume} onChange={(v) => setPref('showVolume', v)} />
         <ChoiceRow pref="skipSeconds" title="Skip back and forward" options={SKIP_CHOICES} label={(s) => `${s} seconds`} />
         <ChoiceRow pref="resumeMinMs" title="Remember position in long songs" options={RESUME_CHOICES} label={minutesLabel} />
         <ToggleRow title="Fade out before the sleep timer stops" value={prefs.sleepFade} onChange={(v) => setPref('sleepFade', v)} />

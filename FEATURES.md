@@ -26,15 +26,15 @@ to double-check against the current Musicolet release.
 | Shuffle | Shuffle queue, shuffle all, shuffle by album | JS | wip |
 | Repeat modes | Off, repeat all, repeat one | JS | wip |
 | Resume on launch | Restore last queue, track and position after app restart | JS | wip |
-| Gapless playback | No silence between consecutive tracks | Native | todo |
-| Crossfade | Fade between tracks with adjustable duration (verify) | Native | todo |
-| Playback speed | 0.5x to 2x or wider, per session | RN+ | todo |
-| Pitch control | Adjust pitch independently or linked with speed (verify) | Native | todo |
+| Gapless playback | No silence between consecutive tracks | Native | wip |
+| Crossfade | Fade between tracks with adjustable duration (verify) | Native | wip |
+| Playback speed | 0.5x to 2x or wider, per session | RN+ | wip |
+| Pitch control | Adjust pitch independently or linked with speed (verify) | Native | wip |
 | Skip silence | Skip silent segments in tracks (verify) | Native | skip |
 | Seek by fixed amount | Configurable skip forward/back (e.g. 10s / 30s) | RN+ | wip |
 | Fast seek gestures | Long-press or swipe on player to seek | JS | wip |
-| Volume in app | Volume slider inside the player | RN+ | todo |
-| ReplayGain / volume leveling | Apply track or album gain tags (verify) | Native | skip |
+| Volume in app | Volume slider inside the player | RN+ | wip |
+| ReplayGain / volume leveling | Apply track or album gain tags (verify) | Native | wip |
 
 ## 2. Bookmarks and position memory
 
@@ -94,8 +94,8 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Equalizer | Multi-band EQ with presets and custom presets | Native | todo |
-| Bass boost | Dedicated bass boost slider | Native | todo |
+| Equalizer | Multi-band EQ with presets and custom presets | Native | wip |
+| Bass boost | Dedicated bass boost slider | Native | wip |
 | Virtualizer / surround | Stereo widening | Native | skip |
 | Reverb | Reverb presets (verify) | Native | skip |
 | Per-song EQ presets | Assign preset to track or album (verify) | Native | skip |
@@ -116,7 +116,7 @@ to double-check against the current Musicolet release.
 | --- | --- | --- | --- |
 | Notification controls | Play, pause, next, previous, favorite from notification | iOS≈ Control Center / lock screen | wip |
 | Lock screen controls and art | Now Playing info with art, seek | RN+ | done |
-| Headset button actions | Single, double, triple click and long press mapped to actions | RN+ (limited on iOS) | todo |
+| Headset button actions | Single, double, triple click and long press mapped to actions. iOS turns the clicks into play/pause, next and previous itself and keeps long press for Siri; a headset's next cannot be told from the lock screen's, so there is nothing to remap | iOS≈ | skip |
 | Bluetooth controls | AVRCP play/pause/next/prev, track info on car / headphones | RN+ | wip |
 | Pause on unplug / resume on plug | Headphone jack and Bluetooth disconnect handling | RN+ | wip |
 | Auto play on headphone connect | Start playing when headphones connect (verify) | Native | skip |

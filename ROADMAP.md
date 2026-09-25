@@ -179,12 +179,35 @@ and the bundle export; not yet on the phone. JS only: it runs on the 0.6.0 build
       background; the last five are kept)
 
 ### Phase 6. Audio engine v2
+
+Written: module 0.7.0 plus the queue and UI around it. Passes typecheck, tests and the bundle
+export, and the module compiles in CI; not yet on the phone. Everything here needs the 0.7.0 IPA;
+on an older one the new calls are skipped and playback carries on as before, with gaps.
+
 - [ ] Gapless via A/B player nodes
+      (written: the queue arms the next song with `setNext`. Same format: scheduled on the same
+      node in the last 3 s, sample-accurate. Different format: the second node starts as the first
+      runs dry. Nothing is armed before the sleep timer's last song or a song that resumes mid-way.
+      Settings › Playback › Gapless playback. To try: a live or classical album that runs on)
 - [ ] Crossfade with adjustable duration
+      (written: 1 to 12 s in Settings › Playback, equal-power ramps across the two nodes, on songs
+      that end by themselves only; pressing next still cuts)
 - [ ] Equalizer (10-band), presets, custom presets, bass boost
+      (written: the player's sliders button opens Speed and Sound. 31 Hz to 16 kHz, ±12 dB,
+      14 presets, your own saved by name (hold one to delete it), pre-amp, and a low-shelf bass boost)
 - [ ] Playback speed and pitch
+      (written: 0.5× to 2× and ±12 semitones, or pitch following the speed. Kept across launches.
+      The lock screen's progress follows the speed)
 - [ ] ReplayGain from tags
-- [ ] Headset click mapping (single / double / triple / long)
+      (written: read from ID3 TXXX, iTunes free-form atoms and Vorbis comments; migration v2 makes
+      the 0.7.0 reader read the library once more for them. Track or album mode, pre-amp, clipping
+      kept off with the peak. Can raise a song by up to 6 dB)
+- [x] ~~Headset click mapping~~ Not possible on iOS: the system turns single, double and triple
+      clicks into play/pause, next and previous before the app sees them, keeps long press for
+      Siri, and a headset's next arrives exactly like the lock screen's. The defaults already
+      match Musicolet's.
+- [ ] In-app volume slider (from the Musicolet list): Settings › Playback › Volume slider in the
+      player. The sleep timer's fade now multiplies into it instead of resetting it.
 
 ### Phase 7. Tag editing
 - [ ] TagLib in the Swift module

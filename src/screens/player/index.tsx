@@ -10,13 +10,15 @@ import { IconButton } from '@/components/icon-button';
 import { LyricsView } from '@/components/lyrics-view';
 import { promptText, showMenu } from '@/components/menus';
 import { SeekBar } from '@/components/seek-bar';
+import { Slider } from '@/components/slider';
 import { toast, ToastHost } from '@/components/toast';
 import { useTrackActions } from '@/components/track-actions';
 import { addBookmark, listBookmarks } from '@/db/bookmarks';
 import { cycleRepeat } from '@/player/queue-ops';
 import { queue, useQueue, type RepeatMode } from '@/player/queue-store';
 import { sleepTimer, useSleepTimer, type SleepTimer } from '@/player/sleep-timer';
-import { usePrefs } from '@/prefs';
+import { previewSound } from '@/player/sound';
+import { setPref, usePrefs } from '@/prefs';
 import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
 import { setKeepAwake } from '@/utils/device';
 import { libraryEvents } from '@/utils/events';
@@ -181,6 +183,7 @@ export function PlayerScreen() {
   };
 
   const sleeping = sleepLabel(timer, remainingMs);
+  const soundChanged = prefs.playbackRate !== 1 || prefs.pitchSemitones !== 0 || prefs.pitchFollowsSpeed || prefs.equalizer.enabled;
   const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
 
   const artArea = (size: number) =>
@@ -311,6 +314,15 @@ export function PlayerScreen() {
         accessibilityLabel={track.favorite ? 'Remove from favorites' : 'Add to favorites'}
       />
       <IconButton
+        name="slider.horizontal.3"
+        size={20}
+        color={soundChanged ? colors.tint : colors.secondaryLabel}
+        onPress={() => router.push('/sound')}
+        accessibilityLabel={
+          prefs.playbackRate !== 1 ? `Speed and sound, playing at ${prefs.playbackRate} times` : 'Speed and sound'
+        }
+      />
+      <IconButton
         name="ellipsis.circle"
         size={20}
         color={colors.secondaryLabel}
@@ -319,6 +331,24 @@ export function PlayerScreen() {
       />
     </View>
   );
+  const volumeRow = prefs.showVolume ? (
+    <View style={styles.volume}>
+      <IconButton name="speaker.fill" size={14} color={colors.secondaryLabel} onPress={() => setPref('volume', 0)} accessibilityLabel="Mute" />
+      <View style={{ flex: 1 }}>
+        <Slider
+          value={prefs.volume}
+          min={0}
+          max={1}
+          step={0.01}
+          accessibilityLabel="Volume"
+          formatValue={(v) => `${Math.round(v * 100)} percent`}
+          onChange={(v) => previewSound({ volume: v })}
+          onCommit={(v) => setPref('volume', v)}
+        />
+      </View>
+      <IconButton name="speaker.wave.3.fill" size={14} color={colors.secondaryLabel} onPress={() => setPref('volume', 1)} accessibilityLabel="Full volume" />
+    </View>
+  ) : null;
 
   const background =
     prefs.blurBackground ? (
@@ -339,6 +369,7 @@ export function PlayerScreen() {
           {meta('left')}
           {seekRow}
           {controls}
+          {volumeRow}
           {secondary}
         </View>
       </View>
@@ -378,6 +409,7 @@ export function PlayerScreen() {
         </View>
         {seekRow}
         {controls}
+        {volumeRow}
         {secondary}
       </View>
     );
@@ -391,6 +423,7 @@ export function PlayerScreen() {
           {meta('center')}
           {seekRow}
           {controls}
+          {volumeRow}
           {secondary}
         </View>
       </>
@@ -402,6 +435,7 @@ export function PlayerScreen() {
         {meta('center')}
         {seekRow}
         {controls}
+        {volumeRow}
         {secondary}
       </View>
     );
@@ -441,4 +475,5 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'space-between',
   },
   secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm },
+  volume: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 }));
