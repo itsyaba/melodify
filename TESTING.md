@@ -272,8 +272,9 @@ compact density (Settings › Appearance).
 
 ## 12. The Spotify-style Search tab
 
-JS only: no new IPA needed. The old Search tab showed an empty page (its field sat hidden under
-the title bar); this replaces it.
+JS only: no new IPA needed, but reload the app once (shake › Reload, or `r` in the Metro terminal):
+the fix is in how the tab's screens are set up, which a hot refresh does not redo. Before it,
+tapping the Search tab opened the Library page.
 
 - [ ] **Opens:** tapping the Search tab (the magnifier on its own at the right of the tab bar)
       shows a large "Search" title and a big white field, "What do you want to listen to?" (dark on
