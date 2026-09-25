@@ -77,7 +77,7 @@ to double-check against the current Musicolet release.
 | .lrc synced lyrics | Load sidecar `.lrc`, highlight current line, tap line to seek | JS | wip |
 | Lyrics editor | Edit / paste lyrics and save to tag or `.lrc` | Native | wip |
 | Lyrics on player | Swipe up or toggle to show lyrics over album art | JS | wip |
-| Split-screen lyrics | Lyrics beside controls in landscape or split view | JS | todo |
+| Split-screen lyrics | Lyrics beside controls in landscape or split view (landscape: lyrics on the left, a small artwork by the title) | JS | wip |
 | No online lyrics | Musicolet never fetches lyrics from the internet (kept as a design rule) | – | – |
 
 ## 5. Tag editor
@@ -122,7 +122,7 @@ to double-check against the current Musicolet release.
 | Auto play on headphone connect | Start playing when headphones connect (verify) | Native | skip |
 | Home screen widgets | 4x1, 4x2 player widgets | iOS≈ WidgetKit (native) | skip |
 | Android Auto | Car head unit UI | iOS≈ CarPlay (needs entitlement, not on free account) | skip |
-| Lock screen shortcuts | Shortcuts / quick actions | iOS≈ Home screen quick actions | todo |
+| Lock screen shortcuts | Shortcuts / quick actions | iOS≈ Home screen quick actions (not under LiveContainer) | wip |
 
 ## 9. Appearance
 

@@ -231,8 +231,21 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
 
 ### Phase 8. Polish and stretch
 - [ ] Home screen quick actions
-- [ ] Performance pass at 10k+ tracks
+      (written: module 0.9.0. Hold the icon for Resume (naming the song), Shuffle all, Favorites
+      and Search. Only on a real install (SideStore): under LiveContainer the icon is
+      LiveContainer's, so the app leaves its quick actions alone)
+- [x] Performance pass at 10k+ tracks (2026-09-25)
+      `scripts/bench-library.ts` times the real queries on a synthetic library in Node's SQLite.
+      At 10k songs every grouped view, folder, search and auto playlist answers in under 20 ms;
+      whole-library lists take 80 to 150 ms, nearly all of it turning rows into JS objects rather
+      than sorting (indexes would not help). Restoring a 10k queue at launch went from 217 to
+      144 ms by no longer copying every row. Lists only re-render on a track change, never on the
+      position tick. Scales linearly: 20k songs is about twice all of that.
 - [ ] Optional: Ogg / Opus decoder, WidgetKit widget
+      (not started. A widget is an app extension, which a free account under LiveContainer cannot
+      install, and Ogg needs a bundled decoder feeding the engine)
+- [ ] Split-screen lyrics (from the Musicolet list): in landscape, lyrics take the artwork's side
+      and a small artwork stays by the title
 
 ## Definition of done per phase
 

@@ -59,22 +59,20 @@ export async function loadQueue(db: SQLiteDatabase, queueId: number): Promise<Sa
     'SELECT current_index, current_ms FROM queues WHERE id = ?',
     queueId,
   );
-  const rows = await db.getAllAsync<Track & { queue_position: number }>(
-    `SELECT t.*, q.position AS queue_position
-     FROM queue_tracks q JOIN tracks t ON t.id = q.track_id
-     WHERE q.queue_id = ?
-     ORDER BY q.position`,
-    queueId,
-  );
-  if (!head || rows.length === 0) return { tracks: [], currentIndex: -1, startMs: 0 };
+  // Two queries in the same order rather than one with the position alongside each row: the
+  // rows then come back as Tracks as they are, instead of every one being copied to drop the
+  // extra column, which at 10k songs was half the time of restoring the queues at launch.
+  const from = `FROM queue_tracks q JOIN tracks t ON t.id = q.track_id WHERE q.queue_id = ? ORDER BY q.position`;
+  const positions = await db.getAllAsync<{ position: number }>(`SELECT q.position ${from}`, queueId);
+  if (!head || positions.length === 0) return { tracks: [], currentIndex: -1, startMs: 0 };
+  const tracks = await db.getAllAsync<Track>(`SELECT t.* ${from}`, queueId);
 
   // Positions are written contiguous, but a rescan that removed a file removes its queue rows
   // too. The saved index is a position, so it is looked up as one, falling forward to the next
   // track that survived (or back to the last, if none after it did).
-  const at = rows.findIndex((r) => r.queue_position >= head.current_index);
-  const currentIndex = at === -1 ? rows.length - 1 : at;
-  const exact = rows[currentIndex].queue_position === head.current_index;
-  const tracks = rows.map(({ queue_position: _, ...track }) => track);
+  const at = positions.findIndex((r) => r.position >= head.current_index);
+  const currentIndex = at === -1 ? positions.length - 1 : at;
+  const exact = positions[currentIndex].position === head.current_index;
   return { tracks, currentIndex, startMs: exact ? head.current_ms : 0 };
 }
 

@@ -366,7 +366,15 @@ export function PlayerScreen() {
       <View style={[styles.landscape, { paddingLeft: insets.left + spacing.xl, paddingRight: insets.right + spacing.xl }]}>
         <View style={[styles.artWrap, { flex: 0, width: size }]}>{artArea(size)}</View>
         <View style={styles.side}>
-          {meta('left')}
+          {showLyrics ? (
+            // Lyrics took the artwork's place, so a small copy of it stays beside the title.
+            <View style={styles.compactHead}>
+              <Artwork artKey={track.art_key} size={COMPACT_ART / 1.5} />
+              <View style={{ flex: 1 }}>{meta('left')}</View>
+            </View>
+          ) : (
+            meta('left')
+          )}
           {seekRow}
           {controls}
           {volumeRow}

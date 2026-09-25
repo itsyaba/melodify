@@ -111,6 +111,8 @@ What can be verified on Linux without the device:
 npm run typecheck                 # TypeScript
 npm test                          # unit tests (Node's built-in runner, no extra deps; database
                                   # code runs against the real schema in node:sqlite)
+node --import ./scripts/test-hooks.mjs scripts/bench-library.ts 10000
+                                  # times the library queries on a synthetic 10k-song library
 npx expo export --platform ios    # full Metro bundle to Hermes bytecode
 ```
 

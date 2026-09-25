@@ -1,45 +1,51 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { SQLiteDatabase } from 'expo-sqlite';
-import { loadQueue } from './queues.ts';
+import { insertTrack, openTestDb } from '../test-utils/node-sqlite.ts';
+import { loadQueue, saveQueuePosition, saveQueueTracks } from './queues.ts';
 
-/** Just enough of SQLiteDatabase for `loadQueue`: the queue row, then its joined tracks. */
-function fakeDb(head: { current_index: number; current_ms: number } | null, positions: number[]): SQLiteDatabase {
-  const rows = positions.map((position) => ({ id: 100 + position, title: `Track ${position}`, queue_position: position }));
-  return {
-    getFirstAsync: async () => head,
-    getAllAsync: async () => rows,
-  } as unknown as SQLiteDatabase;
+/** Queue 1 (seeded by the schema) holding four tracks, saved at `index` and `ms`. */
+async function setup(index: number, ms: number) {
+  const db = openTestDb();
+  const ids = [0, 1, 2, 3].map((n) => insertTrack(db, `Album/0${n} Track.mp3`, { title: `Track ${n}` }));
+  await saveQueueTracks(db, 1, ids);
+  await saveQueuePosition(db, 1, index, ms);
+  return { db, ids };
 }
 
 test('restores the saved track and position', async () => {
-  const saved = await loadQueue(fakeDb({ current_index: 2, current_ms: 61_000 }, [0, 1, 2, 3]), 1);
+  const { db, ids } = await setup(2, 61_000);
+  const saved = await loadQueue(db, 1);
   assert.equal(saved.currentIndex, 2);
-  assert.equal(saved.tracks[2].id, 102);
+  assert.equal(saved.tracks[2].id, ids[2]);
   assert.equal(saved.startMs, 61_000);
 });
 
-test('strips the join column from the tracks', async () => {
-  const saved = await loadQueue(fakeDb({ current_index: 0, current_ms: 0 }, [0]), 1);
-  assert.equal('queue_position' in saved.tracks[0], false);
+test('rows come back as plain tracks, in queue order', async () => {
+  const { db, ids } = await setup(0, 0);
+  const saved = await loadQueue(db, 1);
+  assert.deepEqual(saved.tracks.map((t) => t.id), ids);
+  assert.equal('position' in saved.tracks[0], false);
 });
 
 test('a deleted current track falls forward to the next survivor, from the start', async () => {
-  // Position 2 was removed by a rescan; the list is now 0, 1, 3.
-  const saved = await loadQueue(fakeDb({ current_index: 2, current_ms: 61_000 }, [0, 1, 3]), 1);
+  const { db, ids } = await setup(2, 61_000);
+  // A rescan removed the current file; the queue is now positions 0, 1, 3.
+  db.raw.prepare('DELETE FROM tracks WHERE id = ?').run(ids[2]);
+  const saved = await loadQueue(db, 1);
   assert.equal(saved.currentIndex, 2);
-  assert.equal(saved.tracks[2].id, 103);
+  assert.equal(saved.tracks[2].id, ids[3]);
   assert.equal(saved.startMs, 0);
 });
 
 test('with nothing after the deleted track, falls back to the last one', async () => {
-  const saved = await loadQueue(fakeDb({ current_index: 5, current_ms: 1000 }, [0, 1]), 1);
-  assert.equal(saved.currentIndex, 1);
+  const { db, ids } = await setup(3, 1000);
+  db.raw.prepare('DELETE FROM tracks WHERE id = ?').run(ids[3]);
+  const saved = await loadQueue(db, 1);
+  assert.equal(saved.currentIndex, 2);
   assert.equal(saved.startMs, 0);
 });
 
 test('an empty queue restores as empty', async () => {
-  assert.deepEqual(await loadQueue(fakeDb({ current_index: 0, current_ms: 0 }, []), 1), {
-    tracks: [], currentIndex: -1, startMs: 0,
-  });
+  const db = openTestDb();
+  assert.deepEqual(await loadQueue(db, 1), { tracks: [], currentIndex: -1, startMs: 0 });
 });
