@@ -277,8 +277,8 @@ the fix is in how the tab's screens are set up, which a hot refresh does not red
 tapping the Search tab opened the Library page.
 
 - [ ] **Opens:** tapping the Search tab (the magnifier on its own at the right of the tab bar)
-      shows a large "Search" title and a big white field, "What do you want to listen to?" (dark on
-      light in a light theme). Scroll down: the title goes, the field stays pinned under the status
+      shows a large "Search" title and a big white field, "What do you want to listen to?" in dark
+      text, white in light themes too, where a thin edge and a soft shadow set it off the page. Scroll down: the title goes, the field stays pinned under the status
       bar with the page sliding beneath it.
 - [ ] **Discover something new:** a row of tall album covers with the album and artist on them,
       albums not played for a month, in a new order each time. Tap opens the album; hold for its

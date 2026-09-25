@@ -1,4 +1,4 @@
-import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useNavigation, useRouter, type Href } from 'expo-router';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
@@ -9,7 +9,7 @@ import { autoPlaylistArt, listAlbumTracks, listAutoPlaylist, listDiscoverAlbums,
 import type { AlbumSummary } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
-import { BROWSE_TILE_COLORS, makeStyles, radius, spacing, type, useTheme } from '@/theme';
+import { BROWSE_TILE_COLORS, makeStyles, radius, SEARCH_FIELD, spacing, type, useTheme } from '@/theme';
 
 interface Tile {
   key: string;
@@ -96,7 +96,7 @@ export function Browse({ onSearch }: { onSearch: () => void }) {
           accessibilityLabel="Search. What do you want to listen to?"
           style={({ pressed }) => [styles.field, pressed && styles.pressed]}
         >
-          <SymbolView name="magnifyingglass" size={20} tintColor={colors.background} weight="semibold" />
+          <SymbolView name="magnifyingglass" size={20} tintColor={SEARCH_FIELD.ink} weight="semibold" />
           <Text numberOfLines={1} style={[type.body, styles.placeholder]}>What do you want to listen to?</Text>
         </Pressable>
       </View>
@@ -178,10 +178,16 @@ const useStyles = makeStyles((colors) => ({
     height: 48,
     paddingHorizontal: spacing.md,
     borderRadius: radius.sm,
-    // Inverted, as Spotify's white field on black: dark on light in light themes.
-    backgroundColor: colors.label,
+    backgroundColor: SEARCH_FIELD.background,
+    // Barely there on a dark page; on a white one, what shows where the field ends.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.separator,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  placeholder: { flex: 1, color: colors.background, fontWeight: '500' },
+  placeholder: { flex: 1, color: SEARCH_FIELD.ink, fontWeight: '600' },
   heading: { color: colors.label, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md },
   strip: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   card: { width: CARD.width, height: CARD.height, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.fill },

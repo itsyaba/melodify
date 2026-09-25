@@ -158,6 +158,12 @@ export const type = {
 export const artSize = { row: 48, cover: 60, card: 160, player: 320 } as const;
 
 /**
+ * The Search tab's big field, Spotify's white with near-black text in every theme. In a light
+ * theme it sits on white, so it carries a hairline `separator` edge and a soft `shadow` there.
+ */
+export const SEARCH_FIELD = { background: '#ffffff', ink: '#121212' } as const;
+
+/**
  * The Search tab's Browse all tiles: Spotify's bright fills under white text (`onTint`), the same
  * in every theme. A tile picks its colour by its name, so a genre keeps the same one.
  */
