@@ -33,9 +33,11 @@ Scan screen shows the first failure.
 
 - [ ] **After launch, songs show lengths and artwork** (in Songs and Albums). Songs with no art of
       their own show the Melodify cover, never a grey square.
-- [ ] **Settings › Scan library › Scan now** finishes with "Tags read" above 0 and no "Unreadable
-      tags". **If anything fails, send the grey line under the counts**: it names the first file and
-      the reason, which is the clue to the bug.
+- [ ] **Settings › Scan library** now opens with counts: songs, tags not read yet, without a
+      length, without artwork. After a minute all but the art-less should be 0.
+- [ ] **Scan now** finishes with "Tags read" above 0 and no "Unreadable tags". **If anything
+      fails, send the grey line under the counts**: it names the first file and the reason, which is
+      the clue to the bug. "Read every song's tags again" forces a full re-read if counts stay high.
 - [ ] **FLAC files** in particular show title, artist, album and track numbers from their tags.
 - [ ] **Lock screen art** matches the app, including the Melodify cover for art-less songs.
 

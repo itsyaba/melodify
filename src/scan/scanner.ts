@@ -173,11 +173,28 @@ function exclusive<T>(job: () => Promise<T>): Promise<T> {
  * rows still awaiting real tags have those guesses re-derived on each scan. On a build without
  * the tag reader the guesses are all there is.
  */
-export function scanLibrary(db: SQLiteDatabase): Promise<ScanProgress> {
-  return exclusive(() => runScan(db));
+export function scanLibrary(db: SQLiteDatabase, opts: { rereadAll?: boolean } = {}): Promise<ScanProgress> {
+  return exclusive(() => runScan(db, opts.rereadAll === true));
 }
 
-async function runScan(db: SQLiteDatabase): Promise<ScanProgress> {
+/** How complete the library's tags are, for the Scan screen. */
+export interface TagCoverage {
+  songs: number;
+  untagged: number;
+  noDuration: number;
+  noArt: number;
+}
+
+export async function tagCoverage(db: SQLiteDatabase): Promise<TagCoverage> {
+  const row = await db.getFirstAsync<TagCoverage>(
+    `SELECT COUNT(*) AS songs, COALESCE(SUM(tagged = 0), 0) AS untagged,
+            COALESCE(SUM(duration_ms IS NULL), 0) AS noDuration, COALESCE(SUM(art_key IS NULL), 0) AS noArt
+     FROM tracks`,
+  );
+  return row ?? { songs: 0, untagged: 0, noDuration: 0, noArt: 0 };
+}
+
+async function runScan(db: SQLiteDatabase, rereadAll = false): Promise<ScanProgress> {
   const progress: ScanProgress = {
     phase: 'walking', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
   };
@@ -280,6 +297,8 @@ async function runScan(db: SQLiteDatabase): Promise<ScanProgress> {
     }
 
     if (canReadTags()) {
+      // Asked for from the Scan screen: every song counts as unread, not only new and changed ones.
+      if (rereadAll) await db.runAsync('UPDATE tracks SET tagged = 0');
       // The index is complete at this point, so let the lists pick up new files now rather than
       // after every tag has been read.
       libraryEvents.emit('changed', undefined);
