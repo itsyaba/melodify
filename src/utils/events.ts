@@ -16,6 +16,9 @@ export class Emitter<Events extends object> {
 
 export const libraryEvents = new Emitter<{ changed: void; scanProgress: ScanProgress }>();
 
+/** `focus`: put the cursor in the Search tab's field (its tab was tapped, or Home's field was). */
+export const searchEvents = new Emitter<{ focus: void }>();
+
 export interface ScanProgress {
   phase: 'walking' | 'indexing' | 'tagging' | 'done' | 'error';
   seen: number;

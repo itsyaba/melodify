@@ -62,7 +62,7 @@ export function SettingsScreen() {
   return (
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section title="Library">
-        <ListRow title="Scan library" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/scan')} />
+        <ListRow title="Scan library" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/settings/scan')} />
         <ChoiceRow
           pref="minDurationMs"
           title="Hide short songs"
@@ -70,8 +70,8 @@ export function SettingsScreen() {
           label={secondsLabel}
           after={() => libraryEvents.emit('changed', undefined)}
         />
-        <ListRow title="Hidden songs" onPress={() => router.push('/hidden')} />
-        <ListRow title="Excluded folders" onPress={() => router.push('/excluded')} />
+        <ListRow title="Hidden songs" onPress={() => router.push('/settings/hidden')} />
+        <ListRow title="Excluded folders" onPress={() => router.push('/settings/excluded')} />
       </Section>
       <Section title="Appearance">
         <ChoiceRow pref="theme" title="Theme" options={Object.keys(THEMES) as ThemeName[]} label={(t) => THEMES[t]} />
@@ -86,10 +86,10 @@ export function SettingsScreen() {
         <ListRow
           title="Player shortcuts"
           subtitle={prefs.playerShortcuts.length ? prefs.playerShortcuts.map((k) => SHORTCUTS[k].label).join(', ') : 'None, all in the menu'}
-          onPress={() => router.push('/shortcuts')}
+          onPress={() => router.push('/settings/shortcuts')}
         />
         <ChoiceRow pref="density" title="List density" options={Object.keys(DENSITIES) as Prefs['density'][]} label={(d) => DENSITIES[d]} />
-        <ListRow title="Tabs and library views" subtitle="Choose which show, and in what order" onPress={() => router.push('/tabs')} />
+        <ListRow title="Tabs and library views" subtitle="Choose which show, and in what order" onPress={() => router.push('/settings/tabs')} />
       </Section>
       <Section title="Playback">
         <ListRow
@@ -138,7 +138,7 @@ export function SettingsScreen() {
         ) : null}
       </Section>
       <Section title="Data">
-        <ListRow title="Backup and restore" subtitle="Playlists, queues, play counts, settings" onPress={() => router.push('/backup')} />
+        <ListRow title="Backup and restore" subtitle="Playlists, queues, play counts, settings" onPress={() => router.push('/settings/backup')} />
       </Section>
       <Section title="Audio engine">
         <Note>

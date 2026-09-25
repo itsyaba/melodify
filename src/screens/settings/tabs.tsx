@@ -12,11 +12,11 @@ import {
 import { makeStyles } from '@/theme';
 
 const TAB_LABELS: Record<TabKey, string> = {
-  library: 'Library',
-  folders: 'Folders',
+  home: 'Home',
   queue: 'Queue',
+  folders: 'Folders',
+  library: 'Library',
   search: 'Search',
-  settings: 'Settings',
 };
 const VIEW_LABELS: Record<LibraryViewKey, string> = {
   songs: 'Songs',
@@ -37,7 +37,7 @@ export function TabsSettingsScreen() {
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <OrderedToggles
         title="Tabs"
-        footer="Library and Settings always stay. Changing the tabs returns each tab to its first screen."
+        footer="Home and Library always stay; Settings is the gear on Home. Changing the tabs returns each tab to its first screen."
         all={ALL_TABS}
         shown={prefs.tabs}
         required={REQUIRED_TABS}

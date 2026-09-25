@@ -104,7 +104,7 @@ Scan screen shows the first failure.
       black, match system; all 12 accents.
 - [ ] **Player layouts:** standard, edge-to-edge artwork, compact with Up next. Blurred artwork
       behind the player can be switched off.
-- [ ] **Tabs and library views:** hide and reorder tabs (Library and Settings stay); hide and reorder
+- [ ] **Tabs and library views:** hide and reorder tabs (Home and Library stay); hide and reorder
       views. Grid/list toggle (see section 11). Compact density fits more rows.
 - [ ] **Keep screen on** while the player is open (when switched on).
 - [ ] **Rotation:** set to "Rotate freely"; the player turns side by side in landscape.
@@ -277,38 +277,42 @@ compact density (Settings › Appearance).
       auto playlist gives its menu; New playlist asks for a name. Your playlists follow, with ⋯ for
       Rename and Delete.
 
-## 12. The Spotify-style Search tab
+## 12. Home, the tab bar, Settings and Search
 
-JS only: no new IPA needed, but reload the app once (shake › Reload, or `r` in the Metro terminal):
-the fix is in how the tab's screens are set up, which a hot refresh does not redo. Before it,
-tapping the Search tab opened the Library page.
+JS only: no new IPA needed, but reload the app once (shake › Reload, or `r` in the Metro terminal),
+since the tabs themselves changed.
 
-- [ ] **Opens:** tapping the Search tab (the magnifier on its own at the right of the tab bar)
-      shows a large "Search" title and a big white field, "What do you want to listen to?" in dark
-      text, white in light themes too, where a thin edge and a soft shadow set it off the page. Scroll down: the title goes, the field stays pinned under the status
-      bar with the page sliding beneath it.
-- [ ] **Discover something new:** a row of tall album covers with the album and artist on them,
-      albums not played for a month, in a new order each time. Tap opens the album; hold for its
-      menu. Missing when every album was played lately.
-- [ ] **Browse all:** coloured tiles two a row: Favorites, Recently added, Most played, Recently
-      played, Bookmarks, then each genre, biggest first. Each has a tilted cover in the corner (the
-      song that tops it, or an icon while it is empty) and opens its list. A genre keeps its colour.
-- [ ] **Search mode:** tap the field: it moves to the top with the keyboard up and Cancel beside
-      it. With nothing typed: "Recent searches", the songs, albums, artists and playlists you opened
-      from Search, newest first, each with ✕ to forget it, and "Clear recent searches" (clears the
-      typed searches too). With none yet: "Play what you love". Cancel returns to the browse page.
-- [ ] **Typing** shows results at once, one list, best match first, each row saying what it is
-      ("Song · fun.", "Album · …", "Artist · 12 songs", "Playlist · …", "Folder · …"). Every word must
-      match somewhere: "fun we are young" finds We Are Young by fun.; "beyonce" finds Beyoncé.
-      Pills (Top, Songs, Artists, Albums, Playlists, Folders) show once two kinds match and narrow
-      the list; Top holds the best 50. Nothing found: "Couldn’t find “…”".
-- [ ] **Rows:** a song plays on the first tap, even with the keyboard up, and then the next songs
-      found; its title takes the accent while it plays. ⋯ opens its menu; ⊕ adds it to favorites (✓
-      in the accent, with a toast), tapping ✓ removes it. Albums, artists and playlists open their
-      page inside the Search tab (back returns to the results); folders open in the Folders tab.
-- [ ] **Suggestions:** after searching "fun we are young" once (press Search on the keyboard, or
-      open a result), typing "we are" lists it above the results with ↖; tapping fills the field.
-- [ ] **Shortcut:** holding the app icon › Search opens straight into search mode with the keyboard.
+- [ ] **Tab bar:** Home, Queue, Folders, Library in the bar, and the round Search button on its own.
+      No Settings tab. The app opens on Home. If Settings › Tabs had been changed before, that order
+      stays, with Home added in front.
+- [ ] **Home:** "Good morning / afternoon / evening" by the time of day, a gear on the right, and
+      the big white field ("What do you want to listen to?", dark text, white in light themes too
+      with a thin edge and soft shadow). Scroll down: the greeting goes, the field stays pinned
+      under the status bar.
+- [ ] **Gear** opens Settings inside Home, with a back button; Scan library, Backup and restore
+      and the rest open from there and come back. Settings › Tabs and views says Home and Library
+      always stay.
+- [ ] **Discover something new** (Home): tall album covers with the album and artist on them,
+      albums not played for a month, in a new order each time. Tap opens the album inside Home;
+      hold for its menu. Missing when every album was played lately.
+- [ ] **Browse all** (Home): coloured tiles two a row: Favorites, Recently added, Most played,
+      Recently played, Bookmarks, then each genre, biggest first, each with a tilted cover (or an
+      icon while it is empty), white names showing. Each opens its list inside Home.
+- [ ] **Home's field** switches to the Search tab with the keyboard up.
+- [ ] **Search tab** (Musicolet style): a grey field at the top. Tapping the Search button, or
+      tapping it again while on it, puts the cursor there. Nothing typed: RECENT SEARCHES with
+      CLEAR, each with ✕; tap one to search it again. None yet: "Search your library".
+- [ ] **Results** appear as you type, grouped: SONGS, ALBUMS, ARTISTS, PLAYLISTS, FOLDERS, each
+      header in the accent with its count, and sticking to the top while its group scrolls. Five
+      songs and three of the rest show; SHOW ALL 23 SONGS opens the whole group. Every word must
+      match somewhere ("fun we are young" finds We Are Young by fun.; "beyonce" finds Beyoncé).
+      Nothing found: "No results".
+- [ ] **Rows:** songs show art, title, artist · album, length and ⋯; a tap plays the songs found
+      from there (first tap, even with the keyboard up); the playing one is in the accent. Shuffle
+      and play on the SONGS header play every song found. Albums, artists and playlists open inside
+      the Search tab; folders in the Folders tab. ⋯ or a long press gives each row's menu. A search
+      is remembered when you press Search on the keyboard or open a result.
+- [ ] **Shortcut:** holding the app icon › Search opens the Search tab with the keyboard up.
 - [ ] **White text on colour** shows, in light and dark: the Browse all tile names, the album and
       artist on Discover cards, the chosen Library pill, and the labels of Settings › Scan now, the
       Restore button and the lyrics editor's Stamp line button (all were invisible before).

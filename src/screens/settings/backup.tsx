@@ -73,7 +73,7 @@ export function BackupScreen() {
   });
 
   const openRestore = (uri: string, name: string) =>
-    router.push({ pathname: '/restore', params: { uri, name } });
+    router.push({ pathname: '/settings/restore', params: { uri, name } });
 
   const backupMenu = (file: BackupFile) =>
     showMenu({

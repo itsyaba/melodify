@@ -1,6 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Prefs } from '@/prefs';
-import type { RecentItem } from '@/search/recent';
 
 /**
  * Key-value settings, stored as JSON in the `settings` table. Every key the app reads is listed
@@ -11,11 +10,6 @@ export interface Settings {
   activeQueueId: number;
   /** Most recent first, deduplicated, capped at `RECENT_SEARCHES`. */
   recentSearches: string[];
-  /**
-   * What was opened from Search (a song, album, artist, playlist or folder), most recent first,
-   * capped at `RECENT_SEARCHES`. Not in backups: it names rows by id, and it is only history.
-   */
-  recentItems: RecentItem[];
   /** Remembered UI choices (sort orders, the last library view), keyed by where they apply. */
   choices: Record<string, string>;
   /** Stored partial, so a preference added later takes its default. */

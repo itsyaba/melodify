@@ -4,6 +4,7 @@ import { Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { listAutoPlaylist, listTracks } from '@/db/tracks';
 import { queue, queueSnapshot } from '@/player/queue-store';
+import { searchEvents } from '@/utils/events';
 import type { NativeShortcut } from '../../modules/melodify-audio/src/MelodifyAudio.types';
 
 /**
@@ -69,7 +70,8 @@ async function perform(db: SQLiteDatabase, type: string): Promise<void> {
       return;
     }
     case 'search':
-      router.push('/search?focus=1');
+      router.navigate('/(tabs)/(search)/search');
+      searchEvents.emit('focus', undefined);
       return;
   }
 }

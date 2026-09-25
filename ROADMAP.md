@@ -110,7 +110,9 @@ dependency, so the Phase 1 IPA (module 0.4.0) runs it as it is.
       2026-09-25 in Spotify's layout: its own header, the library read into memory when a search
       starts, matches ranked in JS word by word. Tapping the tab used to open the Library page: the
       shared (library,search) layout listed `index` first, and a stack starts on its first listed
-      screen whatever `unstable_settings` says, so the Search tab now lists `search` first)
+      screen whatever `unstable_settings` says, so the Search tab now lists `search` first.
+      Later that day the browse page became the Home tab and Search was redone in Musicolet's
+      style: matches grouped by kind, a few each until Show all)
 
 ### Phase 3. Companion features
 
@@ -155,7 +157,9 @@ includes them; on an older one they do nothing, since both are loaded behind a g
       (written: standard, edge-to-edge artwork, and compact with the next six songs; a side-by-side
       layout in landscape. The blur is `Image` `blurRadius` under a scrim)
 - [ ] Custom tabs and tab order, grid / list toggle, density
-      (written: Settings › Tabs and library views; Library and Settings cannot be switched off.
+      (written: Settings › Tabs and library views; Home and Library cannot be switched off, and
+      Settings is a gear on Home since 2026-09-25 (prefs version 2 moves an untouched old bar to
+      Home, Queue, Folders, Library, Search).
       Albums, artists, genres, composers and years have a grid. Compact density shrinks rows)
 - [ ] Keep screen on, landscape
       (written: keep awake only while the player is open; rotation free, portrait or landscape)

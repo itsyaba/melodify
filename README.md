@@ -122,8 +122,9 @@ npx expo export --platform ios    # full Metro bundle to Hermes bytecode
 src/
   app/          expo-router routes only
     _layout      root Stack: the (tabs) group, plus /player as a modal over the tab bar
-    (tabs)/      NativeTabs: Library, Folders, Queue, Settings, Search, and the mini player
-                 in the tab bar's bottom accessory
+    (tabs)/      NativeTabs: Home, Queue, Folders, Library, Search, and the mini player
+                 in the tab bar's bottom accessory. Home, Library and Search share one stack
+                 layout, (home,library,search), which also holds settings/ (the gear on Home)
   screens/      screen bodies rendered by the routes
   components/   shared UI: track-list (tap, long-press menu, multi-select), reorderable-list
                 (drag and swipe), track-actions (queue and playlist menus), menus (action

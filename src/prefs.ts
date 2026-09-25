@@ -26,7 +26,7 @@ export interface Prefs {
   /** Stop the screen from locking while the player is open. */
   keepAwake: boolean;
   orientation: OrientationChoice;
-  /** Bottom tabs in order. Library and Settings are always there; the rest can be left out. */
+  /** Bottom tabs in order. Home and Library are always there; the rest can be left out. */
   tabs: TabKey[];
   /** Library views in order; the ones left out are not shown. */
   libraryViews: LibraryViewKey[];
@@ -81,15 +81,18 @@ export type AutoBackup = 'off' | 'daily' | 'weekly';
 export type PlayerLayout = 'standard' | 'edge' | 'compact';
 export type Density = 'comfortable' | 'compact';
 export type OrientationChoice = 'auto' | 'portrait' | 'landscape';
-export type TabKey = 'library' | 'folders' | 'queue' | 'search' | 'settings';
+export type TabKey = 'home' | 'queue' | 'folders' | 'library' | 'search';
 export type LibraryViewKey =
   | 'songs' | 'albums' | 'artists' | 'album_artists' | 'genres' | 'composers' | 'years' | 'playlists';
 export type PlayerShortcut =
   | 'lyrics' | 'sleep' | 'abRepeat' | 'bookmark' | 'sound' | 'queue' | 'details' | 'playlist' | 'share';
 
-export const ALL_TABS: readonly TabKey[] = ['library', 'folders', 'queue', 'settings', 'search'];
-/** Tabs that cannot be switched off: every "Go to album" lands in Library, and Settings is the way back. */
-export const REQUIRED_TABS: readonly TabKey[] = ['library', 'settings'];
+export const ALL_TABS: readonly TabKey[] = ['home', 'queue', 'folders', 'library', 'search'];
+/**
+ * Tabs that cannot be switched off: Home holds the settings gear and is where "Go to album" from
+ * the player lands, and Library holds the lists.
+ */
+export const REQUIRED_TABS: readonly TabKey[] = ['home', 'library'];
 export const ALL_LIBRARY_VIEWS: readonly LibraryViewKey[] = [
   'songs', 'albums', 'artists', 'album_artists', 'genres', 'composers', 'years', 'playlists',
 ];
@@ -126,11 +129,13 @@ export const DEFAULT_PREFS: Prefs = {
   volume: 1,
   showVolume: false,
   resumeOnConnect: false,
-  version: 1,
+  version: 2,
 };
 
 /** Version 1 trimmed the player's default row from these six; a row the user chose stays as it was. */
 const SIX_SHORTCUTS: readonly PlayerShortcut[] = ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'];
+/** Version 2 put Home first and moved Settings to a gear on it; this was the default bar before. */
+const OLD_DEFAULT_TABS = ['library', 'folders', 'queue', 'settings', 'search'];
 
 /**
  * One-time changes to stored preferences, for defaults that changed after they were saved: a
@@ -140,6 +145,11 @@ function migrate(stored: Partial<Prefs>): Partial<Prefs> {
   const out = { ...stored };
   if ((stored.version ?? 0) < 1 && String(stored.playerShortcuts) === String(SIX_SHORTCUTS)) {
     out.playerShortcuts = [...DEFAULT_PREFS.playerShortcuts];
+  }
+  // The old default bar becomes the new one. A bar the user arranged keeps its order: `sanitize`
+  // drops Settings from it and puts Home in front.
+  if ((stored.version ?? 0) < 2 && String(stored.tabs) === String(OLD_DEFAULT_TABS)) {
+    out.tabs = [...DEFAULT_PREFS.tabs];
   }
   out.version = DEFAULT_PREFS.version;
   return out;
@@ -160,7 +170,8 @@ function bands(gains: unknown): number[] {
  */
 function sanitize(p: Prefs): Prefs {
   const tabs = p.tabs.filter((t, i) => ALL_TABS.includes(t) && p.tabs.indexOf(t) === i);
-  for (const t of REQUIRED_TABS) if (!tabs.includes(t)) tabs.push(t);
+  // A missing required tab goes back where the default bar has it: Home in front.
+  for (const t of REQUIRED_TABS) if (!tabs.includes(t)) tabs.splice(Math.min(ALL_TABS.indexOf(t), tabs.length), 0, t);
   const views = p.libraryViews.filter((v, i) => ALL_LIBRARY_VIEWS.includes(v) && p.libraryViews.indexOf(v) === i);
   // Unlike the views, all of these may be switched off: the player's menu still has every one.
   const shortcuts = Array.isArray(p.playerShortcuts)

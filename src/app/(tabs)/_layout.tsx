@@ -3,9 +3,17 @@ import { MiniPlayer } from '@/components/mini-player';
 import { useCurrentTrack } from '@/player/queue-store';
 import { ALL_TABS, usePrefs, type TabKey } from '@/prefs';
 import { useTheme } from '@/theme';
+import { searchEvents } from '@/utils/events';
 
 function trigger(key: TabKey, hidden: boolean) {
   switch (key) {
+    case 'home':
+      return (
+        <NativeTabs.Trigger key={key} name="(home)" hidden={hidden}>
+          <NativeTabs.Trigger.Icon sf="house" md="home" />
+          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      );
     case 'library':
       return (
         <NativeTabs.Trigger key={key} name="(library)" hidden={hidden}>
@@ -27,16 +35,16 @@ function trigger(key: TabKey, hidden: boolean) {
           <NativeTabs.Trigger.Label>Queue</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       );
-    case 'settings':
-      return (
-        <NativeTabs.Trigger key={key} name="(settings)" hidden={hidden}>
-          <NativeTabs.Trigger.Icon sf="gear" md="settings" />
-          <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-      );
     case 'search':
       return (
-        <NativeTabs.Trigger key={key} name="(search)" role="search" hidden={hidden}>
+        // Tapping Search, or tapping it again, puts the cursor in its field, as iOS search tabs do.
+        <NativeTabs.Trigger
+          key={key}
+          name="(search)"
+          role="search"
+          hidden={hidden}
+          listeners={{ tabPress: () => searchEvents.emit('focus', undefined) }}
+        >
           <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       );

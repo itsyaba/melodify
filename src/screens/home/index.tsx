@@ -1,7 +1,8 @@
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useNavigation, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { IconButton } from '@/components/icon-button';
 import { albumHref, groupHref, useTrackActions } from '@/components/track-actions';
@@ -10,6 +11,7 @@ import type { AlbumSummary } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
 import { BROWSE_TILE_COLORS, makeStyles, radius, SEARCH_FIELD, spacing, type, useTheme } from '@/theme';
+import { searchEvents } from '@/utils/events';
 
 interface Tile {
   key: string;
@@ -35,16 +37,25 @@ function tileColor(key: string): string {
 
 const CARD = { width: 150, height: 200 };
 
+/** Spotify's: "Good morning" until noon, "Good afternoon" until six, then "Good evening". */
+function greeting(hour: number): string {
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 /**
- * Spotify's Search page for an offline library: a large title, a big search field that pins to
- * the top as the page scrolls, "Discover something new" (albums not played for a month), and
- * "Browse all": the lists the library keeps by itself, then every genre, as colour tiles.
+ * The Home tab, from Spotify's search page for an offline library: a greeting with the settings
+ * gear, a big search field that pins to the top as the page scrolls and opens the Search tab,
+ * "Discover something new" (albums not played for a month), and "Browse all": the lists the
+ * library keeps by itself, then every genre, as colour tiles. It draws its own header (the
+ * stack's is off), so it pads by the status bar itself.
  */
-export function Browse({ onSearch }: { onSearch: () => void }) {
+export function HomeScreen() {
   const styles = useStyles();
   const colors = useTheme();
   const router = useRouter();
-  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const actions = useTrackActions();
   const { width } = useWindowDimensions();
   const { data } = useLibraryQuery(loadBrowse, []);
@@ -72,95 +83,102 @@ export function Browse({ onSearch }: { onSearch: () => void }) {
   ];
 
   const openAlbum = (a: AlbumSummary) => router.push(albumHref(a.album, a.album_artist));
+  const openSearch = () => {
+    router.navigate('/(tabs)/(search)/search');
+    // Heard when the Search tab is already up; a first visit focuses its field on mount instead.
+    searchEvents.emit('focus', undefined);
+  };
 
   return (
-    <ScrollView
-      // The field (child 1) pins under the status bar once the title has scrolled away.
-      stickyHeaderIndices={[1]}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.content}
-    >
-      <View style={styles.titleRow}>
-        {/* Only when pushed onto a stack (the home screen shortcut, from Library); canGoBack would
-            also be true at the root of any tab but the first, going back to that tab. */}
-        {(navigation.getState()?.index ?? 0) > 0 ? (
-          <IconButton name="chevron.left" onPress={() => router.back()} accessibilityLabel="Back" />
-        ) : null}
-        <Text style={[type.largeTitle, { color: colors.label }]} accessibilityRole="header">Search</Text>
-      </View>
-      <View style={styles.sticky}>
-        <Pressable
-          onPress={onSearch}
-          accessibilityRole="search"
-          accessibilityLabel="Search. What do you want to listen to?"
-          style={({ pressed }) => [styles.field, pressed && styles.pressed]}
-        >
-          <SymbolView name="magnifyingglass" size={20} tintColor={SEARCH_FIELD.ink} weight="semibold" />
-          <Text numberOfLines={1} style={[type.body, styles.placeholder]}>What do you want to listen to?</Text>
-        </Pressable>
-      </View>
-
-      {data?.discover.length ? (
-        <View>
-          <Text style={[type.title, styles.heading]}>Discover something new</Text>
-          <FlatList
-            horizontal
-            data={data.discover}
-            keyExtractor={(a) => `${a.album_artist ?? ''}::${a.album}`}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.strip}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => openAlbum(item)}
-                onLongPress={() => actions.collectionMenu(item.album, (d) => listAlbumTracks(d, item.album, item.album_artist))}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.album}${item.album_artist ? ` by ${item.album_artist}` : ''}`}
-                style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-              >
-                <Artwork artKey={item.art_key} size={CARD.width} height={CARD.height} rounded="none" />
-                <View style={styles.cardLabel}>
-                  <Text numberOfLines={2} style={[type.subhead, styles.cardTitle]}>{item.album}</Text>
-                  {item.album_artist ? (
-                    <Text numberOfLines={1} style={[type.caption, styles.cardArtist]}>{item.album_artist}</Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            )}
-          />
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScrollView
+        // The field (child 1) pins under the status bar once the title has scrolled away.
+        stickyHeaderIndices={[1]}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.titleRow}>
+          <Text numberOfLines={1} style={[type.largeTitle, styles.title]} accessibilityRole="header">
+            {greeting(new Date().getHours())}
+          </Text>
+          <IconButton name="gearshape" size={24} onPress={() => router.push('/settings')} accessibilityLabel="Settings" />
         </View>
-      ) : null}
-
-      <Text style={[type.title, styles.heading]}>Browse all</Text>
-      <View style={styles.grid}>
-        {tiles.map((t) => (
+        <View style={styles.sticky}>
           <Pressable
-            key={t.key}
-            onPress={() => router.push(t.href)}
-            onLongPress={t.onLongPress}
-            accessibilityRole="button"
-            accessibilityLabel={t.title}
-            style={({ pressed }) => [styles.tile, { width: tileWidth, backgroundColor: tileColor(t.key) }, pressed && styles.pressed]}
+            onPress={openSearch}
+            accessibilityRole="search"
+            accessibilityLabel="Search. What do you want to listen to?"
+            style={({ pressed }) => [styles.field, pressed && styles.pressed]}
           >
-            <Text numberOfLines={2} style={[type.headline, styles.tileTitle]}>{t.title}</Text>
-            <View style={styles.tilted}>
-              {t.art ? (
-                <Artwork artKey={t.art} size={TILTED} />
-              ) : (
-                <SymbolView name={t.icon} size={TILTED * 0.7} tintColor={colors.onTint} />
-              )}
-            </View>
+            <SymbolView name="magnifyingglass" size={20} tintColor={SEARCH_FIELD.ink} weight="semibold" />
+            <Text numberOfLines={1} style={[type.body, styles.placeholder]}>What do you want to listen to?</Text>
           </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+        </View>
+
+        {data?.discover.length ? (
+          <View>
+            <Text style={[type.title, styles.heading]}>Discover something new</Text>
+            <FlatList
+              horizontal
+              data={data.discover}
+              keyExtractor={(a) => `${a.album_artist ?? ''}::${a.album}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.strip}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => openAlbum(item)}
+                  onLongPress={() => actions.collectionMenu(item.album, (d) => listAlbumTracks(d, item.album, item.album_artist))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.album}${item.album_artist ? ` by ${item.album_artist}` : ''}`}
+                  style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+                >
+                  <Artwork artKey={item.art_key} size={CARD.width} height={CARD.height} rounded="none" />
+                  <View style={styles.cardLabel}>
+                    <Text numberOfLines={2} style={[type.subhead, styles.cardTitle]}>{item.album}</Text>
+                    {item.album_artist ? (
+                      <Text numberOfLines={1} style={[type.caption, styles.cardArtist]}>{item.album_artist}</Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        ) : null}
+
+        <Text style={[type.title, styles.heading]}>Browse all</Text>
+        <View style={styles.grid}>
+          {tiles.map((t) => (
+            <Pressable
+              key={t.key}
+              onPress={() => router.push(t.href)}
+              onLongPress={t.onLongPress}
+              accessibilityRole="button"
+              accessibilityLabel={t.title}
+              style={({ pressed }) => [styles.tile, { width: tileWidth, backgroundColor: tileColor(t.key) }, pressed && styles.pressed]}
+            >
+              <Text numberOfLines={2} style={[type.headline, styles.tileTitle]}>{t.title}</Text>
+              <View style={styles.tilted}>
+                {t.art ? (
+                  <Artwork artKey={t.art} size={TILTED} />
+                ) : (
+                  <SymbolView name={t.icon} size={TILTED * 0.7} tintColor={colors.onTint} />
+                )}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const TILTED = 64;
 
 const useStyles = makeStyles((colors) => ({
+  root: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.xl },
+  title: { flex: 1, color: colors.label },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
