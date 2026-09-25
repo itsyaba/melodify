@@ -148,7 +148,8 @@ assets/         icons, splash
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md). Phase 0 (foundation) is done as of 2026-09-20: the app is on the
+See [ROADMAP.md](./ROADMAP.md), and [TESTING.md](./TESTING.md) for the phone checklist of
+everything written but not yet tried on the device. Phase 0 (foundation) is done as of 2026-09-20: the app is on the
 phone, scanning and browsing a real library. In Phase 1, playback, the lock screen and the player
 screens work on the device as of 2026-09-23; tag reading, interruption handling and restoring the
 queue on launch are written and waiting for a device test. Phase 2 (multiple queues, queue editing
