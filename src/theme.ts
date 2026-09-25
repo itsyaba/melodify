@@ -46,6 +46,10 @@ export interface Palette {
   onTint: ColorValue;
   /** Drop shadows, such as the one under the player's artwork. The same in every theme. */
   shadow: ColorValue;
+  /** A bottom sheet over the page, such as the menus: one step lighter than the page when dark. */
+  sheet: ColorValue;
+  /** Dims the page behind a sheet. The same in every theme. */
+  scrim: ColorValue;
 }
 
 function palette(theme: ThemeName, accent: AccentName): Palette {
@@ -64,6 +68,8 @@ function palette(theme: ThemeName, accent: AccentName): Palette {
     // table, and resolves any other (such as "white") to clear, so text in this color vanished.
     onTint: '#ffffff',
     shadow: 'rgba(0, 0, 0, 0.4)',
+    sheet: ios('secondarySystemGroupedBackground', '#ffffff'),
+    scrim: 'rgba(0, 0, 0, 0.55)',
   };
   if (theme === 'dark') {
     // Charcoal rather than black: every surface one step up the system's dark scale.
@@ -72,11 +78,12 @@ function palette(theme: ThemeName, accent: AccentName): Palette {
       background: ios('secondarySystemBackground', '#1c1c1e'),
       groupedBackground: ios('systemBackground', '#000000'),
       secondaryBackground: ios('tertiarySystemBackground', '#2c2c2e'),
+      sheet: ios('tertiarySystemBackground', '#2c2c2e'),
     };
   }
   if (theme === 'black') {
     // Pure black everywhere, including sheets, which iOS otherwise lifts to dark gray.
-    return { ...base, background: '#000000', groupedBackground: '#000000', secondaryBackground: '#111111' };
+    return { ...base, background: '#000000', groupedBackground: '#000000', secondaryBackground: '#111111', sheet: '#1c1c1e' };
   }
   return base;
 }

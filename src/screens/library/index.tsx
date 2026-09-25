@@ -235,7 +235,10 @@ function Albums({ chips }: ListProps) {
   const { size, listKey, listProps } = useGrid(grid);
   const open = (a: AlbumSummary) => router.push(albumHref(a.album, a.album_artist));
   const menu = (a: AlbumSummary) =>
-    actions.collectionMenu(a.album, (db) => listAlbumTracks(db, a.album, a.album_artist));
+    actions.collectionMenu(a.album, (db) => listAlbumTracks(db, a.album, a.album_artist), [], {
+      artKey: a.art_key,
+      subtitle: a.album_artist ?? undefined,
+    });
   return (
     <FlatList
       key={listKey}
@@ -292,7 +295,12 @@ function Groups({ chips, kind, singular, plural }: ListProps & { kind: GroupKind
   // Artists are drawn round, as Spotify draws them; the art is one of their albums'.
   const round = kind === 'artist' || kind === 'album_artist';
   const open = (g: GroupSummary) => router.push(groupHref(kind, g.name));
-  const menu = (g: GroupSummary) => actions.collectionMenu(g.name, (db) => listGroupTracks(db, kind, g.name));
+  const menu = (g: GroupSummary) =>
+    actions.collectionMenu(g.name, (db) => listGroupTracks(db, kind, g.name), [], {
+      artKey: g.art_key,
+      round,
+      subtitle: formatCount(g.track_count, 'song'),
+    });
   return (
     <FlatList
       key={listKey}
@@ -376,6 +384,7 @@ function Playlists({ chips }: ListProps) {
     actions.collectionMenu(p.name, (d) => listPlaylistTracks(d, p.id), [
       {
         label: 'Rename…',
+        icon: 'pencil',
         onPress: async () => {
           const name = await promptText('Rename playlist', { defaultValue: p.name, ok: 'Rename' });
           if (!name) return;
@@ -385,6 +394,7 @@ function Playlists({ chips }: ListProps) {
       },
       {
         label: 'Delete playlist',
+        icon: 'trash',
         destructive: true,
         onPress: async () => {
           if (!(await confirm(`Delete “${p.name}”?`, 'The songs stay in your library.', 'Delete'))) return;
@@ -392,7 +402,7 @@ function Playlists({ chips }: ListProps) {
           libraryEvents.emit('changed', undefined);
         },
       },
-    ]);
+    ], { artKey: p.art_key, subtitle: formatCount(p.track_count, 'song') });
 
   return (
     <FlatList

@@ -128,7 +128,12 @@ export function HomeScreen() {
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => openAlbum(item)}
-                  onLongPress={() => actions.collectionMenu(item.album, (d) => listAlbumTracks(d, item.album, item.album_artist))}
+                  onLongPress={() =>
+                  actions.collectionMenu(item.album, (d) => listAlbumTracks(d, item.album, item.album_artist), [], {
+                    artKey: item.art_key,
+                    subtitle: item.album_artist ?? undefined,
+                  })
+                }
                   accessibilityRole="button"
                   accessibilityLabel={`${item.album}${item.album_artist ? ` by ${item.album_artist}` : ''}`}
                   style={({ pressed }) => [styles.card, pressed && styles.pressed]}

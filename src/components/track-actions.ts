@@ -45,10 +45,12 @@ export function chooseQueue(tracks: Track[]) {
     items: [
       ...queues.map((q) => ({
         label: `${q.name}${q.id === activeId ? ' (playing)' : ''} · ${q.tracks.length}`,
+        icon: 'list.bullet' as const,
         onPress: () => void appendTo(tracks, q.id),
       })),
       {
         label: 'New queue…',
+        icon: 'plus',
         onPress: async () => {
           const name = await promptText('New queue', { message: 'Leave empty for a numbered name.', ok: 'Create' });
           if (name === null) return;
@@ -75,9 +77,10 @@ export async function choosePlaylist(db: SQLiteDatabase, tracks: Track[]) {
   showMenu({
     title: `Add ${songs(tracks.length)} to playlist`,
     items: [
-      { label: 'New playlist…', onPress: () => void newPlaylistWith(db, tracks) },
+      { label: 'New playlist…', icon: 'plus', onPress: () => void newPlaylistWith(db, tracks) },
       ...playlists.map((p) => ({
         label: `${p.name} · ${p.track_count}`,
+        icon: 'music.note.list' as const,
         onPress: async () => {
           await addToPlaylist(db, p.id, tracks.map((t) => t.id));
           libraryEvents.emit('changed', undefined);
@@ -125,6 +128,14 @@ interface TrackMenuOptions {
   beforeNavigate?: () => void;
 }
 
+/** How a collection's menu is headed: its cover, and a line under its name. */
+export interface CollectionLook {
+  artKey?: string | null;
+  subtitle?: string;
+  /** Round art, for an artist. */
+  round?: boolean;
+}
+
 /**
  * Long-press menus. A hook because the playlist items need the database and the "Go to" items
  * need the router; the functions themselves are plain and can be called from any handler.
@@ -135,10 +146,10 @@ export function useTrackActions() {
   return useMemo(() => {
     /** The items every list of tracks shares: queueing, playlists. */
     const queueItems = (tracks: Track[]): MenuItem[] => [
-      { label: 'Play next', onPress: () => void playNextIn(tracks) },
-      { label: 'Add to queue', onPress: () => void appendTo(tracks) },
-      { label: 'Add to another queue…', onPress: () => chooseQueue(tracks) },
-      { label: 'Add to playlist…', onPress: () => void choosePlaylist(db, tracks) },
+      { label: 'Play next', icon: 'text.line.first.and.arrowtriangle.forward', onPress: () => void playNextIn(tracks) },
+      { label: 'Add to queue', icon: 'text.line.last.and.arrowtriangle.forward', onPress: () => void appendTo(tracks) },
+      { label: 'Add to another queue…', icon: 'rectangle.stack', onPress: () => chooseQueue(tracks) },
+      { label: 'Add to playlist…', icon: 'plus.circle', onPress: () => void choosePlaylist(db, tracks) },
     ];
 
     return {
@@ -150,51 +161,57 @@ export function useTrackActions() {
         };
         showMenu({
           title: track.title,
-          message: [track.artist, track.album].filter(Boolean).join(' — ') || undefined,
+          message: [track.artist, track.album].filter(Boolean).join(' • ') || undefined,
+          artKey: track.art_key,
           items: [
             ...(opts.first ?? []),
             ...queueItems([track]),
             ...(opts.extra ?? []),
             {
               label: track.favorite ? 'Remove from favorites' : 'Add to favorites',
+              icon: track.favorite ? 'heart.slash' : 'heart',
               onPress: () => void queue.setFavorite(track, !track.favorite),
             },
             {
               label: 'Go to album',
+              icon: 'opticaldisc',
               hidden: !track.album,
               onPress: () => go(albumHref(track.album!, track.album_artist ?? track.artist)),
             },
             {
               label: 'Go to artist',
+              icon: 'person',
               hidden: !track.artist,
               onPress: () => go(groupHref('artist', track.artist!)),
             },
             {
               label: 'Go to folder',
+              icon: 'folder',
               // A switched-off tab cannot be navigated to at all.
               hidden: !track.folder || !getPrefs().tabs.includes('folders'),
               onPress: () => go({ pathname: '/folder/[...path]', params: { path: track.folder.split('/') } }),
             },
-            { label: 'Select', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
+            { label: 'Select', icon: 'checkmark.circle', hidden: !opts.onSelect, onPress: () => opts.onSelect?.() },
             // Not through `go`: details and the editors open as sheets, so over the player is fine.
-            { label: 'Details', onPress: () => router.push({ pathname: '/track/[id]', params: { id: String(track.id) } }) },
-            { label: 'Edit tags…', hidden: !canEditTags(), onPress: () => router.push(tagsHref([track])) },
-            { label: 'Edit lyrics…', onPress: () => router.push({ pathname: '/lyrics/[id]', params: { id: String(track.id) } }) },
-            { label: 'Lyrics from LRCLIB…', onPress: () => void lyricsFromLrclib(db, track) },
-            { label: 'Share file…', onPress: () => void shareTrack(track) },
+            { label: 'Details', icon: 'info.circle', onPress: () => router.push({ pathname: '/track/[id]', params: { id: String(track.id) } }) },
+            { label: 'Edit tags…', icon: 'tag', hidden: !canEditTags(), onPress: () => router.push(tagsHref([track])) },
+            { label: 'Edit lyrics…', icon: 'quote.bubble', onPress: () => router.push({ pathname: '/lyrics/[id]', params: { id: String(track.id) } }) },
+            { label: 'Lyrics from LRCLIB…', icon: 'globe', onPress: () => void lyricsFromLrclib(db, track) },
+            { label: 'Share file…', icon: 'square.and.arrow.up', onPress: () => void shareTrack(track) },
             {
               label: track.hidden ? 'Show in library' : 'Hide from library',
+              icon: track.hidden ? 'eye' : 'eye.slash',
               onPress: () =>
                 void setTracksHidden(db, [track], !track.hidden).then(() =>
                   toast.show(track.hidden ? `“${track.title}” is back in the library` : `Hid “${track.title}”. Settings lists hidden songs.`),
                 ),
             },
-            { label: 'Delete file…', destructive: true, onPress: () => void confirmDelete(db, [track]) },
+            { label: 'Delete file…', icon: 'trash', destructive: true, onPress: () => void confirmDelete(db, [track]) },
           ],
         });
       },
       /** For an album, artist, folder or playlist row: the tracks are loaded only if an item is picked. */
-      collectionMenu(title: string, load: (db: SQLiteDatabase) => Promise<Track[]>, extra: MenuItem[] = []) {
+      collectionMenu(title: string, load: (db: SQLiteDatabase) => Promise<Track[]>, extra: MenuItem[] = [], look: CollectionLook = {}) {
         const withTracks = (fn: (tracks: Track[]) => unknown) => () => {
           void load(db).then((tracks) => {
             if (tracks.length === 0) toast.show('No songs in there');
@@ -203,13 +220,16 @@ export function useTrackActions() {
         };
         showMenu({
           title,
+          message: look.subtitle,
+          artKey: look.artKey,
+          round: look.round,
           items: [
-            { label: 'Play', onPress: withTracks((t) => queue.replace(t, 0)) },
-            { label: 'Shuffle', onPress: withTracks((t) => queue.playShuffled(t)) },
-            { label: 'Play next', onPress: withTracks((t) => playNextIn(t)) },
-            { label: 'Add to queue', onPress: withTracks((t) => appendTo(t)) },
-            { label: 'Add to another queue…', onPress: withTracks((t) => chooseQueue(t)) },
-            { label: 'Add to playlist…', onPress: withTracks((t) => choosePlaylist(db, t)) },
+            { label: 'Play', icon: 'play.circle', onPress: withTracks((t) => queue.replace(t, 0)) },
+            { label: 'Shuffle', icon: 'shuffle', onPress: withTracks((t) => queue.playShuffled(t)) },
+            { label: 'Play next', icon: 'text.line.first.and.arrowtriangle.forward', onPress: withTracks((t) => playNextIn(t)) },
+            { label: 'Add to queue', icon: 'text.line.last.and.arrowtriangle.forward', onPress: withTracks((t) => appendTo(t)) },
+            { label: 'Add to another queue…', icon: 'rectangle.stack', onPress: withTracks((t) => chooseQueue(t)) },
+            { label: 'Add to playlist…', icon: 'plus.circle', onPress: withTracks((t) => choosePlaylist(db, t)) },
             ...extra,
           ],
         });
@@ -220,17 +240,18 @@ export function useTrackActions() {
         showMenu({
           title: `${songs(tracks.length)} selected`,
           items: [
-            { label: 'Play', onPress: () => void queue.replace(tracks, 0) },
-            { label: 'Shuffle', onPress: () => void queue.playShuffled(tracks) },
+            { label: 'Play', icon: 'play.circle', onPress: () => void queue.replace(tracks, 0) },
+            { label: 'Shuffle', icon: 'shuffle', onPress: () => void queue.playShuffled(tracks) },
             ...queueItems(tracks),
-            { label: 'Add to favorites', onPress: () => void setFavorites(db, tracks, true).then(() => toast.show(`Added ${songs(tracks.length)} to favorites`)) },
-            { label: 'Edit tags…', hidden: !canEditTags(), onPress: () => router.push(tagsHref(tracks)) },
+            { label: 'Add to favorites', icon: 'heart', onPress: () => void setFavorites(db, tracks, true).then(() => toast.show(`Added ${songs(tracks.length)} to favorites`)) },
+            { label: 'Edit tags…', icon: 'tag', hidden: !canEditTags(), onPress: () => router.push(tagsHref(tracks)) },
             ...extra,
             {
               label: 'Hide from library',
+              icon: 'eye.slash',
               onPress: () => void setTracksHidden(db, tracks, true).then(() => toast.show(`Hid ${songs(tracks.length)}`)),
             },
-            { label: 'Delete files…', destructive: true, onPress: () => void confirmDelete(db, tracks) },
+            { label: 'Delete files…', icon: 'trash', destructive: true, onPress: () => void confirmDelete(db, tracks) },
           ],
         });
       },

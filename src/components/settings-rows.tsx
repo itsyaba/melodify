@@ -57,7 +57,8 @@ export function ChoiceRow<K extends keyof Prefs>({
         showMenu({
           title,
           items: options.map((value) => ({
-            label: value === prefs[pref] ? `✓ ${label(value)}` : label(value),
+            label: label(value),
+            selected: value === prefs[pref],
             onPress: () => {
               setPref(pref, value);
               after?.(value);

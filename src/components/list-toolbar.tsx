@@ -87,7 +87,8 @@ export function ListToolbar<T extends string>({ summary, sort, find, onPlay, onS
               showMenu({
                 title: 'Sort by',
                 items: sort.options.map((o) => ({
-                  label: o.key === sort.value ? `✓ ${o.label}` : o.label,
+                  label: o.label,
+                  selected: o.key === sort.value,
                   onPress: () => sort.onChange(o.key),
                 })),
               })

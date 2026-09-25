@@ -277,6 +277,10 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       only in the library); a three-column grid for albums, artists, genres, composers and years;
       Spotify-style shortcut cards for Favorites, the auto playlists, Bookmarks and New playlist.
       Find in list is new. JS only, no new build needed
+- [ ] Menus as Spotify's sheet (2026-09-25): every `showMenu` opens a sheet from the bottom instead
+      of the iOS action sheet: grab handle, the song's or album's cover with its name and artist,
+      then a row per action with its icon, a check on the option in force. A tap outside or a pull
+      down closes it; an item runs once it is gone, so prompts and further sheets still open. JS only
 - [ ] Online lyrics (2026-09-25): a song with no `.lrc` and no embedded lyrics gets Search online
       in the lyrics view and the lyrics card. It asks LRCLIB (free, no key) for an exact match on
       title, artist and length, then searches, then searches again without "(feat. …)" or

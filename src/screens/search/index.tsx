@@ -183,14 +183,30 @@ export function SearchScreen() {
         return actions.trackMenu(item.track);
       case 'album': {
         const a = item.album;
-        return actions.collectionMenu(a.album, (d) => listAlbumTracks(d, a.album, a.album_artist));
+        return actions.collectionMenu(a.album, (d) => listAlbumTracks(d, a.album, a.album_artist), [], {
+          artKey: a.art_key,
+          subtitle: a.album_artist ?? undefined,
+        });
       }
-      case 'artist':
-        return actions.collectionMenu(item.artist.name, (d) => listGroupTracks(d, 'artist', item.artist.name));
-      case 'playlist':
-        return actions.collectionMenu(item.playlist.name, (d) => listPlaylistTracks(d, item.playlist.id));
+      case 'artist': {
+        const g = item.artist;
+        return actions.collectionMenu(g.name, (d) => listGroupTracks(d, 'artist', g.name), [], {
+          artKey: g.art_key,
+          round: true,
+          subtitle: formatCount(g.track_count, 'song'),
+        });
+      }
+      case 'playlist': {
+        const p = item.playlist;
+        return actions.collectionMenu(p.name, (d) => listPlaylistTracks(d, p.id), [], {
+          artKey: p.art_key,
+          subtitle: formatCount(p.track_count, 'song'),
+        });
+      }
       case 'folder':
-        return actions.collectionMenu(item.folder.name, (d) => listFolderTracksRecursive(d, item.folder.path));
+        return actions.collectionMenu(item.folder.name, (d) => listFolderTracksRecursive(d, item.folder.path), [], {
+          subtitle: item.folder.path,
+        });
     }
   };
 

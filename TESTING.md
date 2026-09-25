@@ -317,6 +317,30 @@ since the tabs themselves changed.
       artist on Discover cards, the chosen Library pill, and the labels of Settings › Scan now, the
       Restore button and the lyrics editor's Stamp line button (all were invisible before).
 
+## 13. Menus as Spotify's sheet
+
+JS only: a Metro refresh picks it up.
+
+- [ ] **Song menu** (⋯ or a long press on any song, in Library, Search, an album, a playlist, the
+      queue, the player's •••): a sheet slides up over a dimmed page, with a grab handle, the song's
+      cover, title and "artist • album", a line, then rows with an icon each: Play next, Add to
+      queue, Add to another queue, Add to playlist, Add to favorites (heart), Go to album / artist /
+      folder, Select, Details, Edit tags, Edit lyrics, Lyrics from LRCLIB, Share file, Hide, and
+      Delete file in red. A long list scrolls inside the sheet.
+- [ ] **Closing:** tap the dimmed page, or pull the sheet down by its handle or header; a short pull
+      springs back. Nothing runs.
+- [ ] **Items that open more:** Add to another queue and Add to playlist open a second sheet; New
+      playlist, Rename and the sleep timer's Custom ask with a prompt; Delete asks to confirm. All
+      appear after the first sheet has gone, never stuck behind it.
+- [ ] **Album, artist and playlist menus** show the cover (round for an artist) and a line under
+      the name; folder menus the path.
+- [ ] **Sort menus and settings pickers** mark the current choice with an accent check.
+- [ ] **In the player:** its ••• sheet opens over the player, and its own items (lyrics, sleep, A–B,
+      bookmarks, speed and sound, queue) carry their icons.
+- [ ] **Search with the keyboard up:** ⋯ on a result closes the keyboard and the sheet shows whole.
+- [ ] **Light theme:** white sheet, dark text; dark and black themes: the sheet a step lighter than
+      the page. Rotating while a sheet is open keeps it working.
+
 ## What to send back
 
 For anything that fails: the item's name, what you did, what happened instead, and any toast or

@@ -125,10 +125,12 @@ export function queueMenu(openQueue: () => void) {
     title: 'Playing from',
     items: [
       ...queues.map((q) => ({
-        label: `${q.id === activeId ? '✓ ' : ''}${q.name} · ${formatCount(q.tracks.length, 'song')}`,
+        label: `${q.name} · ${formatCount(q.tracks.length, 'song')}`,
+        icon: 'list.bullet' as const,
+        selected: q.id === activeId,
         onPress: () => void queue.switchTo(q.id),
       })),
-      { label: 'Open the queue', onPress: openQueue },
+      { label: 'Open the queue', icon: 'list.bullet.rectangle', onPress: openQueue },
     ],
   });
 }

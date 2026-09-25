@@ -4,6 +4,7 @@ import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { startAutoBackup } from '@/backup';
+import { MenuHost } from '@/components/menu-sheet';
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
@@ -70,6 +71,7 @@ export default function RootLayout() {
             <Stack.Screen name="lyrics/[id]" options={{ presentation: 'modal', title: 'Lyrics' }} />
           </Stack>
           <ToastHost />
+          <MenuHost />
         </SQLiteProvider>
       </Suspense>
     </ThemeProvider>

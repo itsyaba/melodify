@@ -150,23 +150,25 @@ export function QueueScreen() {
     const items: MenuItem[] = [
       {
         label: 'Play next',
+        icon: 'text.line.first.and.arrowtriangle.forward',
         hidden: index === viewed.currentIndex || index === viewed.currentIndex + 1,
         onPress: () => void queue.moveNext([index], viewed.id),
       },
-      { label: 'Move to top', hidden: index === 0, onPress: () => void queue.move(index, 0, viewed.id) },
-      { label: 'Move to bottom', hidden: index === tracks.length - 1, onPress: () => void queue.move(index, tracks.length - 1, viewed.id) },
-      { label: 'Add to another queue…', onPress: () => chooseQueue([track]) },
-      { label: 'Add to playlist…', onPress: () => void choosePlaylist(db, [track]) },
-      { label: 'Go to album', hidden: !track.album, onPress: () => router.push(albumHref(track.album!, track.album_artist ?? track.artist)) },
-      { label: 'Go to artist', hidden: !track.artist, onPress: () => router.push(groupHref('artist', track.artist!)) },
-      { label: 'Select', onPress: () => selection.start(index) },
+      { label: 'Move to top', icon: 'arrow.up.to.line', hidden: index === 0, onPress: () => void queue.move(index, 0, viewed.id) },
+      { label: 'Move to bottom', icon: 'arrow.down.to.line', hidden: index === tracks.length - 1, onPress: () => void queue.move(index, tracks.length - 1, viewed.id) },
+      { label: 'Add to another queue…', icon: 'rectangle.stack', onPress: () => chooseQueue([track]) },
+      { label: 'Add to playlist…', icon: 'plus.circle', onPress: () => void choosePlaylist(db, [track]) },
+      { label: 'Go to album', icon: 'opticaldisc', hidden: !track.album, onPress: () => router.push(albumHref(track.album!, track.album_artist ?? track.artist)) },
+      { label: 'Go to artist', icon: 'person', hidden: !track.artist, onPress: () => router.push(groupHref('artist', track.artist!)) },
+      { label: 'Select', icon: 'checkmark.circle', onPress: () => selection.start(index) },
       {
         label: 'Remove from queue',
+        icon: 'minus.circle',
         destructive: true,
         onPress: () => void queue.remove([index], viewed.id).then(() => undoToast(`Removed “${track.title}”`)),
       },
     ];
-    showMenu({ title: track.title, message: [track.artist, track.album].filter(Boolean).join(' — ') || undefined, items });
+    showMenu({ title: track.title, message: [track.artist, track.album].filter(Boolean).join(' • ') || undefined, artKey: track.art_key, items });
   };
 
   const tabs = queues.map((q) => ({

@@ -230,12 +230,16 @@ export function PlayerScreen() {
   // The shortcuts switched off still belong somewhere: the top of the menu, above the song's own
   // items, saying what is on. Details, playlists and sharing are in every song's menu already.
   const menuItem: Partial<Record<PlayerShortcut, MenuItem>> = {
-    lyrics: { label: showLyrics ? 'Hide lyrics' : 'Show lyrics', onPress: toggleLyrics },
-    sleep: { label: `${sleeping ?? 'Sleep timer'}…`, onPress: sleepMenu },
-    abRepeat: { label: loop ? 'A–B repeat: on…' : 'A–B repeat…', onPress: openAbMenu },
-    bookmark: { label: 'Bookmarks…', onPress: openBookmarks },
-    sound: { label: prefs.playbackRate !== 1 ? `Speed and sound: ${prefs.playbackRate}×` : 'Speed and sound', onPress: openSound },
-    queue: { label: 'Open the queue', onPress: openQueue },
+    lyrics: { label: showLyrics ? 'Hide lyrics' : 'Show lyrics', icon: SHORTCUTS.lyrics.icon, onPress: toggleLyrics },
+    sleep: { label: `${sleeping ?? 'Sleep timer'}…`, icon: SHORTCUTS.sleep.icon, onPress: sleepMenu },
+    abRepeat: { label: loop ? 'A–B repeat: on…' : 'A–B repeat…', icon: SHORTCUTS.abRepeat.icon, onPress: openAbMenu },
+    bookmark: { label: 'Bookmarks…', icon: SHORTCUTS.bookmark.icon, onPress: openBookmarks },
+    sound: {
+      label: prefs.playbackRate !== 1 ? `Speed and sound: ${prefs.playbackRate}×` : 'Speed and sound',
+      icon: SHORTCUTS.sound.icon,
+      onPress: openSound,
+    },
+    queue: { label: 'Open the queue', icon: SHORTCUTS.queue.icon, onPress: openQueue },
   };
   const moreMenu = () =>
     actions.trackMenu(track, {
@@ -243,8 +247,8 @@ export function PlayerScreen() {
       first: [
         ...(longForm
           ? [
-              { label: 'Shuffle the queue', hidden: tracks.length < 2, onPress: doShuffle },
-              { label: `Repeat: ${REPEAT_STATE[repeat]}`, onPress: doRepeat },
+              { label: 'Shuffle the queue', icon: 'shuffle' as const, hidden: tracks.length < 2, onPress: doShuffle },
+              { label: `Repeat: ${REPEAT_STATE[repeat]}`, icon: 'repeat' as const, onPress: doRepeat },
             ]
           : []),
         ...ALL_PLAYER_SHORTCUTS.filter((k) => !prefs.playerShortcuts.includes(k)).flatMap((k) => menuItem[k] ?? []),
