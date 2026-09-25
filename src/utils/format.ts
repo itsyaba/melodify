@@ -8,6 +8,15 @@ export function formatDuration(ms: number | null | undefined): string {
   return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
 }
 
+/** A library's length, the way Spotify writes a long total: "45 min", "3 hr 12 min", "74 hr". */
+export function formatTotalTime(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h >= 10 || m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
 export function formatCount(n: number, singular: string, plural = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : plural}`;
 }

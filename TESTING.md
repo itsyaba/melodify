@@ -33,11 +33,12 @@ Scan screen shows the first failure.
 
 - [ ] **After launch, songs show lengths and artwork** (in Songs and Albums). Songs with no art of
       their own show the Melodify cover, never a grey square.
-- [ ] **Settings › Import and scan** now opens with counts: songs, tags not read yet, without a
-      length, without artwork. After a minute all but the art-less should be 0.
-- [ ] **Scan now** finishes with "Tags read" above 0 and no "Unreadable tags". **If anything
-      fails, send the grey line under the counts**: it names the first file and the reason, which is
-      the clue to the bug. "Read every song's tags again" forces a full re-read if counts stay high.
+- [ ] **Settings › Import and scan › Library health** shows Tags, Lengths and Artwork, each with a
+      bar. After a minute all but Artwork should say Complete.
+- [ ] **Scan now** ends on a "Library up to date" card saying "tags read for N", with no "could not
+      be read" line. **If anything fails, send the small grey text on that card**: it names the
+      first file and the reason, which is the clue to the bug. "Read all tags again" (under Library
+      health) forces a full re-read if the bars stay short.
 - [ ] **FLAC files** in particular show title, artist, album and track numbers from their tags.
 - [ ] **Lock screen art** matches the app, including the Melodify cover for art-less songs.
 
@@ -350,19 +351,19 @@ nothing, and Import and scan says so under its buttons. Put a small test folder 
 three songs, a `cover.jpg`, an `.lrc` for one song, and a subfolder `CD2/` with one more song.
 
 - [ ] **Where it is:** Settings shows *Import and scan* where *Scan library* was, with the song count.
-      It opens with *Import a folder* and *Import songs* side by side (grey, accent text) above
-      *Scan now*, and a note about the Files app under them.
+      The page is described in section 14; *Import a folder* and *Import songs* are the two coloured
+      tiles under *Add music*.
 - [ ] **Empty library:** on a fresh install (or with every folder excluded), Library › Songs and
       Albums say "No songs yet" with an *Import music* button that opens Import and scan. The
       Folders tab's empty root points there too.
-- [ ] **Import a folder:** pick `Test Album`. "Looking through Test Album…", then "Importing Test
-      Album" with *Copied 1 of 4*, the song name, and *Stop importing*. Then a scan runs by itself,
-      and a toast says "Imported 4 songs". Folders shows `Test Album/` with `CD2/` inside; the
+- [ ] **Import a folder:** pick `Test Album`. A card near the top says "Looking through Test Album",
+      then "Importing Test Album", "1 of 4 songs" with a filling bar, the song name, and *Stop*. Then
+      a scan card runs by itself, and a toast says "Imported 4 songs". Folders shows `Test Album/` with `CD2/` inside; the
       album has its cover; the song with the `.lrc` shows those lyrics.
 - [ ] **Again:** import the same folder a second time. Nothing is copied: "All 4 songs were already
       imported". Add one more song to the folder in Files and import again: "Imported 1 song
       (4 already there)".
-- [ ] **Stop:** import a big folder and tap *Stop importing* partway. The toast says "Stopped after
+- [ ] **Stop:** import a big folder and tap *Stop* partway. The toast says "Stopped after
       importing N songs"; those N are in the library after the scan, none half-copied. Importing
       the folder again copies the rest.
 - [ ] **Leave while it runs:** start a folder import, go back to Settings and Home. The toast still
@@ -379,6 +380,31 @@ three songs, a `cover.jpg`, an `.lrc` for one song, and a subfolder `CD2/` with 
       itself or a folder in it. The toast says it was already there and scanned instead; nothing
       is duplicated.
 - [ ] **Cancel** either picker: nothing happens, no toast.
+
+## 14. The Spotify-style Import and scan page
+
+JS only: reload the app. Try it in the dark and light themes, and with a different accent.
+
+- [ ] **Top:** no stock iOS header. The accent colour washes down from behind the status bar and
+      fades out around *Add music*. A back chevron top left; swiping from the left edge also goes
+      back. Pull the page down: the colour reaches the top, no hard edge.
+- [ ] **Scrolling:** as the page goes up, the colour in the bar fades and "Import and scan" fades
+      in, centred, with a thin line under the bar. Scrolling back down reverses it.
+- [ ] **Hero:** "IMPORT AND SCAN" small above a big bold count ("1,234 songs", with a thousands
+      separator), then "86 albums · 210 artists · 74 hr · 12.4 GB". The count matches Library ›
+      Songs. An empty library says "No music yet" and points to the tiles below.
+- [ ] **Scan now** is an accent pill with a circular arrow. While a scan runs it reads "Scanning…"
+      with a spinner, and it, the tiles and the tag re-read are dimmed.
+- [ ] **Cards:** while scanning, a card goes "Looking for music" (files found), "Updating the
+      library", then "Reading tags and artwork" with a bar that fills (N of M songs). It ends as
+      "Library up to date" with what changed ("12 added · 3 updated · tags read for 15"), or
+      "Nothing new since the last scan". Leave and reopen the page mid-scan: the card is still there.
+- [ ] **Add music:** two tiles side by side, purple *Import a folder* with a tilted folder and green
+      *Import songs* with a tilted note, white text. A grey note under them, then a *Copy over
+      USB* card (and *Using LiveContainer?* when running there).
+- [ ] **Library health:** Tags, Lengths, Artwork, each with an icon, a thin accent bar and either
+      "N not read yet / unknown / without" or a check and "Complete". Then *Read all tags again*,
+      which asks first; tapping it while a scan runs says to wait.
 
 ## What to send back
 

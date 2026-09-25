@@ -173,6 +173,16 @@ function exclusive<T>(job: () => Promise<T>): Promise<T> {
  * rows still awaiting real tags have those guesses re-derived on each scan. On a build without
  * the tag reader the guesses are all there is.
  */
+let latestScan: ScanProgress | null = null;
+libraryEvents.on('scanProgress', (p) => {
+  latestScan = p;
+});
+
+/** The scan running now, if any, for a screen opened after it started. */
+export function runningScan(): ScanProgress | null {
+  return latestScan && latestScan.phase !== 'done' && latestScan.phase !== 'error' ? latestScan : null;
+}
+
 export function scanLibrary(db: SQLiteDatabase, opts: { rereadAll?: boolean } = {}): Promise<ScanProgress> {
   return exclusive(() => runScan(db, opts.rereadAll === true));
 }
@@ -302,9 +312,11 @@ async function runScan(db: SQLiteDatabase, rereadAll = false): Promise<ScanProgr
       // The index is complete at this point, so let the lists pick up new files now rather than
       // after every tag has been read.
       libraryEvents.emit('changed', undefined);
+      const pending = await pendingRows(db);
       progress.phase = 'tagging';
+      progress.toTag = pending.length;
       emit();
-      await tagPending(db, await pendingRows(db), found.folderArt, progress, emit);
+      await tagPending(db, pending, found.folderArt, progress, emit);
     }
 
     progress.phase = 'done';
@@ -339,6 +351,7 @@ export function readPendingTags(db: SQLiteDatabase): Promise<void> {
     try {
       const pending = await pendingRows(db);
       if (pending.length === 0) return;
+      progress.toTag = pending.length;
       emit();
       await tagPending(db, pending, null, progress, emit);
       progress.phase = 'done';

@@ -27,6 +27,8 @@ export interface ScanProgress {
   removed: number;
   /** Rows whose real tags have been read this run. */
   tagged: number;
+  /** How many rows the tagging phase reads, once it has started; `tagged` counts up to it. */
+  toTag?: number;
   /** Of those, how many the native reader could not parse; they keep their filename guesses. */
   tagFailed: number;
   /** The first of those failures, path and reason, so an unreadable library says why. */

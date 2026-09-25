@@ -47,6 +47,27 @@ export function countTracks(db: SQLiteDatabase): Promise<number> {
     .then((r) => r?.n ?? 0);
 }
 
+export interface LibraryOverview {
+  songs: number;
+  albums: number;
+  artists: number;
+  bytes: number;
+  durationMs: number;
+}
+
+/** What the library lists add up to, for the top of Import and scan. Albums group as `listAlbums` does. */
+export async function libraryOverview(db: SQLiteDatabase): Promise<LibraryOverview> {
+  const row = await db.getFirstAsync<LibraryOverview>(
+    `SELECT COUNT(*) AS songs,
+            COUNT(DISTINCT CASE WHEN album IS NOT NULL THEN album || char(0) || COALESCE(album_artist, artist, '') END) AS albums,
+            COUNT(DISTINCT artist) AS artists,
+            COALESCE(SUM(size), 0) AS bytes,
+            COALESCE(SUM(duration_ms), 0) AS durationMs
+     FROM tracks WHERE ${visible()}`,
+  );
+  return row ?? { songs: 0, albums: 0, artists: 0, bytes: 0, durationMs: 0 };
+}
+
 /**
  * The grouped views. Album artist falls back to the track artist, the same way albums are
  * grouped, so an untagged compilation still lands somewhere sensible.
