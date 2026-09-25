@@ -71,6 +71,8 @@ export type MelodifyAudioEvents = {
   remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
   /** Sent after the player has already paused or resumed for it; see `EngineEvents.routeChange`. */
   routeChange: (payload: { reason: string }) => void;
+  /** Since 0.9.0: a home screen quick action chosen while the app runs. */
+  shortcut: (payload: { type: string }) => void;
 };
 
 /** One file's tags as the Swift side reports them. Absent fields come back null. */
@@ -97,4 +99,12 @@ export interface NativeTrackTags {
   albumPeak?: number | null;
   /** Set when this one file failed; the rest of the batch still returns. */
   error: string | null;
+}
+
+/** Since 0.9.0. A home screen quick action; `symbol` is an SF Symbol name. */
+export interface NativeShortcut {
+  type: string;
+  title: string;
+  subtitle?: string | null;
+  symbol?: string | null;
 }

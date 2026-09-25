@@ -1,6 +1,13 @@
 {
-  "platforms": ["apple"],
+  "platforms": [
+    "apple"
+  ],
   "apple": {
-    "modules": ["MelodifyAudioModule"]
+    "modules": [
+      "MelodifyAudioModule"
+    ],
+    "appDelegateSubscribers": [
+      "MelodifyShortcutSubscriber"
+    ]
   }
 }

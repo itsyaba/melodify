@@ -11,6 +11,7 @@ import { startSound } from '@/player/sound';
 import { loadPrefs } from '@/prefs';
 import { readPendingTags } from '@/scan/scanner';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
+import { startQuickActions } from '@/utils/quick-actions';
 
 /**
  * Migrations first: the restore reads tables they create, and preferences before either. Unread
@@ -23,6 +24,7 @@ async function initDatabase(db: SQLiteDatabase) {
   // Before the queue loads its track, so speed, equalizer and gapless apply from the first note.
   startSound();
   await restoreQueue(db);
+  startQuickActions(db);
   void readPendingTags(db);
   startAutoBackup(db);
 }

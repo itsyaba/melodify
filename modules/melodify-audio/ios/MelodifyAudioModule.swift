@@ -54,6 +54,7 @@ internal struct TransitionRecord: Record {
 public class MelodifyAudioModule: Module {
   private let player = MelodifyPlayer()
   private let nowPlaying = MelodifyNowPlaying()
+  private var shortcutObserver: NSObjectProtocol?
 
   public func definition() -> ModuleDefinition {
     Name("MelodifyAudio")
@@ -61,19 +62,23 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.8.0" }
+    Constant("version") { "0.9.0" }
     // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
     Constant("tagVersion") { 2 }
 
-    Events("state", "position", "ended", "advanced", "remote", "routeChange", "error")
+    Events("state", "position", "ended", "advanced", "remote", "routeChange", "error", "shortcut")
 
     OnCreate {
       self.attachPlayerCallbacks()
+      self.observeShortcuts()
     }
 
     OnDestroy {
       self.player.teardown()
       self.nowPlaying.teardown()
+      if let observer = self.shortcutObserver {
+        NotificationCenter.default.removeObserver(observer)
+      }
     }
 
     AsyncFunction("load") { (uri: String, meta: NowPlayingMetaRecord, options: LoadOptionsRecord) in
@@ -192,6 +197,16 @@ public class MelodifyAudioModule: Module {
       return try MelodifyTagEditor.readAll(path: url.path)
     }
 
+    // Since 0.9.0: home screen quick actions. The one the app was launched with waits here until
+    // JS asks; ones chosen while it runs arrive as the `shortcut` event.
+    AsyncFunction("setShortcuts") { (items: [ShortcutRecord]) in
+      MelodifyShortcuts.set(items)
+    }
+
+    Function("takeLaunchShortcut") { () -> String? in
+      MelodifyShortcutCenter.shared.takePending()
+    }
+
     // Synchronous so the Settings diagnostic can read the engine without awaiting. The JS engine
     // does not call this; it tracks state from the `state` event instead.
     Function("getState") { () -> String in
@@ -228,6 +243,16 @@ public class MelodifyAudioModule: Module {
     // "next" means; deciding in two places is how the lock screen and the app drift apart.
     nowPlaying.onCommand = { [weak self] command in
       self?.emit("remote", command.payload)
+    }
+  }
+
+  /// Out of `OnCreate` for the same reason as `attachPlayerCallbacks`: a plain weak capture.
+  private func observeShortcuts() {
+    shortcutObserver = NotificationCenter.default.addObserver(
+      forName: MelodifyShortcutCenter.received, object: nil, queue: .main
+    ) { [weak self] note in
+      guard let type = note.userInfo?["type"] as? String else { return }
+      self?.sendEvent("shortcut", ["type": type])
     }
   }
 

@@ -9,6 +9,7 @@ import type {
   NativeNowPlayingMeta,
   NativeNowPlayingPatch,
   NativePosition,
+  NativeShortcut,
   NativeTrackTags,
   NativeTransition,
 } from './MelodifyAudio.types';
@@ -44,6 +45,10 @@ declare class MelodifyAudioModule
   setArtwork?(uri: string, imageUri: string | null): Promise<void>;
   /** Since 0.8.0: every property name to its values, plus `_pictures`, the embedded picture count. */
   readAllTags?(uri: string): Promise<Record<string, string[] | number>>;
+  /** Since 0.9.0: replaces the dynamic home screen quick actions. */
+  setShortcuts?(items: NativeShortcut[]): Promise<void>;
+  /** Since 0.9.0: the quick action the app was launched with, once; null after or without one. */
+  takeLaunchShortcut?(): string | null;
   /** Widened to string here; `src/player/native-engine.ts` narrows it to PlaybackState. */
   getState(): string;
 }
