@@ -7,13 +7,16 @@ import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
  * "Search online" for a song with no lyrics, and how that went. After a miss it offers "Search
  * for…", the user's own words, since the miss is usually the tags. The lyrics view centres it
  * under its "No lyrics"; the player's lyrics card lines it up at the start.
+ *
+ * `replacing`, under lyrics already shown, it is "Search LRCLIB" for others to choose from; how
+ * that goes is said in toasts, so a miss never sits under lyrics that are there.
  */
-export function LyricsSearch({ track, align = 'center' }: { track: Track; align?: 'center' | 'start' }) {
+export function LyricsSearch({ track, align = 'center', replacing = false }: { track: Track; align?: 'center' | 'start'; replacing?: boolean }) {
   const styles = useStyles();
   const colors = useTheme();
-  const { state, search, searchWords } = useLyricsSearch(track);
+  const { state, search, searchWords } = useLyricsSearch(track, !replacing);
   const alignItems = align === 'center' ? 'center' : 'flex-start';
-  const next = state.status === 'failed' ? state.next : 'search';
+  const next = state.status === 'failed' && !replacing ? state.next : 'search';
 
   if (state.status === 'searching') {
     return (
@@ -25,7 +28,7 @@ export function LyricsSearch({ track, align = 'center' }: { track: Track; align?
   }
   return (
     <View style={[styles.wrap, { alignItems }]}>
-      {state.status === 'failed' ? (
+      {state.status === 'failed' && !replacing ? (
         <Text style={[type.footnote, styles.muted, { textAlign: align === 'center' ? 'center' : 'left' }]} accessibilityLiveRegion="polite">
           {state.message}
         </Text>
@@ -36,13 +39,15 @@ export function LyricsSearch({ track, align = 'center' }: { track: Track; align?
           hitSlop={spacing.sm}
           accessibilityRole="button"
           accessibilityHint={
-            next === 'words'
+            replacing
+              ? 'Lists lyrics from LRCLIB to replace these with'
+              : next === 'words'
               ? 'Searches LRCLIB for words you type, and lets you choose the lyrics'
               : 'Looks the song up on LRCLIB and saves what it finds as a .lrc file beside it'
           }
           style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         >
-          <Text style={[type.subhead, styles.label]}>{next === 'words' ? 'Search for…' : next === 'retry' ? 'Try again' : 'Search online'}</Text>
+          <Text style={[type.subhead, styles.label]}>{replacing ? 'Search LRCLIB' : next === 'words' ? 'Search for…' : next === 'retry' ? 'Try again' : 'Search online'}</Text>
         </Pressable>
       ) : null}
     </View>

@@ -282,7 +282,10 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       on the phone: the title alone (held to the song's length) for artists the scanner guessed
       from a folder, "Artist - Title" titles as free text, first artist split on , & x too, one
       retry when LRCLIB is busy (its 503s are common), and after a miss the message names what
-      was searched and Search for… lists matches for typed words
+      was searched and Search for… lists matches for typed words. Then for songs that have
+      lyrics too: Search LRCLIB under them and Lyrics from LRCLIB… in every song's menu list
+      LRCLIB's matches (the song's length and synced first, then the nearest lengths); the pick
+      replaces the `.lrc`, which Undo writes back, or sits beside embedded lyrics, which stay
 
 ## Definition of done per phase
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findLyrics, lookups, pickLyrics, primaryArtist, rankRecords, searchLyrics, simplifyTitle, type LrclibRecord } from './online.ts';
+import { findChoices, findLyrics, lookups, pickLyrics, primaryArtist, rankRecords, searchLyrics, simplifyTitle, type LrclibRecord } from './online.ts';
 
 function record(over: Partial<LrclibRecord>): LrclibRecord {
   return {
@@ -174,4 +174,32 @@ test('a typed search goes to LRCLIB as free text', async () => {
   const { fn, urls } = fakeFetch({ '/search': [record({ plainLyrics: 'x' })] });
   assert.equal((await searchLyrics('  queen  bohemian ', null, fn)).length, 1);
   assert.deepEqual(urls, ['https://lrclib.net/api/search?q=queen%20bohemian']);
+});
+
+test('choices for replacing gather lookups until there are a few, the title-only ones held to the length', async () => {
+  const { fn, urls } = fakeFetch({
+    '/get': record({ trackName: 'exact', syncedLyrics: '[00:01.00]x' }),
+    '/search': (u: URL) =>
+      u.searchParams.get('artist_name')
+        ? [record({ trackName: 'by tags', plainLyrics: 'x' })]
+        : [record({ trackName: 'same length', duration: 201, plainLyrics: 'x' }), record({ trackName: 'too long', duration: 300, plainLyrics: 'x' })],
+  });
+  const choices = await findChoices({ title: 'Song (Live)', artist: 'A', duration_ms: 200_000 }, fn);
+  assert.deepEqual(choices.map((r) => r.trackName), ['exact', 'by tags', 'same length']);
+  assert.equal(urls.length, 4);
+});
+
+test('choices stop asking once there are enough', async () => {
+  const many = Array.from({ length: 6 }, (_, i) => record({ trackName: `take ${i}`, plainLyrics: 'x' }));
+  const { fn, urls } = fakeFetch({ '/search': many });
+  assert.equal((await findChoices({ title: 'Song', artist: 'A', duration_ms: 200_000 }, fn)).length, 6);
+  assert.equal(urls.length, 2);
+});
+
+test('among the rest, the nearest lengths come first', () => {
+  const ranked = rankRecords(
+    [record({ trackName: 'far', duration: 263, syncedLyrics: '[00:01.00]x' }), record({ trackName: 'near', duration: 208, syncedLyrics: '[00:01.00]x' })],
+    200_000,
+  );
+  assert.deepEqual(ranked.map((r) => r.trackName), ['near', 'far']);
 });

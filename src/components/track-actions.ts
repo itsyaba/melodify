@@ -4,6 +4,7 @@ import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
 import { addToPlaylist, createPlaylist, listPlaylists } from '@/db/playlists';
 import type { GroupKind } from '@/db/tracks';
 import type { Track } from '@/db/types';
+import { lyricsFromLrclib } from '@/hooks/use-lyrics-search';
 import { queue, queueSnapshot } from '@/player/queue-store';
 import { deleteTrackFiles, setFavorites, setTracksHidden, shareTrack } from '@/player/track-edits';
 import { getPrefs } from '@/prefs';
@@ -179,6 +180,7 @@ export function useTrackActions() {
             { label: 'Details', onPress: () => router.push({ pathname: '/track/[id]', params: { id: String(track.id) } }) },
             { label: 'Edit tags…', hidden: !canEditTags(), onPress: () => router.push(tagsHref([track])) },
             { label: 'Edit lyrics…', onPress: () => router.push({ pathname: '/lyrics/[id]', params: { id: String(track.id) } }) },
+            { label: 'Lyrics from LRCLIB…', onPress: () => void lyricsFromLrclib(db, track) },
             { label: 'Share file…', onPress: () => void shareTrack(track) },
             {
               label: track.hidden ? 'Show in library' : 'Hide from library',

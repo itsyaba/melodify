@@ -131,15 +131,18 @@ export function lyricsOf(record: LrclibRecord): { text: string; synced: boolean 
 
 /**
  * Search results worth offering to choose from: only those with lyrics, the song's length and
- * synced ones first, and the copies LRCLIB keeps of the same recording shown once.
+ * synced ones first, then the nearest lengths, and the copies LRCLIB keeps of the same recording
+ * shown once.
  */
 export function rankRecords(records: LrclibRecord[], durationMs: number | null): LrclibRecord[] {
   const score = (r: LrclibRecord) => (fits(r, durationMs) ? 0 : 2) + (r.syncedLyrics?.trim() ? 0 : 1);
+  const distance = (r: LrclibRecord) =>
+    durationMs === null || r.duration === null ? 0 : Math.abs(r.duration - durationMs / 1000);
   const seen = new Set<string>();
   return records
     .filter((r) => lyricsOf(r) !== null)
-    .map((r, i) => ({ r, i, s: score(r) }))
-    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .map((r, i) => ({ r, i, s: score(r), d: distance(r) }))
+    .sort((a, b) => a.s - b.s || a.d - b.d || a.i - b.i)
     .map(({ r }) => r)
     .filter((r) => {
       const key = `${r.trackName.toLowerCase()}\n${r.artistName.toLowerCase()}\n${Math.round(r.duration ?? 0)}\n${!!r.syncedLyrics}`;
@@ -173,15 +176,14 @@ async function call<T>(lookup: Pick<Lookup, 'path' | 'params'>, fetchFn: Fetch):
   }
 }
 
+type SongTags = Pick<Track, 'title' | 'artist' | 'duration_ms'>;
+
 /**
- * Runs the song's lookups in turn until one finds lyrics. A lookup LRCLIB answers with an error
- * is passed over for the next; if none of the rest finds anything that error is thrown, since the
- * lyrics may be there after all. No connection throws at once.
+ * Hands each of the song's lookups' records to `enough` in turn, until it says that will do. A
+ * lookup LRCLIB answers with an error is passed over for the next; if none of the rest is enough
+ * that error is thrown, since the lyrics may be there after all. No connection throws at once.
  */
-export async function findLyrics(
-  track: Pick<Track, 'title' | 'artist' | 'duration_ms'>,
-  fetchFn: Fetch = fetch,
-): Promise<OnlineLyrics> {
+async function walk(track: SongTags, fetchFn: Fetch, enough: (records: LrclibRecord[], lookup: Lookup) => boolean): Promise<void> {
   let failure: LrclibError | null = null;
   for (const lookup of lookups(track)) {
     let answer: LrclibRecord | LrclibRecord[] | null;
@@ -192,12 +194,35 @@ export async function findLyrics(
       failure ??= err;
       continue;
     }
-    const records = answer === null ? [] : Array.isArray(answer) ? answer : [answer];
-    const found = pickLyrics(records, track.duration_ms, lookup.strict);
-    if (found) return found;
+    if (enough(answer === null ? [] : Array.isArray(answer) ? answer : [answer], lookup)) return;
   }
   if (failure) throw failure;
-  return null;
+}
+
+/** The best lyrics for the song by its tags, from the first lookup that has any. */
+export async function findLyrics(track: SongTags, fetchFn: Fetch = fetch): Promise<OnlineLyrics> {
+  let found: OnlineLyrics = null;
+  await walk(track, fetchFn, (records, lookup) => {
+    found = pickLyrics(records, track.duration_ms, lookup.strict);
+    return found !== null;
+  });
+  return found;
+}
+
+/** Enough to choose from without asking LRCLIB more than it takes. */
+const ENOUGH_CHOICES = 5;
+
+/**
+ * Lyrics to choose from for the song by its tags, for replacing lyrics it already has: the same
+ * lookups, gathered until there are a few, ranked as for a typed search.
+ */
+export async function findChoices(track: SongTags, fetchFn: Fetch = fetch): Promise<LrclibRecord[]> {
+  const all: LrclibRecord[] = [];
+  await walk(track, fetchFn, (records, lookup) => {
+    all.push(...(lookup.strict ? records.filter((r) => fits(r, track.duration_ms)) : records));
+    return rankRecords(all, track.duration_ms).length >= ENOUGH_CHOICES;
+  });
+  return rankRecords(all, track.duration_ms);
 }
 
 /** LRCLIB's free-text search, for words the user typed, ranked for choosing from. */

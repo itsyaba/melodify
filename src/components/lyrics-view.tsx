@@ -99,7 +99,10 @@ export function LyricsView({ track, positionMs, onSeek }: { track: Track; positi
       }}
     >
       {body}
-      <Text style={[type.caption, styles.source]}>{lyrics.source === 'lrc' ? 'From the .lrc file' : 'From the file’s tags'}</Text>
+      <View style={styles.footer}>
+        <Text style={[type.caption, styles.source]}>{lyrics.source === 'lrc' ? 'From the .lrc file' : 'From the file’s tags'}</Text>
+        <LyricsSearch track={track} align="start" replacing />
+      </View>
     </ScrollView>
   );
 }
@@ -111,5 +114,6 @@ const useStyles = makeStyles((colors) => ({
   content: { gap: spacing.md, paddingVertical: spacing.lg },
   line: { fontWeight: '700' },
   plain: { color: colors.label, lineHeight: 26 },
-  source: { color: colors.tertiaryLabel, paddingTop: spacing.xl },
+  footer: { gap: spacing.md, paddingTop: spacing.xl, alignItems: 'flex-start' },
+  source: { color: colors.tertiaryLabel },
 }));

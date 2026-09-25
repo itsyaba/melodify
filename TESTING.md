@@ -234,6 +234,13 @@ first, then once in light.
       opens a prompt filled with the artist and title; edit the words, tap Search, and a list of
       matches appears (length and Synced shown). Picking one saves it like the automatic search.
       If a song you expected fails, write down the exact message here.
+- [ ] **Replacing lyrics:** on a song whose lyrics show, scroll to the end of them: Search LRCLIB
+      under "From the .lrc file" (or "From the file’s tags"). A toast says "Searching LRCLIB…",
+      then a sheet "Replace the lyrics with" lists matches (length, Synced) and Other words….
+      Picking one replaces them at once; the toast's Undo puts the old ones back (the old `.lrc`
+      text, or the embedded ones, which were never touched). Also from any song's ••• menu,
+      in the library too: Lyrics from LRCLIB…. A song with none gets the best match saved
+      straight away, as with Search online.
 - [ ] **Compact layout** keeps Up next in the top part and has no queue card below. **Edge** runs
       the artwork edge to edge. **Landscape** puts the controls beside the artwork, with the header.
 - [ ] **Blur off** (Settings › Appearance) gives a plain background; everything stays readable.
