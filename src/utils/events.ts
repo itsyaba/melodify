@@ -14,7 +14,7 @@ export class Emitter<Events extends object> {
   }
 }
 
-export const libraryEvents = new Emitter<{ changed: void; scanProgress: ScanProgress }>();
+export const libraryEvents = new Emitter<{ changed: void; scanProgress: ScanProgress; importProgress: ImportProgress }>();
 
 /** `focus`: put the cursor in the Search tab's field (its tab was tapped, or Home's field was). */
 export const searchEvents = new Emitter<{ focus: void }>();
@@ -31,5 +31,27 @@ export interface ScanProgress {
   tagFailed: number;
   /** The first of those failures, path and reason, so an unreadable library says why. */
   tagError?: string;
+  message?: string;
+}
+
+/** Songs copied in from the Files app; counts are songs only, not the covers and lyrics beside them. */
+export interface ImportProgress {
+  phase: 'finding' | 'copying' | 'done' | 'error';
+  /** Where they land, relative to Documents/. */
+  folder: string;
+  /** Songs to copy: picked, or found in the picked folder and not imported before. */
+  total: number;
+  copied: number;
+  /** Already in Melodify's folder from an earlier import, so not copied again. */
+  skipped: number;
+  failed: number;
+  /** In iCloud Drive but not downloaded to the phone, so they cannot be read. */
+  notDownloaded: number;
+  /** Picked files that are not a format Melodify plays. */
+  unsupported: number;
+  /** The song being copied. */
+  current?: string;
+  stopped?: boolean;
+  /** The first failure, or why the import could not start. */
   message?: string;
 }

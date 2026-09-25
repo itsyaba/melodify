@@ -12,7 +12,7 @@ definition of done needs each phase exercised on the phone before its rows turn 
 - [ ] **Right engine.** Settings › Audio engine should read `melodify-audio 0.9.2 (native-swift)` or
       newer. If it says "Fake engine", the IPA is too old and nothing below will play.
 - [ ] **Launch once and wait a minute.** The first launch of 0.7.0+ reads every song's tags once more
-      in the background (for ReplayGain). Settings › Scan library shows the progress.
+      in the background (for ReplayGain). Settings › Import and scan shows the progress.
 
 Handy test files, made on the computer with ffmpeg and copied over with the music:
 
@@ -33,7 +33,7 @@ Scan screen shows the first failure.
 
 - [ ] **After launch, songs show lengths and artwork** (in Songs and Albums). Songs with no art of
       their own show the Melodify cover, never a grey square.
-- [ ] **Settings › Scan library** now opens with counts: songs, tags not read yet, without a
+- [ ] **Settings › Import and scan** now opens with counts: songs, tags not read yet, without a
       length, without artwork. After a minute all but the art-less should be 0.
 - [ ] **Scan now** finishes with "Tags read" above 0 and no "Unreadable tags". **If anything
       fails, send the grey line under the counts**: it names the first file and the reason, which is
@@ -289,7 +289,7 @@ since the tabs themselves changed.
       the big white field ("What do you want to listen to?", dark text, white in light themes too
       with a thin edge and soft shadow). Scroll down: the greeting goes, the field stays pinned
       under the status bar.
-- [ ] **Gear** opens Settings inside Home, with a back button; Scan library, Backup and restore
+- [ ] **Gear** opens Settings inside Home, with a back button; Import and scan, Backup and restore
       and the rest open from there and come back. Settings › Tabs and views says Home and Library
       always stay.
 - [ ] **Discover something new** (Home): tall album covers with the album and artist on them,
@@ -340,6 +340,43 @@ JS only: a Metro refresh picks it up.
 - [ ] **Search with the keyboard up:** ⋯ on a result closes the keyboard and the sheet shows whole.
 - [ ] **Light theme:** white sheet, dark text; dark and black themes: the sheet a step lighter than
       the page. Rotating while a sheet is open keeps it working.
+
+## 13. Import from the Files app
+
+JS only: reload the app. Put a small test folder somewhere the Files app sees first: On My iPhone
+(outside Melodify's own folder), iCloud Drive, or a USB stick. Something like `Test Album/` with
+three songs, a `cover.jpg`, an `.lrc` for one song, and a subfolder `CD2/` with one more song.
+
+- [ ] **Where it is:** Settings shows *Import and scan* where *Scan library* was, with the song count.
+      It opens with *Import a folder* and *Import songs* side by side (grey, accent text) above
+      *Scan now*, and a note about the Files app under them.
+- [ ] **Empty library:** on a fresh install (or with every folder excluded), Library › Songs and
+      Albums say "No songs yet" with an *Import music* button that opens Import and scan. The
+      Folders tab's empty root points there too.
+- [ ] **Import a folder:** pick `Test Album`. "Looking through Test Album…", then "Importing Test
+      Album" with *Copied 1 of 4*, the song name, and *Stop importing*. Then a scan runs by itself,
+      and a toast says "Imported 4 songs". Folders shows `Test Album/` with `CD2/` inside; the
+      album has its cover; the song with the `.lrc` shows those lyrics.
+- [ ] **Again:** import the same folder a second time. Nothing is copied: "All 4 songs were already
+      imported". Add one more song to the folder in Files and import again: "Imported 1 song
+      (4 already there)".
+- [ ] **Stop:** import a big folder and tap *Stop importing* partway. The toast says "Stopped after
+      importing N songs"; those N are in the library after the scan, none half-copied. Importing
+      the folder again copies the rest.
+- [ ] **Leave while it runs:** start a folder import, go back to Settings and Home. The toast still
+      comes when it ends; going back into Import and scan shows where it got to.
+- [ ] **iCloud:** in iCloud Drive, a folder whose songs are not downloaded (cloud icon). Either they
+      are copied (iOS downloads them), or they are counted as "not downloaded from iCloud" with a
+      note to download the folder first. Say which happened.
+- [ ] **Import songs:** pick three songs at once (hold one, then tap others, or Select in the
+      picker). They land in Folders › `Imported/`, and the toast counts them. Pick the same three
+      again: "All 3 songs were already imported". FLAC files must be pickable, not greyed out.
+- [ ] **Not playable:** if the picker lets you choose an `.ogg` or a PDF, the toast says "not playable"
+      and nothing of it is copied.
+- [ ] **Melodify's own folder:** pick On My iPhone › Melodify (or LiveContainer's guest folder)
+      itself or a folder in it. The toast says it was already there and scanned instead; nothing
+      is duplicated.
+- [ ] **Cancel** either picker: nothing happens, no toast.
 
 ## What to send back
 

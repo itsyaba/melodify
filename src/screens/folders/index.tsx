@@ -110,7 +110,7 @@ export function FoldersScreen({ path }: { path: string }) {
         }
         empty={
           data && leading.length === 0 ? (
-            <EmptyState title="Empty folder" body={path === '' ? 'Scan your library from Settings.' : undefined} />
+            <EmptyState title="Empty folder" body={path === '' ? 'Import music in Settings › Import and scan.' : undefined} />
           ) : null
         }
       />

@@ -68,6 +68,7 @@ to double-check against the current Musicolet release.
 | Exclude folders | Blacklist folders from the library | JS | wip |
 | Hidden tracks | Hide individual tracks without deleting | JS | wip |
 | Rescan / custom scan folders | Choose scan roots, rescan on demand, don't depend on system media DB | JS | wip |
+| Import from Files | Settings › Import and scan copies songs, or a whole folder with its subfolders, covers and lyrics, in from the Files app (On My iPhone, iCloud Drive, USB drives), then scans. Importing a folder again copies only what is new. Android reads storage directly, so Musicolet has no such step | iOS≈ | wip |
 | Delete file from device | Remove the file, not just the DB entry | JS | wip |
 | Share track | Share the audio file with another app | JS | wip |
 | Set as ringtone | Android-only | N/A | skip |

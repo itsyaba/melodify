@@ -33,7 +33,7 @@ export default function SharedLayout({ segment }: { segment: string }) {
       <Stack.Screen name="auto/[kind]" options={{ headerLargeTitleEnabled: false }} />
       <Stack.Screen name="bookmarks" options={{ headerLargeTitleEnabled: false, title: 'Bookmarks' }} />
       <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
-      <Stack.Screen name="settings/scan" options={{ title: 'Scan library', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="settings/scan" options={{ title: 'Import and scan', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="settings/hidden" options={{ title: 'Hidden songs', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="settings/excluded" options={{ title: 'Excluded folders', headerLargeTitleEnabled: false }} />
       <Stack.Screen name="settings/tabs" options={{ title: 'Tabs and views', headerLargeTitleEnabled: false }} />

@@ -62,7 +62,7 @@ export function SettingsScreen() {
   return (
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section title="Library">
-        <ListRow title="Scan library" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/settings/scan')} />
+        <ListRow title="Import and scan" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/settings/scan')} />
         <ChoiceRow
           pref="minDurationMs"
           title="Hide short songs"

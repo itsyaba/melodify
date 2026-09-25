@@ -98,7 +98,15 @@ const LAYOUTS = [{ key: 'list' }, { key: 'grid' }] as const;
 type Layout = (typeof LAYOUTS)[number]['key'];
 
 const EMPTY_BODY =
-  'Connect the phone over USB and rsync your music into the Melodify folder, then run a scan from Settings.';
+  'Import songs or whole folders from the Files app, or copy music into the Melodify folder over USB and scan it.';
+
+/** An empty library, with the way to fill it. */
+function NoMusic({ title }: { title: string }) {
+  const router = useRouter();
+  return (
+    <EmptyState title={title} body={EMPTY_BODY} action={{ label: 'Import music', onPress: () => router.push('/settings/scan') }} />
+  );
+}
 const NO_TRACKS: Track[] = [];
 const NO_ALBUMS: AlbumSummary[] = [];
 const NO_GROUPS: GroupSummary[] = [];
@@ -216,7 +224,7 @@ function Songs({ chips }: ListProps) {
           ) : null}
         </>
       }
-      empty={query ? noMatches(query) : data ? <EmptyState title="No songs yet" body={EMPTY_BODY} /> : null}
+      empty={query ? noMatches(query) : data ? <NoMusic title="No songs yet" /> : null}
     />
   );
 }
@@ -259,7 +267,7 @@ function Albums({ chips }: ListProps) {
           />
         )
       }
-      ListEmptyComponent={query ? noMatches(query) : data ? <EmptyState title="No albums yet" body={EMPTY_BODY} /> : null}
+      ListEmptyComponent={query ? noMatches(query) : data ? <NoMusic title="No albums yet" /> : null}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"

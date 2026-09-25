@@ -32,6 +32,15 @@ engine the running build ended up with.
 
 ## How music gets onto the phone
 
+**From the phone.** Settings › Import and scan › *Import a folder* or *Import songs* opens the Files
+picker (On My iPhone, iCloud Drive, a USB drive, a server). A folder is copied into `Documents/`
+under its own name, subfolders, covers and `.lrc` files included; songs picked one by one go to
+`Documents/Imported/`. A scan follows. Importing the same folder again copies only files not there
+yet, and leaves the ones already imported alone (their tags may have been edited in the app).
+Download an iCloud Drive folder in Files first; songs still in the cloud are counted and skipped.
+
+**Over USB**, which is faster for a whole library:
+
 `app.json` sets `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, so the app's
 `Documents/` folder is writable over USB. Where that folder lives depends on how the app was installed.
 
