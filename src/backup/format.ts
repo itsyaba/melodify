@@ -27,6 +27,8 @@ export interface BackupTrack {
   lastPlayedAt?: number;
   resumeMs?: number;
   addedAt?: number;
+  /** The song's path in Musicolet (its `COL_PATH`), when it came from a Musicolet backup. */
+  android?: string;
 }
 
 export interface BackupPlaylist {
@@ -90,6 +92,15 @@ export interface BackupSource {
     last_played_at: number | null;
     resume_ms: number | null;
     added_at: number;
+    // Only for the Musicolet side of a backup, which keeps every tag (see musicolet.ts).
+    album_artist?: string | null;
+    genre?: string | null;
+    composer?: string | null;
+    year?: number | null;
+    track_no?: number | null;
+    mtime?: number;
+    /** Musicolet's path for the song, from the last Musicolet backup restored. */
+    android_uri?: string | null;
   }[];
   playlists: { id: number; name: string; created_at: number; updated_at: number }[];
   /** In position order within each playlist. */
@@ -119,24 +130,35 @@ export function buildBackup(source: BackupSource, reason: BackupReason, createdA
     if (t.last_played_at) out.lastPlayedAt = t.last_played_at;
     if (t.resume_ms) out.resumeMs = t.resume_ms;
     if (t.added_at) out.addedAt = t.added_at;
+    if (t.android_uri) out.android = t.android_uri;
     return out;
   });
   const indexOf = (id: number) => indexById.get(id);
+  // Rows by their list, in one pass: queues of thousands of songs, times twenty queues, add up.
+  const byOwner = <T>(rows: T[], owner: (row: T) => number) => {
+    const out = new Map<number, T[]>();
+    for (const row of rows) {
+      const list = out.get(owner(row));
+      if (list) list.push(row);
+      else out.set(owner(row), [row]);
+    }
+    return out;
+  };
+  const playlistRows = byOwner(source.playlistTracks, (pt) => pt.playlist_id);
+  const queueRows = byOwner(source.queueTracks, (qt) => qt.queue_id);
 
   const playlists = source.playlists.map((p): BackupPlaylist => ({
     name: p.name,
     createdAt: p.created_at,
     updatedAt: p.updated_at,
-    tracks: source.playlistTracks
-      .filter((pt) => pt.playlist_id === p.id)
-      .flatMap((pt) => {
-        const i = indexOf(pt.track_id);
-        return i === undefined ? [] : [i];
-      }),
+    tracks: (playlistRows.get(p.id) ?? []).flatMap((pt) => {
+      const i = indexOf(pt.track_id);
+      return i === undefined ? [] : [i];
+    }),
   }));
 
   const queues = source.queues.map((q): BackupQueue => {
-    const rows = source.queueTracks.filter((qt) => qt.queue_id === q.id);
+    const rows = queueRows.get(q.id) ?? [];
     const tracksOut: number[] = [];
     let currentIndex = -1;
     for (const row of rows) {
@@ -214,6 +236,7 @@ export function parseBackup(text: string): Backup {
     if (num(raw.lastPlayedAt)) t.lastPlayedAt = raw.lastPlayedAt as number;
     if (num(raw.resumeMs)) t.resumeMs = raw.resumeMs as number;
     if (num(raw.addedAt)) t.addedAt = raw.addedAt as number;
+    if (str(raw.android)) t.android = raw.android as string;
     remap.set(i, tracks.length);
     tracks.push(t);
   });

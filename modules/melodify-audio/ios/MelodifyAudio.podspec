@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name           = 'MelodifyAudio'
-  s.version        = '0.9.2'
+  s.version        = '0.10.0'
   s.summary        = 'AVAudioEngine playback for Melodify'
   s.description    = 'Background audio, lock screen, remote commands, gapless, crossfade, EQ and tag writing for Melodify.'
   s.author         = 'Yeabsira'

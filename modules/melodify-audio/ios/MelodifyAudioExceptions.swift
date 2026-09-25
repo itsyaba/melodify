@@ -17,3 +17,9 @@ internal final class AudioSessionException: GenericException<String>, @unchecked
     "Audio session could not be activated (\(param))"
   }
 }
+
+internal final class ArchiveException: GenericException<String>, @unchecked Sendable {
+  override var reason: String {
+    "Backup data could not be processed (\(param))"
+  }
+}

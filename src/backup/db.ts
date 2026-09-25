@@ -3,6 +3,7 @@ import { DEFAULT_QUEUE_ID } from '@/db/queues';
 import { getSetting, setSetting, type Settings } from '@/db/settings';
 import type { Backup, BackupSource } from './format';
 import { remapFolder, type LibraryTrack, type PathRule } from './match';
+import { EMPTY_CARRY, type CarriedFile, type MusicoletCarry, type SongRow } from './musicolet';
 
 /**
  * The database half of backup and restore. No file access and nothing from React Native, so the
@@ -13,7 +14,8 @@ import { remapFolder, type LibraryTrack, type PathRule } from './match';
 export async function collectBackupSource(db: SQLiteDatabase): Promise<BackupSource> {
   const tracks = await db.getAllAsync<BackupSource['tracks'][number]>(
     `SELECT id, path, title, artist, album, duration_ms, favorite, hidden, play_count, skip_count,
-            last_played_at, resume_ms, added_at
+            last_played_at, resume_ms, added_at, album_artist, genre, composer, year, track_no, mtime,
+            (SELECT uri FROM musicolet_songs m WHERE m.path = tracks.path LIMIT 1) AS android_uri
      FROM tracks ORDER BY path`,
   );
   const playlists = await db.getAllAsync<BackupSource['playlists'][number]>(
@@ -52,6 +54,21 @@ export async function collectBackupSource(db: SQLiteDatabase): Promise<BackupSou
   };
 }
 
+/** What was kept of the last Musicolet backup restored, for writing the next backup. */
+export async function collectMusicoletCarry(db: SQLiteDatabase): Promise<MusicoletCarry> {
+  const songs = await db.getAllAsync<{ uri: string; path: string | null; row: string }>(
+    'SELECT uri, path, row FROM musicolet_songs ORDER BY rowid',
+  );
+  const files = await db.getAllAsync<CarriedFile>(
+    'SELECT name, method, crc, size, data, md5 FROM musicolet_files ORDER BY name',
+  );
+  return {
+    songs: songs.map((s) => ({ uri: s.uri, path: s.path, row: JSON.parse(s.row) as SongRow })),
+    files,
+    meta: (await getSetting(db, 'musicolet')) ?? EMPTY_CARRY.meta,
+  };
+}
+
 /** What `matchTracks` needs to know about the library as it is now. */
 export function listLibraryForMatching(db: SQLiteDatabase): Promise<LibraryTrack[]> {
   return db.getAllAsync<LibraryTrack>('SELECT id, path, title, artist, album, duration_ms FROM tracks');
@@ -71,6 +88,9 @@ export interface RestoreCounts {
  * was matched to. Library songs the backup does not know are left as they are. Songs that were
  * not found drop out of the playlists and queues rather than failing the restore.
  *
+ * A zip backup's `carry`, Musicolet's side of it, replaces what was kept of the last one, with
+ * each of its songs tied to the library song it matched. A JSON backup has none, and leaves it.
+ *
  * On the main connection inside one transaction, so foreign keys hold and a failure part way
  * leaves the library as it was.
  */
@@ -79,6 +99,7 @@ export async function writeRestore(
   backup: Backup,
   ids: (number | null)[],
   rules: PathRule[],
+  carry?: MusicoletCarry,
 ): Promise<RestoreCounts> {
   const counts: RestoreCounts = { songs: 0, playlists: 0, playlistSongsMissing: 0, queues: 0, bookmarks: 0 };
   const idOf = (index: number) => ids[index] ?? null;
@@ -186,6 +207,34 @@ export async function writeRestore(
     if (choices) await setSetting(db, 'choices', choices);
     if (recentSearches) await setSetting(db, 'recentSearches', recentSearches);
     await setSetting(db, 'activeQueueId', activeId);
+
+    if (carry) {
+      await db.execAsync('DELETE FROM musicolet_songs; DELETE FROM musicolet_files;');
+      // A Musicolet song's library match, through the backed-up track that has its path.
+      const matched = new Map<string, number>();
+      backup.tracks.forEach((t, i) => {
+        const id = idOf(i);
+        if (t.android && id !== null) matched.set(t.android, id);
+      });
+      await db.runAsync(
+        `INSERT OR REPLACE INTO musicolet_songs (uri, path, row)
+         SELECT j.value ->> 'uri', t.path, j.value ->> 'row'
+         FROM json_each(?) j LEFT JOIN tracks t ON t.id = j.value ->> 'id'`,
+        JSON.stringify(carry.songs.map((s) => ({ uri: s.uri, id: matched.get(s.uri) ?? null, row: JSON.stringify(s.row) }))),
+      );
+      for (const f of carry.files) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO musicolet_files (name, method, crc, size, data, md5) VALUES (?, ?, ?, ?, ?, ?)',
+          f.name,
+          f.method,
+          f.crc,
+          f.size,
+          f.data,
+          f.md5,
+        );
+      }
+      await setSetting(db, 'musicolet', carry.meta);
+    }
   });
   return counts;
 }

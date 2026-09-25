@@ -185,6 +185,14 @@ and the bundle export; not yet on the phone. JS only: it runs on the 0.6.0 build
 - [ ] Auto backup
       (written: off, daily or weekly, default weekly, at launch and when the app goes to the
       background; the last five are kept)
+- [ ] Musicolet backups, both ways
+      (written: a backup is now Musicolet's own zip: Blowfish-encrypted members, md5 manifest,
+      `DB_SONGS_LOG`, `.mpl` playlists, `0.qstk` queues, with Melodify's JSON inside as
+      `melodify.json`. Restore takes Musicolet's zips, mapping `Storage/primary/…` paths into the
+      music folder. Musicolet-only members pass through to the next backup untouched. Checked
+      against a real Musicolet 6 backup: 8165 songs, 20 queues, 8 playlists. Module 0.10.0 does
+      the Blowfish, MD5, deflate and UTF-8 natively; on older builds JS does it, 20 to 40 times
+      slower, so there automatic backups stay JSON)
 
 ### Phase 6. Audio engine v2
 

@@ -155,8 +155,8 @@ to double-check against the current Musicolet release.
 
 | Feature | Description | iOS | Status |
 | --- | --- | --- | --- |
-| Backup | Export playlists, queues, favorites, play counts, bookmarks, settings to a file | JS | wip |
-| Restore | Import that file, matching tracks by path or tags | JS | wip |
+| Backup | Export playlists, queues, favorites, play counts, bookmarks, settings to a file. The file is a Musicolet backup (its zip, encryption and checksums), so Musicolet on Android restores it; Melodify's own data rides along inside, and what only Musicolet uses (its settings, play counts per week, month and year) is kept from the last Musicolet backup restored | JS | wip |
+| Restore | Import that file, matching tracks by path or tags. Restores Musicolet's own backups too: songs with their play counts, last played and resume points, favorites, playlists, all queues in play order, excluded folders and search history | JS | wip |
 | Playlist import / export | M3U / M3U8 in and out | JS | wip |
 | Auto backup | Periodic backup to a folder (verify) | JS | wip |
 | Path remapping on restore | Handle moved music folders when restoring | JS | wip |

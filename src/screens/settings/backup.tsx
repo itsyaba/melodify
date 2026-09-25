@@ -68,6 +68,7 @@ export function BackupScreen() {
   };
 
   const backUp = task(async () => {
+    toast.show('Backing up…');
     const file = await writeBackup(db, 'manual');
     toast.show(`Saved ${file.name}`, { label: 'Share', onPress: () => void shareFile(file.uri) });
   });
@@ -153,7 +154,7 @@ export function BackupScreen() {
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section
         title="Back up"
-        footer={`Backups go to ${BACKUP_DIR} in the music folder: playlists, queues, bookmarks, favorites, play counts, hidden songs, excluded folders and settings. The music itself is not copied.`}
+        footer={`Backups go to ${BACKUP_DIR} in the music folder: playlists, queues, bookmarks, favorites, play counts, hidden songs, excluded folders and settings. The music itself is not copied. They are in Musicolet’s format, so Musicolet on Android restores them too.`}
       >
         <ListRow title="Back up now" tinted trailing={null} onPress={() => void backUp()} />
         <ChoiceRow
@@ -165,7 +166,7 @@ export function BackupScreen() {
       </Section>
       <Section
         title="Restore"
-        footer="Restoring replaces playlists, queues, bookmarks and settings, and puts play counts and favorites back on the songs it finds. Songs whose folders moved are found by name. The current state is saved first."
+        footer="Restoring replaces playlists, queues, bookmarks and settings, and puts play counts and favorites back on the songs it finds. Songs whose folders moved are found by name. The current state is saved first. A backup made by Musicolet on Android restores here too: choose its .zip file."
       >
         {backups.map((b) => (
           <ListRow

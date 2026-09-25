@@ -62,7 +62,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.9.2" }
+    Constant("version") { "0.10.0" }
     // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
     Constant("tagVersion") { 2 }
 
@@ -205,6 +205,31 @@ public class MelodifyAudioModule: Module {
 
     Function("takeLaunchShortcut") { () -> String? in
       MelodifyShortcutCenter.shared.takePending()
+    }
+
+    // Since 0.10.0: the byte work of a backup, off the JS thread (src/backup/codec.ts).
+    AsyncFunction("blowfish") { (data: Data, key: Data, encrypt: Bool) throws -> Data in
+      try MelodifyArchive.blowfish(data, key: key, encrypt: encrypt)
+    }
+
+    AsyncFunction("md5") { (data: Data) -> String in
+      MelodifyArchive.md5(data)
+    }
+
+    AsyncFunction("utf8") { (data: Data) -> String in
+      MelodifyArchive.utf8(data)
+    }
+
+    AsyncFunction("crc32") { (data: Data) -> Double in
+      Double(MelodifyArchive.crc32(data))
+    }
+
+    AsyncFunction("deflate") { (data: Data) -> Data? in
+      MelodifyArchive.deflate(data)
+    }
+
+    AsyncFunction("inflate") { (data: Data, size: Int) throws -> Data in
+      try MelodifyArchive.inflate(data, size: size)
     }
 
     // Synchronous so the Settings diagnostic can read the engine without awaiting. The JS engine

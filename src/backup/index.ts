@@ -1,6 +1,6 @@
 import { AppState, Share } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
-import type { SQLiteDatabase } from 'expo-sqlite';
+import { deserializeDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { createPlaylist, listPlaylists, listPlaylistTracks, setPlaylistTracks } from '@/db/playlists';
 import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
@@ -8,10 +8,12 @@ import { forgetStoredChoices } from '@/hooks/use-stored-choice';
 import { detachQueues, reloadQueues } from '@/player/queue-store';
 import { getPrefs, loadPrefs } from '@/prefs';
 import { libraryEvents } from '@/utils/events';
-import { collectBackupSource, listLibraryForMatching, writeRestore, type RestoreCounts } from './db';
+import { collectBackupSource, collectMusicoletCarry, listLibraryForMatching, writeRestore, type RestoreCounts } from './db';
+import { jsCodec, nativeCodec, provesItself, type Codec, type NativeCodec } from './codec';
 import { buildBackup, parseBackup, type Backup, type BackupReason } from './format';
 import { fileNameForPlaylist, formatM3u, parseM3u, PathIndex, playlistNameFromFile, resolveEntry } from './m3u';
 import { matchTracks, type MatchResult, type PathRule } from './match';
+import { readBackupZip, writeBackupZip, type MusicoletCarry, type SongRow, type SqliteFiles } from './musicolet';
 
 /**
  * Backups and exported playlists live in the music folder itself, under `Melodify/`, so they
@@ -39,10 +41,56 @@ function stamp(at: number): string {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}`;
 }
 
-function writeText(file: File, text: string) {
+function writeText(file: File, text: string | Uint8Array) {
   if (!file.exists) file.create({ intermediates: true });
   file.write(text);
 }
+
+let codec: Promise<Codec> | null = null;
+
+/**
+ * The native module's codec from 0.10.0, once it has given the right answers; JS before that,
+ * which works the same but takes many times as long and holds the JS thread meanwhile.
+ */
+export function backupCodec(): Promise<Codec> {
+  codec ??= (async () => {
+    try {
+      const mod = require('../../modules/melodify-audio/src/MelodifyAudioModule').default as Partial<NativeCodec> | undefined;
+      const fns = ['blowfish', 'md5', 'utf8', 'crc32', 'deflate', 'inflate'] as const;
+      if (mod && fns.every((f) => typeof mod[f] === 'function')) {
+        const native = nativeCodec(mod as NativeCodec);
+        if (await provesItself(native)) return native;
+        console.warn('[melodify] the native backup codec gave wrong answers; backups use JS');
+      }
+    } catch (err) {
+      console.warn('[melodify] no native backup codec:', err);
+    }
+    return jsCodec;
+  })();
+  return codec;
+}
+
+/** Musicolet's SQLite files, opened from and made into bytes in memory. */
+const sqliteFiles: SqliteFiles = {
+  async rows(file, sql) {
+    // A copy: `file` may be a view into a larger buffer.
+    const db = await deserializeDatabaseAsync(file.slice());
+    try {
+      return await db.getAllAsync<SongRow>(sql);
+    } finally {
+      await db.closeAsync();
+    }
+  },
+  async build(statements) {
+    const db = await openDatabaseAsync(':memory:');
+    try {
+      for (const s of statements) await db.runAsync(s.sql, s.params ?? []);
+      return await db.serializeAsync();
+    } finally {
+      await db.closeAsync();
+    }
+  },
+};
 
 export interface BackupFile {
   uri: string;
@@ -59,15 +107,25 @@ function reasonOf(name: string): BackupReason {
 }
 
 /**
- * Writes a backup of the library as it is now. Goes through `serial`, so pending queue saves land
- * first. Automatic and before-restore backups beyond the last few are deleted, except `keep`.
+ * Writes a backup of the library as it is now, as a zip that Musicolet restores too (see
+ * `musicolet.ts`). Goes through `serial`, so pending queue saves land first. Automatic and
+ * before-restore backups beyond the last few are deleted, except `keep`.
+ *
+ * On a build without the native codec, a zip of a big library takes the better part of a minute
+ * with the JS thread held throughout. There only Back up now writes one; automatic backups and
+ * safety copies stay Melodify's JSON, which restores the same in Melodify.
  */
 export async function writeBackup(db: SQLiteDatabase, reason: BackupReason, keep?: string): Promise<BackupFile> {
-  const source = await serial(() => collectBackupSource(db));
+  const codec = await backupCodec();
+  const asZip = reason === 'manual' || codec !== jsCodec;
+  const { source, carry } = await serial(async () => ({
+    source: await collectBackupSource(db),
+    carry: asZip ? await collectMusicoletCarry(db) : null,
+  }));
   const backup = buildBackup(source, reason);
-  const name = `${PREFIX[reason]}${stamp(backup.createdAt)}.json`;
+  const name = `${PREFIX[reason]}${stamp(backup.createdAt)}.${carry ? 'zip' : 'json'}`;
   const file = new File(folder(BACKUP_DIR), name);
-  writeText(file, JSON.stringify(backup));
+  writeText(file, carry ? await writeBackupZip(source, backup, carry, sqliteFiles, codec) : JSON.stringify(backup));
   if (reason !== 'manual') prune(reason, keep);
   return { uri: file.uri, name, size: file.size, modified: backup.createdAt, reason };
 }
@@ -79,7 +137,7 @@ export function listBackups(): BackupFile[] {
   return dir
     .list()
     .flatMap((entry) =>
-      entry instanceof File && entry.name.toLowerCase().endsWith('.json')
+      entry instanceof File && /\.(zip|json)$/i.test(entry.name)
         ? [{ uri: entry.uri, name: entry.name, size: entry.size, modified: entry.modificationTime ?? 0, reason: reasonOf(entry.name) }]
         : [],
     )
@@ -104,9 +162,21 @@ export async function shareFile(uri: string): Promise<void> {
   await Share.share({ url: uri });
 }
 
-/** Reads and checks a backup file. Throws `BackupError` with a message fit to show. */
-export async function readBackup(uri: string): Promise<Backup> {
-  return parseBackup(await new File(uri).text());
+export interface LoadedBackup {
+  backup: Backup;
+  from: 'melodify' | 'musicolet';
+  /** Musicolet's side of a zip backup; an older JSON backup has none. */
+  carry?: MusicoletCarry;
+}
+
+/**
+ * Reads and checks a backup file: a zip from Melodify or Musicolet, or an older Melodify JSON
+ * backup. Throws `BackupError` with a message fit to show.
+ */
+export async function readBackup(uri: string): Promise<LoadedBackup> {
+  const bytes = await new File(uri).bytes();
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) return readBackupZip(bytes, sqliteFiles, await backupCodec());
+  return { backup: parseBackup(await (await backupCodec()).text(bytes)), from: 'melodify' };
 }
 
 /** Lets the user pick a file from anywhere the Files app can see. Null when cancelled. */
@@ -114,7 +184,7 @@ export async function pickFile(kind: 'backup' | 'playlist'): Promise<{ uri: stri
   // Unknown types are dropped by the picker; M3U is registered under several, and as plain text.
   const mimeTypes =
     kind === 'backup'
-      ? ['application/json']
+      ? ['application/zip', 'application/x-zip-compressed', 'application/json']
       : ['audio/x-mpegurl', 'audio/mpegurl', 'application/vnd.apple.mpegurl', 'application/x-mpegurl', 'text/*'];
   const picked = await File.pickFileAsync({ mimeTypes });
   if (picked.canceled) return null;
@@ -132,7 +202,7 @@ export async function planRestore(db: SQLiteDatabase, backup: Backup, rules: Pat
  */
 export async function restoreBackup(
   db: SQLiteDatabase,
-  backup: Backup,
+  { backup, carry }: LoadedBackup,
   match: MatchResult,
   rules: PathRule[],
   sourceUri?: string,
@@ -142,7 +212,7 @@ export async function restoreBackup(
   // Nothing from the old queues may be saved over the restored ones, before or after the write.
   await detachQueues();
   try {
-    return await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules]));
+    return await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules], carry));
   } finally {
     await loadPrefs(db);
     forgetStoredChoices();

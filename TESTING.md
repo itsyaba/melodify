@@ -112,8 +112,9 @@ Scan screen shows the first failure.
 
 ## 6. Phase 5: backup and restore
 
-- [ ] **Back up now** (Settings › Backup and restore): a file appears in the list and in
-      `Documents/Melodify/Backups/` (check over ifuse or Files). Share works.
+- [ ] **Back up now** (Settings › Backup and restore): a `.zip` appears in the list and in
+      `Documents/Melodify/Backups/` (check over ifuse or Files). Share works. Older `.json` backups
+      still list and restore.
 - [ ] **Restore onto the same library:** change some things (delete a playlist, favorite a song),
       restore the backup: the screen shows "Found N of N", and after Restore the playlist and old
       favorites are back, queues restored, playback stopped. A "Saved before a restore" backup appears.
@@ -405,6 +406,31 @@ JS only: reload the app. Try it in the dark and light themes, and with a differe
 - [ ] **Library health:** Tags, Lengths, Artwork, each with an icon, a thin accent bar and either
       "N not read yet / unknown / without" or a check and "Complete". Then *Read all tags again*,
       which asks first; tapping it while a scan runs says to wait.
+
+## 15. Musicolet backups
+
+Needs the 0.10.0 build (Settings › Audio engine says 0.10.0) to be quick: it does the decryption,
+checksums and compression natively. On an older build the same works, in JS, but a big library
+takes most of a minute and the app is frozen meanwhile. Copy a Musicolet backup `.zip` somewhere
+Files sees (or into the music folder over USB). Note roughly how long each step takes.
+
+- [ ] **Restore a Musicolet backup:** Settings › Backup and restore › Choose a backup file…, pick
+      the zip. The screen says "Musicolet backup" under the date, then counts songs, favorites,
+      playlists and queues. "Found N of M": songs whose Android folders sit elsewhere on the iPhone
+      show under Folders that moved; tap a Not found folder to point it.
+- [ ] **After Restore:** the 8 playlists with their songs in Musicolet's order; favorites; play
+      counts (Library › sort by most played); the 20 queues, each on its current song at its
+      position; Queue L playing (was the active one). Compare Queue L's order and current song with
+      Musicolet's: if they differ, the shuffle order was read the wrong way round.
+- [ ] **Search** shows Musicolet's recent searches. Melodify's own settings (theme, tabs) did not
+      change.
+- [ ] **Automatic backups** on 0.10.0 are `.zip` too; on an older build they stay `.json`.
+- [ ] **Back up now** afterwards, then on the Android phone: copy that zip over, Musicolet ›
+      Settings › Backup › Restore, pick it. Musicolet should accept it and show the playlists,
+      favorites, queues and play counts; its own settings and equalizer come back as they were.
+      Note anything it rejects or loses, and whether songs added only on the iPhone show up.
+- [ ] **Back in Melodify:** restore a Melodify zip that Musicolet has not touched: bookmarks and
+      Melodify's settings come back too (they travel in `melodify.json`).
 
 ## What to send back
 

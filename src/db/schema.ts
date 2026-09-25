@@ -112,4 +112,24 @@ export const migrations: string[] = [
   ALTER TABLE tracks ADD COLUMN rg_album_peak REAL;
   ALTER TABLE tracks ADD COLUMN tag_version INTEGER NOT NULL DEFAULT 1;
   `,
+
+  // v3: what a restored Musicolet backup had that Melodify has no place for, kept so that the next
+  // backup gives it back to Musicolet (see src/backup/musicolet.ts). Songs by Musicolet's own path,
+  // each with the library song it was matched to (by path, so a rescan keeps it), if any.
+  `
+  CREATE TABLE musicolet_songs (
+    uri TEXT PRIMARY KEY,               -- Musicolet's COL_PATH
+    path TEXT,                          -- tracks.path it was matched to, NULL when none was
+    row TEXT NOT NULL                   -- JSON: the rest of Musicolet's TABLE_SONGS row
+  );
+  CREATE INDEX musicolet_songs_path ON musicolet_songs(path);
+  CREATE TABLE musicolet_files (
+    name TEXT PRIMARY KEY,              -- zip member: PP, USP, DB_BDN, PCs_Y_2025, ...
+    method INTEGER NOT NULL,            -- zip compression: 0 stored, 8 deflated
+    crc INTEGER NOT NULL,               -- zip CRC-32 of the uncompressed bytes
+    size INTEGER NOT NULL,              -- uncompressed
+    data BLOB NOT NULL,                 -- as it was in the zip: compressed, still encrypted
+    md5 TEXT NOT NULL                   -- of the decrypted contents, for the manifest
+  );
+  `,
 ];

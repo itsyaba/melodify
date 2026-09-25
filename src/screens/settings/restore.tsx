@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { planRestore, readBackup, restoreBackup } from '@/backup';
-import { summarize, type Backup } from '@/backup/format';
+import { planRestore, readBackup, restoreBackup, type LoadedBackup } from '@/backup';
+import { summarize } from '@/backup/format';
 import type { MatchResult, PathRule } from '@/backup/match';
 import { IconTile } from '@/components/icon-tile';
 import { ListRow } from '@/components/list-row';
@@ -23,14 +23,15 @@ function folderLabel(folder: string): string {
 /**
  * A backup, what restoring it would bring back, and how many of its songs were found in the
  * library as it is now. Folders whose songs were not found can be pointed at their new place,
- * which runs the matching again before anything is written.
+ * which runs the matching again before anything is written. Musicolet's backups restore here
+ * too; their songs are found the same way, from the paths they had on the Android phone.
  */
 export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
   const styles = useStyles();
   const colors = useTheme();
   const db = useSQLiteContext();
   const router = useRouter();
-  const [backup, setBackup] = useState<Backup | null>(null);
+  const [loaded, setLoaded] = useState<LoadedBackup | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rules, setRules] = useState<PathRule[]>([]);
   const [match, setMatch] = useState<MatchResult | null>(null);
@@ -39,7 +40,7 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
   useEffect(() => {
     let cancelled = false;
     readBackup(uri).then(
-      (b) => !cancelled && setBackup(b),
+      (b) => !cancelled && setLoaded(b),
       (err: unknown) => !cancelled && setError(err instanceof Error ? err.message : String(err)),
     );
     return () => {
@@ -48,18 +49,18 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
   }, [uri]);
 
   useEffect(() => {
-    if (!backup) return;
+    if (!loaded) return;
     let cancelled = false;
     // The old match belongs to the old rules; nothing may be restored with it meanwhile.
     setMatch(null);
-    planRestore(db, backup, rules).then(
+    planRestore(db, loaded.backup, rules).then(
       (m) => !cancelled && setMatch(m),
       (err: unknown) => !cancelled && setError(err instanceof Error ? err.message : String(err)),
     );
     return () => {
       cancelled = true;
     };
-  }, [db, backup, rules]);
+  }, [db, loaded, rules]);
 
   if (error) {
     return (
@@ -69,7 +70,7 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
       </View>
     );
   }
-  if (!backup || !match) {
+  if (!loaded || !match) {
     return (
       <View style={[styles.root, styles.center]}>
         <ActivityIndicator />
@@ -77,6 +78,8 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
     );
   }
 
+  const { backup } = loaded;
+  const fromMusicolet = loaded.from === 'musicolet';
   const summary = summarize(backup);
   const found = match.exact + match.remapped + match.byTags;
 
@@ -93,13 +96,15 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
   const restore = async () => {
     const ok = await confirm(
       'Restore this backup?',
-      `Your playlists, queues, bookmarks and settings are replaced with the backup’s, and play counts and favorites go back on ${formatCount(found, 'song')}. What is there now is saved as a backup first. Playback stops.`,
+      fromMusicolet
+        ? `Your playlists, queues, bookmarks, excluded folders and recent searches are replaced with Musicolet’s, and play counts and favorites go back on ${formatCount(found, 'song')}. Melodify’s own settings stay. What is there now is saved as a backup first. Playback stops.`
+        : `Your playlists, queues, bookmarks and settings are replaced with the backup’s, and play counts and favorites go back on ${formatCount(found, 'song')}. What is there now is saved as a backup first. Playback stops.`,
       'Restore',
     );
     if (!ok) return;
     setRestoring(true);
     try {
-      const counts = await restoreBackup(db, backup, match, rules, uri);
+      const counts = await restoreBackup(db, loaded, match, rules, uri);
       toast.show(
         `Restored ${formatCount(counts.playlists, 'playlist')}, ${formatCount(counts.queues, 'queue')} and ${formatCount(counts.bookmarks, 'bookmark')}`,
       );
@@ -114,7 +119,9 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
         <Text style={[type.title, { color: colors.label, textAlign: 'center' }]}>{formatDate(backup.createdAt)}</Text>
-        <Text style={[type.footnote, { color: colors.secondaryLabel, textAlign: 'center' }]}>{name}</Text>
+        <Text style={[type.footnote, { color: colors.secondaryLabel, textAlign: 'center' }]}>
+          {fromMusicolet ? `Musicolet backup · ${name}` : name}
+        </Text>
       </View>
 
       <Section title="In this backup">
@@ -123,7 +130,7 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
         <Line label="Songs with plays" value={summary.played} />
         <Line label="Playlists" value={summary.playlists} />
         <Line label="Queues" value={summary.queues} />
-        <Line label="Bookmarks" value={summary.bookmarks} />
+        {fromMusicolet ? null : <Line label="Bookmarks" value={summary.bookmarks} />}
       </Section>
 
       <Section title={`Found ${found} of ${formatCount(summary.songs, 'song')}`}>

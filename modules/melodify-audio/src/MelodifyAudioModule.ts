@@ -49,6 +49,18 @@ declare class MelodifyAudioModule
   setShortcuts?(items: NativeShortcut[]): Promise<void>;
   /** Since 0.9.0: the quick action the app was launched with, once; null after or without one. */
   takeLaunchShortcut?(): string | null;
+  /** Since 0.10.0: Blowfish, ECB, PKCS5 padding. Rejects on bad padding. */
+  blowfish?(data: Uint8Array, key: Uint8Array, encrypt: boolean): Promise<Uint8Array>;
+  /** Since 0.10.0: lowercase hex. */
+  md5?(data: Uint8Array): Promise<string>;
+  /** Since 0.10.0: UTF-8 to a string, bad sequences as U+FFFD. */
+  utf8?(data: Uint8Array): Promise<string>;
+  /** Since 0.10.0: zip's CRC-32. */
+  crc32?(data: Uint8Array): Promise<number>;
+  /** Since 0.10.0: raw DEFLATE, or null when it would not come out smaller. */
+  deflate?(data: Uint8Array): Promise<Uint8Array | null>;
+  /** Since 0.10.0: raw DEFLATE back to `size` bytes. Rejects when it does not come out so. */
+  inflate?(data: Uint8Array, size: number): Promise<Uint8Array>;
   /** Widened to string here; `src/player/native-engine.ts` narrows it to PlaybackState. */
   getState(): string;
 }

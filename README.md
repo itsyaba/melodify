@@ -141,7 +141,7 @@ src/
   components/   shared UI: track-list (tap, long-press menu, multi-select), reorderable-list
                 (drag and swipe), track-actions (queue and playlist menus), menus (action
                 sheets, prompts), toast (with undo), chips, list-toolbar, rows, mini-player
-  backup/       backup file format, restore matching (moved folders), M3U, and the file side
+  backup/       Musicolet-format backups, restore matching (moved folders), M3U, the file side
   db/           schema + migrations, typed queries, playlists, settings, a serial write chain
   scan/         Documents/ walker, filename-based tag guesses, native tag reading (+ tests)
   tags/         tag editor fields and writes through TagLib, lyrics saving
@@ -169,9 +169,10 @@ screens work on the device as of 2026-09-23; tag reading, interruption handling 
 queue on launch are written and waiting for a device test. Phase 2 (multiple queues, queue editing
 with undo, playlists, grouped library views, multi-select, search), Phase 3 (bookmarks, sleep timer,
 lyrics, play counts, favorites, song details, hiding and deleting) and Phase 4 (themes, accents,
-player layouts, custom tabs, density, rotation) and Phase 5 (backup, restore onto a moved library,
-M3U import and export, automatic backups), Phase 6 (gapless, crossfade, equalizer, speed and pitch,
-ReplayGain) and Phase 7 (tag, artwork and lyrics editing) are written and waiting for the same.
+player layouts, custom tabs, density, rotation) and Phase 5 (backup in Musicolet's format both ways,
+restore onto a moved library, M3U import and export, automatic backups), Phase 6 (gapless, crossfade,
+equalizer, speed and pitch, ReplayGain) and Phase 7 (tag, artwork and lyrics editing) are written and
+waiting for the same.
 
 ## License
 

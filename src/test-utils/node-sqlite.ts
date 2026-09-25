@@ -118,3 +118,25 @@ export function insertTrack(
   );
   return row.id as number;
 }
+
+/** `SqliteFiles` over Node's SQLite, as the app's is over expo-sqlite. */
+export const nodeSqliteFiles = {
+  async rows(file: Uint8Array, sql: string) {
+    const db = new DatabaseSync(':memory:');
+    try {
+      db.deserialize(file);
+      return db.prepare(sql).all().map((row) => ({ ...row })) as Record<string, string | number | null>[];
+    } finally {
+      db.close();
+    }
+  },
+  async build(statements: { sql: string; params?: (string | number | null)[] }[]) {
+    const db = new DatabaseSync(':memory:');
+    try {
+      for (const s of statements) db.prepare(s.sql).run(...(s.params ?? []));
+      return db.serialize();
+    } finally {
+      db.close();
+    }
+  },
+};

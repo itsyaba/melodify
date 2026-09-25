@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { MusicoletMeta } from '@/backup/musicolet';
 import type { Prefs } from '@/prefs';
 
 /**
@@ -16,6 +17,8 @@ export interface Settings {
   prefs: Partial<Prefs>;
   /** When the last automatic backup was written, ms since epoch. */
   lastAutoBackupAt: number;
+  /** From the last Musicolet backup restored, to write the same back (see src/backup/musicolet.ts). */
+  musicolet: MusicoletMeta;
 }
 
 export const RECENT_SEARCHES = 12;
