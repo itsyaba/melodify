@@ -60,7 +60,9 @@ function palette(theme: ThemeName, accent: AccentName): Palette {
     tint: ios(ACCENTS[accent].ios, ACCENTS[accent].hex),
     fill: ios('systemFill', '#78788033'),
     destructive: ios('systemRed', '#ff3b30'),
-    onTint: ios('white', '#ffffff'),
+    // A plain hex, not PlatformColor('white'): React Native only knows the semantic names in its own
+    // table, and resolves any other (such as "white") to clear, so text in this color vanished.
+    onTint: '#ffffff',
     shadow: 'rgba(0, 0, 0, 0.4)',
   };
   if (theme === 'dark') {

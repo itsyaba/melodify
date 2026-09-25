@@ -302,6 +302,9 @@ tapping the Search tab opened the Library page.
 - [ ] **Suggestions:** after searching "fun we are young" once (press Search on the keyboard, or
       open a result), typing "we are" lists it above the results with ↖; tapping fills the field.
 - [ ] **Shortcut:** holding the app icon › Search opens straight into search mode with the keyboard.
+- [ ] **White text on colour** shows, in light and dark: the Browse all tile names, the album and
+      artist on Discover cards, the chosen Library pill, and the labels of Settings › Scan now, the
+      Restore button and the lyrics editor's Stamp line button (all were invisible before).
 
 ## What to send back
 
