@@ -89,8 +89,11 @@ export class NativeEngine implements PlayerEngine {
       const command = toRemoteCommand(payload);
       if (command) this.events.emit('remote', command);
     });
-    Native.addListener('routeChange', ({ reason }) => {
-      this.events.emit('routeChange', { reason: toRouteReason(reason) });
+    Native.addListener('routeChange', ({ reason, wasPlaying }) => {
+      this.events.emit('routeChange', {
+        reason: toRouteReason(reason),
+        ...(typeof wasPlaying === 'boolean' ? { wasPlaying } : {}),
+      });
     });
   }
 

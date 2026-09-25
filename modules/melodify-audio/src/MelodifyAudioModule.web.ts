@@ -16,7 +16,7 @@ import type {
 /** No audio on web; `src/player` falls back to FakeEngine there. */
 class MelodifyAudioModule extends NativeModule<MelodifyAudioEvents> {
   implementation = 'web-stub';
-  version = '0.9.1';
+  version = '0.9.2';
 
   async load(_uri: string, _meta: NativeNowPlayingMeta, _options: NativeLoadOptions): Promise<void> {}
   async updateNowPlaying(_meta: NativeNowPlayingPatch): Promise<void> {}

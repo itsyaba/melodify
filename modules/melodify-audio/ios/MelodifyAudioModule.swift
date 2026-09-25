@@ -62,7 +62,7 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.9.1" }
+    Constant("version") { "0.9.2" }
     // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
     Constant("tagVersion") { 2 }
 
@@ -236,8 +236,8 @@ public class MelodifyAudioModule: Module {
     player.onNowPlaying = { [weak self] state, position in
       self?.nowPlaying.update(state: state, position: position)
     }
-    player.onRouteChange = { [weak self] event in
-      self?.emit("routeChange", ["reason": event.rawValue])
+    player.onRouteChange = { [weak self] event, wasPlaying in
+      self?.emit("routeChange", ["reason": event.rawValue, "wasPlaying": wasPlaying])
     }
     // Commands are not acted on here. They go to JS, where the queue store already knows what
     // "next" means; deciding in two places is how the lock screen and the app drift apart.

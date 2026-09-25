@@ -147,6 +147,11 @@ function remembersPosition(track: Track | undefined, durationMs = track?.duratio
  * quick second tap starts a load before the first has finished.
  */
 let loading = 0;
+/**
+ * Bumped by every load and part of every arming key, so an `advanced` the engine sent before a
+ * load (a tap on another song right at a track boundary) is recognised as stale when it arrives.
+ */
+let loadGeneration = 0;
 
 /**
  * Writes go through the shared serial chain: two overlapping transactions on one connection
@@ -219,7 +224,8 @@ function armNext(): void {
     if (next && i !== q.currentIndex) run(engine.preload(trackUri(next)));
     return;
   }
-  run(engine.setNext({ uri: trackUri(next), meta: nowPlayingMeta(next), gainDb: gainOf(next), key: `${q.id}:${i}:${next.id}` }));
+  const key = `${loadGeneration}:${q.id}:${i}:${next.id}`;
+  run(engine.setNext({ uri: trackUri(next), meta: nowPlayingMeta(next), gainDb: gainOf(next), key }));
 }
 
 /** For outside changes that affect what may be armed: the sleep timer, ReplayGain settings. */
@@ -233,6 +239,7 @@ async function loadIndex(index: number, opts: { autoplay?: boolean; startMs?: nu
   if (!track) return;
   const startMs = opts.startMs ?? startOf(track);
   counted = false;
+  loadGeneration += 1;
   updateQueue(q.id, { currentIndex: index });
   set({ positionMs: startMs, durationMs: track.duration_ms ?? 0 });
   savePosition(startMs);
@@ -613,7 +620,7 @@ export async function withTracksReleased<T>(ids: number[], write: () => Promise<
   const current = q.tracks[q.currentIndex];
   const holdsCurrent = current !== undefined && wanted.has(current.id);
   const wasPlaying = isPlaying();
-  const at = state.positionMs;
+  const at = resumeMs();
   await engine.setNext(null).catch(() => undefined);
   if (holdsCurrent) await engine.stop().catch(() => undefined);
   try {
@@ -622,6 +629,22 @@ export async function withTracksReleased<T>(ids: number[], write: () => Promise<
     if (holdsCurrent) await loadIndex(active().currentIndex, { autoplay: wasPlaying, startMs: at }).catch(() => undefined);
     else armNext();
   }
+}
+
+/** After the playing song's row changed (a tag edit): the lock screen shows the new tags. */
+export function refreshNowPlaying(): void {
+  const q = active();
+  const current = q.tracks[q.currentIndex];
+  if (current) engine.updateNowPlaying(nowPlayingMeta(current));
+}
+
+/**
+ * Before a restore rewrites the queue tables: stops playback and stops saving, so no position
+ * save from the old queues lands on top of the restored ones. `reloadQueues` turns saving back on.
+ */
+export async function detachQueues(): Promise<void> {
+  db = null;
+  await engine.stop().catch(() => undefined);
 }
 
 /**
@@ -705,9 +728,10 @@ engine.on('ended', () => run(onTrackEnded()));
  * starts music that was paused on purpose.
  */
 let pausedByUnplug = false;
-engine.on('routeChange', ({ reason }) => {
+engine.on('routeChange', ({ reason, wasPlaying }) => {
   if (reason === 'unplugged') {
-    pausedByUnplug = true;
+    // Only an unplug that stopped running music. A build that cannot say is taken as not.
+    pausedByUnplug = wasPlaying === true;
   } else if (reason === 'connected' && pausedByUnplug) {
     pausedByUnplug = false;
     if (getPrefs().resumeOnConnect && state.state === 'paused') run(engine.play());
@@ -723,14 +747,18 @@ engine.on('state', (s) => {
  * track after the old current one stands in, and failing that the queue moves on normally.
  */
 function onAdvanced(key: string) {
-  const [queueId, index, trackId] = key.split(':').map(Number);
+  const [generation, queueId, index, trackId] = key.split(':').map(Number);
+  // Sent before a load that has since replaced what was playing: the load decides.
+  if (loading > 0 || generation !== loadGeneration) return;
   const q = active();
   let at = queueId === q.id && q.tracks[index]?.id === trackId ? index : -1;
   if (at < 0) at = q.tracks.findIndex((t, i) => i > q.currentIndex && t.id === trackId);
   if (at < 0) at = q.tracks.findIndex((t) => t.id === trackId);
-  trackEndHook?.onEnd();
+  // Nothing is armed when the sleep timer would stop at this end, but an arming can lose the
+  // race with the timer being set; then it stops here, just after the change.
+  const stopHere = trackEndHook?.onEnd() === 'pause';
   if (at < 0) {
-    run(queue.next(false));
+    run(stopHere ? engine.pause() : queue.next(false));
     return;
   }
   const track = q.tracks[at];
@@ -738,6 +766,7 @@ function onAdvanced(key: string) {
   updateQueue(q.id, { currentIndex: at });
   set({ positionMs: 0, durationMs: track.duration_ms ?? 0 });
   savePosition(0);
+  if (stopHere) run(engine.pause());
   armNext();
 }
 

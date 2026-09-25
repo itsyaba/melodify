@@ -72,9 +72,10 @@ export interface EngineEvents {
    * - `interruptionEnded`: the engine resumed if iOS allows it and it was playing when the
    *   interruption began. Anything the user had paused stays paused.
    * - `connected`: new headphones; nothing happens on its own. Resume-on-plug is the queue's call.
-   * The resulting state changes arrive as ordinary `state` events.
+   * The resulting state changes arrive as ordinary `state` events, before this one, so
+   * `wasPlaying` says whether playback was running when it happened (absent before module 0.9.2).
    */
-  routeChange: { reason: RouteChangeReason };
+  routeChange: { reason: RouteChangeReason; wasPlaying?: boolean };
   error: { message: string };
 }
 

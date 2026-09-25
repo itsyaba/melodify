@@ -5,7 +5,7 @@ import { createPlaylist, listPlaylists, listPlaylistTracks, setPlaylistTracks } 
 import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
 import { forgetStoredChoices } from '@/hooks/use-stored-choice';
-import { reloadQueues } from '@/player/queue-store';
+import { detachQueues, reloadQueues } from '@/player/queue-store';
 import { getPrefs, loadPrefs } from '@/prefs';
 import { libraryEvents } from '@/utils/events';
 import { collectBackupSource, listLibraryForMatching, writeRestore, type RestoreCounts } from './db';
@@ -58,14 +58,17 @@ function reasonOf(name: string): BackupReason {
   return 'manual';
 }
 
-/** Writes a backup of the library as it is now. Goes through `serial`, so pending queue saves land first. */
-export async function writeBackup(db: SQLiteDatabase, reason: BackupReason): Promise<BackupFile> {
+/**
+ * Writes a backup of the library as it is now. Goes through `serial`, so pending queue saves land
+ * first. Automatic and before-restore backups beyond the last few are deleted, except `keep`.
+ */
+export async function writeBackup(db: SQLiteDatabase, reason: BackupReason, keep?: string): Promise<BackupFile> {
   const source = await serial(() => collectBackupSource(db));
   const backup = buildBackup(source, reason);
   const name = `${PREFIX[reason]}${stamp(backup.createdAt)}.json`;
   const file = new File(folder(BACKUP_DIR), name);
   writeText(file, JSON.stringify(backup));
-  if (reason !== 'manual') prune(reason);
+  if (reason !== 'manual') prune(reason, keep);
   return { uri: file.uri, name, size: file.size, modified: backup.createdAt, reason };
 }
 
@@ -83,8 +86,8 @@ export function listBackups(): BackupFile[] {
     .sort((a, b) => b.modified - a.modified || b.name.localeCompare(a.name));
 }
 
-function prune(reason: BackupReason) {
-  for (const old of listBackups().filter((b) => b.reason === reason).slice(KEEP)) {
+function prune(reason: BackupReason, keep?: string) {
+  for (const old of listBackups().filter((b) => b.reason === reason && b.uri !== keep).slice(KEEP)) {
     try {
       new File(old.uri).delete();
     } catch (err) {
@@ -132,14 +135,20 @@ export async function restoreBackup(
   backup: Backup,
   match: MatchResult,
   rules: PathRule[],
+  sourceUri?: string,
 ): Promise<RestoreCounts> {
-  await writeBackup(db, 'before-restore');
-  const counts = await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules]));
-  await loadPrefs(db);
-  forgetStoredChoices();
-  await reloadQueues(db);
-  libraryEvents.emit('changed', undefined);
-  return counts;
+  // The file being restored may itself be an old safety copy; the new one must not prune it.
+  await writeBackup(db, 'before-restore', sourceUri);
+  // Nothing from the old queues may be saved over the restored ones, before or after the write.
+  await detachQueues();
+  try {
+    return await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules]));
+  } finally {
+    await loadPrefs(db);
+    forgetStoredChoices();
+    await reloadQueues(db);
+    libraryEvents.emit('changed', undefined);
+  }
 }
 
 let autoRunning = false;

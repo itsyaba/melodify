@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { serial } from '@/db/serial';
 import type { Track } from '@/db/types';
 import { forgetLyrics } from '@/lyrics/load';
-import { patchTracks, withTracksReleased } from '@/player/queue-store';
+import { patchTracks, refreshNowPlaying, withTracksReleased } from '@/player/queue-store';
 import { retagTracks } from '@/scan/scanner';
 import { libraryEvents } from '@/utils/events';
 import { propertiesFor, type TagEdit } from './fields';
@@ -55,6 +55,7 @@ async function writeEach(db: SQLiteDatabase, tracks: Track[], write: (mod: TagWr
   if (!mod) return { failed: tracks.length, error: 'This build cannot write tags. Install melodify-audio 0.8.0 or newer.' };
   const result: EditResult = { failed: 0 };
   const done: Track[] = [];
+  // Only the writes hold the files released; the playing song is back before the rows are read.
   await withTracksReleased(
     tracks.map((t) => t.id),
     async () => {
@@ -67,9 +68,9 @@ async function writeEach(db: SQLiteDatabase, tracks: Track[], write: (mod: TagWr
           result.error ??= err instanceof Error ? err.message : String(err);
         }
       }
-      await refresh(db, done);
     },
   );
+  await refresh(db, done);
   return result;
 }
 
@@ -81,6 +82,7 @@ async function refresh(db: SQLiteDatabase, tracks: Track[]): Promise<void> {
     const row = await db.getFirstAsync<Track>('SELECT * FROM tracks WHERE id = ?', t.id);
     if (row) patchTracks([row.id], row);
   }
+  refreshNowPlaying();
   libraryEvents.emit('changed', undefined);
 }
 

@@ -372,29 +372,31 @@ function findFolderArt(folder: string): string | null {
  * records the files' new size and date so the next scan does not count them as changed. The
  * filename guesses are the fallback rather than the old values, so a field the user cleared
  * comes back empty (or guessed) instead of keeping what it was.
+ *
+ * Not queued behind a running scan, which after an update can be reading the whole library for
+ * minutes: these few rows are written in their own transactions, and a scan that reaches them
+ * again only reads the same tags a second time.
  */
-export function retagTracks(db: SQLiteDatabase, tracks: { id: number; path: string; folder: string }[]): Promise<void> {
-  return exclusive(async () => {
-    if (!canReadTags() || tracks.length === 0) return;
-    const folderArt = new Map<string, string>();
-    for (const folder of new Set(tracks.map((t) => t.folder))) {
-      const art = findFolderArt(folder);
-      if (art) folderArt.set(folder, art);
-    }
-    const rows: PendingRow[] = tracks.map((t) => ({ id: t.id, path: t.path, folder: t.folder, art_key: null, ...guessTags(t.path) }));
-    const progress: ScanProgress = {
-      phase: 'tagging', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
-    };
-    await tagPending(db, rows, folderArt, progress, () => undefined);
-    for (const t of tracks) {
-      const file = new File(Paths.document, ...t.path.split('/'));
-      if (!file.exists) continue;
-      await db.runAsync(
-        'UPDATE tracks SET size = ?, mtime = ? WHERE id = ?',
-        file.size ?? 0,
-        Math.round(file.modificationTime ?? 0),
-        t.id,
-      );
-    }
-  });
+export async function retagTracks(db: SQLiteDatabase, tracks: { id: number; path: string; folder: string }[]): Promise<void> {
+  if (!canReadTags() || tracks.length === 0) return;
+  const folderArt = new Map<string, string>();
+  for (const folder of new Set(tracks.map((t) => t.folder))) {
+    const art = findFolderArt(folder);
+    if (art) folderArt.set(folder, art);
+  }
+  const rows: PendingRow[] = tracks.map((t) => ({ id: t.id, path: t.path, folder: t.folder, art_key: null, ...guessTags(t.path) }));
+  const progress: ScanProgress = {
+    phase: 'tagging', seen: 0, added: 0, updated: 0, removed: 0, tagged: 0, tagFailed: 0,
+  };
+  await tagPending(db, rows, folderArt, progress, () => undefined);
+  for (const t of tracks) {
+    const file = new File(Paths.document, ...t.path.split('/'));
+    if (!file.exists) continue;
+    await db.runAsync(
+      'UPDATE tracks SET size = ?, mtime = ? WHERE id = ?',
+      file.size ?? 0,
+      Math.round(file.modificationTime ?? 0),
+      t.id,
+    );
+  }
 }

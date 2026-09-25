@@ -70,7 +70,8 @@ export type MelodifyAudioEvents = {
   error: (payload: { message: string }) => void;
   remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
   /** Sent after the player has already paused or resumed for it; see `EngineEvents.routeChange`. */
-  routeChange: (payload: { reason: string }) => void;
+  /** `wasPlaying` since 0.9.2. */
+  routeChange: (payload: { reason: string; wasPlaying?: boolean }) => void;
   /** Since 0.9.0: a home screen quick action chosen while the app runs. */
   shortcut: (payload: { type: string }) => void;
 };

@@ -115,6 +115,7 @@ export class FakeEngine implements PlayerEngine {
    * does: pauses on unplug and interruption, resumes after one only if it had been playing.
    */
   async simulateRouteChange(reason: RouteChangeReason) {
+    const wasPlaying = this.state === 'playing';
     if (reason === 'unplugged') {
       await this.pause();
     } else if (reason === 'interruptionBegan') {
@@ -125,7 +126,7 @@ export class FakeEngine implements PlayerEngine {
       this.interruptedWhilePlaying = false;
       if (resume) await this.play();
     }
-    this.events.emit('routeChange', { reason });
+    this.events.emit('routeChange', { reason, wasPlaying });
   }
 
   private setState(s: PlaybackState) {

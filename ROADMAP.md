@@ -185,9 +185,11 @@ export, and the module compiles in CI; not yet on the phone. Everything here nee
 on an older one the new calls are skipped and playback carries on as before, with gaps.
 
 - [ ] Gapless via A/B player nodes
-      (written: the queue arms the next song with `setNext`. Same format: scheduled on the same
-      node in the last 3 s, sample-accurate. Different format: the second node starts as the first
-      runs dry. Nothing is armed before the sleep timer's last song or a song that resumes mid-way.
+      (written: the queue arms the next song with `setNext`. Same format and same ReplayGain: scheduled
+      on the same node in the last 3 s, sample-accurate. Otherwise the second node is started for
+      the exact moment the first runs dry, on the render clock (at 1x; at other speeds it starts
+      on the first's completion, slightly late). Pausing or seeking takes the arming back. Nothing
+      is armed before the sleep timer's last song or a song that resumes mid-way.
       Settings › Playback › Gapless playback. To try: a live or classical album that runs on)
 - [ ] Crossfade with adjustable duration
       (written: 1 to 12 s in Settings › Playback, equal-power ramps across the two nodes, on songs

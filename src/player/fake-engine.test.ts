@@ -67,3 +67,15 @@ test('play after the end starts the track over', async () => {
   (engine as unknown as { stopTimer(): void }).stopTimer();
   assert.equal((await engine.getPosition()).positionMs, 0);
 });
+
+test('an unplug says whether it stopped running music', async () => {
+  const { engine } = await setup();
+  const seen: { reason: string; wasPlaying?: boolean }[] = [];
+  engine.on('routeChange', (e) => seen.push(e));
+  await engine.simulateRouteChange('unplugged');
+  await engine.simulateRouteChange('unplugged');
+  assert.deepEqual(seen, [
+    { reason: 'unplugged', wasPlaying: true },
+    { reason: 'unplugged', wasPlaying: false },
+  ]);
+});

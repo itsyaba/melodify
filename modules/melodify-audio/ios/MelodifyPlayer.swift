@@ -130,6 +130,12 @@ internal final class MelodifyPlayer {
   private var next: (item: NextTrackItem, file: AVAudioFile)?
   /// The armed track is scheduled on the idle deck, waiting for the active one to run out.
   private var otherDeckArmed = false
+  /// The armed track on the other deck was started with `play(at:)` for the exact moment the
+  /// active one runs out, so there is nothing left to start when it does.
+  private var otherDeckTimed = false
+  /// The active segment ran out in the moment before a pause took hold. The next play deals with
+  /// it, rather than the completion moving on while the user sees the player paused.
+  private var endedWhilePaused = false
   private var fade: Fade?
   private var crossfadeMs: Double = 0
   private var gapless = true
@@ -160,8 +166,9 @@ internal final class MelodifyPlayer {
   /// needs telling when that arithmetic would be wrong.
   var onNowPlaying: ((PlayerState, PlayerPosition) -> Void)?
   /// Fired after the player has already reacted to an interruption or route change, to say why
-  /// playback moved without a command.
-  var onRouteChange: ((PlayerRouteEvent) -> Void)?
+  /// playback moved without a command, and whether it was playing when it happened: resuming on
+  /// reconnect must know that an unplug stopped running music, not music already paused.
+  var onRouteChange: ((PlayerRouteEvent, Bool) -> Void)?
 
   init() {
     for deck in decks {
@@ -208,6 +215,8 @@ internal final class MelodifyPlayer {
       }
       next = nil
       otherDeckArmed = false
+      otherDeckTimed = false
+      endedWhilePaused = false
       stopTicker()
       preloaded = nil
       setState(.loading)
@@ -282,6 +291,10 @@ internal final class MelodifyPlayer {
         guard schedule(from: 0) else { return }
       }
       try startPlayback()
+      if endedWhilePaused {
+        endedWhilePaused = false
+        activeSegmentEnded()
+      }
     }
   }
 
@@ -300,6 +313,8 @@ internal final class MelodifyPlayer {
       }
       next = nil
       otherDeckArmed = false
+      otherDeckTimed = false
+      endedWhilePaused = false
       stopTicker()
       lastFrame = 0
       if engine.isRunning {
@@ -314,16 +329,22 @@ internal final class MelodifyPlayer {
     queue.sync {
       guard let opened = decks[active].file else { return }
       endFadeLocked()
+      endedWhilePaused = false
       let wasPlaying = state == .playing
       let wasEnded = state == .ended
-      // Stopping the node drops a gapless successor queued on it; it is scheduled again if the
-      // new position is near the end. A successor waiting on the other deck is left where it is.
+      // The armed track is scheduled against the old position (on this node, or started at a
+      // set moment on the other), so it goes; the ticker arms it again near the new end.
+      dropOtherDeckLocked()
       invalidate(decks[active])
       // Dragging the seek bar to the far right lands here: nothing left to schedule, so the
       // track reports as finished rather than resuming into silence.
       guard schedule(from: clampFrames(framesFromMs(ms, in: opened), in: opened)) else { return }
       if wasPlaying {
-        decks[active].node.play()
+        // A stopped engine here means the system stopped it and its notification is on the way;
+        // `park()` then picks up from this position. Playing a node now would raise.
+        if engine.isRunning {
+          decks[active].node.play()
+        }
         setState(.playing)
         startTicker()
       } else if wasEnded {
@@ -416,6 +437,9 @@ internal final class MelodifyPlayer {
     decks[active].node.pause()
     stopTicker()
     setState(.paused)
+    // What was scheduled for the armed track assumes playback carries on: a successor started at a
+    // set moment on the other deck would come in over the pause. It is armed again after play.
+    dropArmingLocked()
     emitPosition()
   }
 
@@ -519,25 +543,44 @@ internal final class MelodifyPlayer {
       deck.current = nil
       return
     }
+    // The system stopped the engine (an interruption, a new output). `park()` schedules again
+    // from the position, which decides whether the track is really over.
+    guard engine.isRunning else { return }
+    guard state == .playing else {
+      endedWhilePaused = true
+      return
+    }
+    activeSegmentEnded()
+  }
+
+  /// The active deck ran out: on to the armed track if there is one, else the end.
+  private func activeSegmentEnded() {
+    let index = active
+    let deck = decks[index]
+    // A very short incoming track can run out before its own crossfade has finished.
+    endFadeLocked()
     if let queued = deck.queued, let armed = next {
       // Gapless on this node: the successor is already playing. The node's clock carries on
-      // counting, so the new file's frames start where the old segment's ended.
+      // counting, so the new file's frames start where the old segment's ended. The gain is the
+      // same (see `armIfDueLocked`), so nothing changes at the join.
       deck.nodeOffset += deck.segmentFrames
       deck.file = queued.file
       deck.startFrame = 0
       deck.segmentFrames = queued.file.length
       deck.current = queued.token
       deck.queued = nil
-      deck.gain = Self.nodeGain(armed.item.gainDb)
-      deck.node.volume = deck.gain
       advanced(to: armed.item)
       return
     }
     if otherDeckArmed, let armed = next {
+      let timed = otherDeckTimed
       otherDeckArmed = false
+      otherDeckTimed = false
       invalidate(deck)
       active = 1 - index
-      decks[active].node.play()
+      if !timed {
+        decks[active].node.play()
+      }
       advanced(to: armed.item)
       return
     }
@@ -573,7 +616,9 @@ internal final class MelodifyPlayer {
       invalidate(decks[outgoing])
     }
     active = 1 - outgoing
-    deck.node.play()
+    if engine.isRunning {
+      deck.node.play()
+    }
     return true
   }
 
@@ -601,23 +646,49 @@ internal final class MelodifyPlayer {
       return
     }
     guard gapless, deck.queued == nil, !otherDeckArmed, remainingMs <= Self.armAheadMs else { return }
-    if let format = deck.format, Self.sameFormat(format, armed.file.processingFormat), deck.current != nil {
+    let nextGain = Self.nodeGain(armed.item.gainDb)
+    // Same node only when nothing has to change at the join: the format, since the node plays
+    // everything at its connection's rate, and the gain, since a volume change cannot be timed to
+    // the sample (the completion that would make it arrives after the output's latency).
+    if let format = deck.format, Self.sameFormat(format, armed.file.processingFormat),
+       nextGain == deck.gain, deck.current != nil {
       let token = nextToken()
       deck.queued = (token, armed.file)
       scheduleSegment(on: deck, file: armed.file, from: 0, frames: armed.file.length, token: token)
-    } else {
-      let other = decks[1 - active]
-      invalidate(other)
-      other.file = armed.file
-      other.gain = Self.nodeGain(armed.item.gainDb)
-      connect(other, armed.file.processingFormat)
-      other.node.volume = other.gain
-      if scheduleFresh(other, from: 0) {
-        otherDeckArmed = true
-      } else {
-        other.file = nil
-      }
+      return
     }
+    let other = decks[1 - active]
+    invalidate(other)
+    other.file = armed.file
+    other.gain = nextGain
+    connect(other, armed.file.processingFormat)
+    other.node.volume = other.gain
+    guard scheduleFresh(other, from: 0) else {
+      other.file = nil
+      return
+    }
+    otherDeckArmed = true
+    // Started now for the exact moment the active deck runs dry, on the render clock both nodes
+    // share. Without that moment (a speed change bends the clock) it starts when the active one's
+    // completion arrives, a little late.
+    if engine.isRunning, let boundary = boundaryHostTime(deck) {
+      other.node.play(at: AVAudioTime(hostTime: boundary))
+      otherDeckTimed = true
+    }
+  }
+
+  /// When, on the render clock, the active deck's current segment runs out. Nil at any speed but
+  /// 1x, where the nodes' clocks no longer run in step with the host clock, and when it is too
+  /// close to schedule for.
+  private func boundaryHostTime(_ deck: Deck) -> UInt64? {
+    guard rate == 1,
+          let nodeTime = deck.node.lastRenderTime, nodeTime.isHostTimeValid, nodeTime.isSampleTimeValid,
+          let playerTime = deck.node.playerTime(forNodeTime: nodeTime), playerTime.sampleRate > 0
+    else { return nil }
+    let remaining = deck.nodeOffset + deck.segmentFrames - playerTime.sampleTime
+    let seconds = Double(remaining) / playerTime.sampleRate
+    guard seconds > 0.05 else { return nil }
+    return nodeTime.hostTime + AVAudioTime.hostTime(forSeconds: seconds)
   }
 
   private func startCrossfade(_ armed: (item: NextTrackItem, file: AVAudioFile), remainingMs: Double) {
@@ -683,12 +754,18 @@ internal final class MelodifyPlayer {
         finishNaturally()
       }
     }
-    if otherDeckArmed {
-      let other = decks[1 - active]
-      invalidate(other)
-      other.file = nil
-      otherDeckArmed = false
-    }
+    dropOtherDeckLocked()
+  }
+
+  /// Takes the armed track back off the idle deck, whether it waits there or was started for a
+  /// set moment.
+  private func dropOtherDeckLocked() {
+    guard otherDeckArmed else { return }
+    let other = decks[1 - active]
+    invalidate(other)
+    other.file = nil
+    otherDeckArmed = false
+    otherDeckTimed = false
   }
 
   private func disarmLocked() {
@@ -708,12 +785,8 @@ internal final class MelodifyPlayer {
     }
     stopTicker()
     endFadeLocked()
-    if otherDeckArmed {
-      let other = decks[1 - active]
-      invalidate(other)
-      other.file = nil
-      otherDeckArmed = false
-    }
+    endedWhilePaused = false
+    dropOtherDeckLocked()
     invalidate(decks[active])
     let scheduled = schedule(from: lastFrame)
     if scheduled {
@@ -890,24 +963,26 @@ internal final class MelodifyPlayer {
   private func interruptionBegan() {
     sessionActive = false
     interruptedWhilePlaying = state == .playing
+    let wasPlaying = interruptedWhilePlaying
     // Paused too: its node sat in an engine that has now been stopped. Never ended or idle, where
     // rescheduling at the end of the file would report the track finished a second time.
     if state == .playing || state == .paused, park() {
       setState(.paused)
     }
-    onRouteChange?(.interruptionBegan)
+    onRouteChange?(.interruptionBegan, wasPlaying)
   }
 
   /// iOS only sets `shouldResume` when resuming is appropriate: after a call, not after the user
   /// started music in another app. A failed restart leaves the player paused, which is also what
   /// the user sees, so there is nothing further to report.
   private func interruptionEnded(shouldResume: Bool) {
+    let wasPlaying = interruptedWhilePlaying
     let resume = shouldResume && interruptedWhilePlaying && state == .paused
     interruptedWhilePlaying = false
     if resume {
       try? startPlayback()
     }
-    onRouteChange?(.interruptionEnded)
+    onRouteChange?(.interruptionEnded, wasPlaying)
   }
 
   private func routeChanged(_ reason: AVAudioSession.RouteChangeReason) {
@@ -915,11 +990,12 @@ internal final class MelodifyPlayer {
     case .oldDeviceUnavailable:
       // Headphones pulled or Bluetooth gone. iOS carries on through the speaker unless the app
       // stops, and a music player is expected to stop.
+      let wasPlaying = state == .playing
       pauseLocked()
-      onRouteChange?(.unplugged)
+      onRouteChange?(.unplugged, wasPlaying)
     case .newDeviceAvailable:
       // Resuming on plug is a Musicolet setting, off by default, so it is the queue's call.
-      onRouteChange?(.connected)
+      onRouteChange?(.connected, state == .playing)
     default:
       break
     }

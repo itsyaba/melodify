@@ -6,6 +6,9 @@
 #include <string>
 
 #include <fileref.h>
+#include <id3v2header.h>
+#include <id3v2tag.h>
+#include <mpegfile.h>
 #include <tbytevector.h>
 #include <tlist.h>
 #include <tpropertymap.h>
@@ -42,8 +45,24 @@ bool open(const char *path, TagLib::FileRef &file, char *error, size_t error_siz
   return true;
 }
 
+/**
+ MP3s are saved with as little change as possible: TagLib's default adds an ID3v1 tag when there
+ was none and rewrites an ID3v2.3 tag as 2.4. Here an ID3v1 tag is only kept up to date if the
+ file already had one, APE likewise, and the ID3v2 tag keeps its version.
+ */
+bool saveMpeg(TagLib::MPEG::File *mpeg) {
+  int tags = TagLib::MPEG::File::ID3v2;
+  if (mpeg->hasID3v1Tag()) tags |= TagLib::MPEG::File::ID3v1;
+  if (mpeg->hasAPETag()) tags |= TagLib::MPEG::File::APE;
+  const TagLib::ID3v2::Tag *id3v2 = mpeg->ID3v2Tag();
+  const TagLib::ID3v2::Version version =
+      id3v2 && id3v2->header() && id3v2->header()->majorVersion() == 3 ? TagLib::ID3v2::v3 : TagLib::ID3v2::v4;
+  return mpeg->save(tags, TagLib::File::StripNone, version, TagLib::File::Duplicate);
+}
+
 bool save(TagLib::FileRef &file, char *error, size_t error_size) {
-  if (file.save()) return true;
+  auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file.file());
+  if (mpeg ? saveMpeg(mpeg) : file.save()) return true;
   fail(error, error_size, "TagLib could not save the file");
   return false;
 }

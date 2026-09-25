@@ -9,7 +9,7 @@ definition of done needs each phase exercised on the phone before its rows turn 
 
 - [ ] **Install the newest build.** GitHub › Actions › "iOS unsigned build", newest green run on
       `main`, artifact `Melodify-Debug-unsigned`. Install it the usual way (LiveContainer or SideStore).
-- [ ] **Right engine.** Settings › Audio engine should read `melodify-audio 0.9.1 (native-swift)` or
+- [ ] **Right engine.** Settings › Audio engine should read `melodify-audio 0.9.2 (native-swift)` or
       newer. If it says "Fake engine", the IPA is too old and nothing below will play.
 - [ ] **Launch once and wait a minute.** The first launch of 0.7.0+ reads every song's tags once more
       in the background (for ReplayGain). Settings › Scan library shows the progress.
@@ -126,7 +126,11 @@ Scan screen shows the first failure.
 
 - [ ] **Gapless:** play the Gapless test pair (or a live album): no click or pause between tracks,
       and the app and lock screen move on to the second track by themselves.
-- [ ] **Gapless across formats:** an MP3 followed by a FLAC: at most a tiny gap, never a stop.
+- [ ] **Gapless across formats:** an MP3 followed by a FLAC: no gap at 1× speed, at most a tiny one
+      at other speeds, never a stop. Same with ReplayGain on Track mode (songs of different gain).
+- [ ] **Gapless on Bluetooth:** the Gapless pair through AirPods or a speaker joins cleanly too.
+- [ ] **Pause in the last seconds of a song** (and play again): it carries on and moves to the next
+      song normally; seeking back from there works too.
 - [ ] **Crossfade** (Settings › Playback): at 6 s the end of one song fades under the next. Pressing
       next still cuts straight over. Pausing mid-fade finishes the fade and pauses.
 - [ ] **Speed** (player › sliders button › Speed and Sound): 1.5× plays faster at the same pitch;
@@ -141,7 +145,8 @@ Scan screen shows the first failure.
 - [ ] **Volume slider in the player** (Settings › Playback) changes the level; the sleep timer's
       fade still works with it and puts it back afterwards.
 - [ ] **Resume when headphones reconnect** (off by default): with it on, pull the headphones (it
-      pauses), plug them back in: it carries on. Plugging in after pausing by hand does nothing.
+      pauses), plug them back in: it carries on. Pausing by hand, then unplugging and plugging back
+      in, does nothing.
 - [ ] **Sleep timer "after N songs" with gapless on:** the last song still stops at its end.
 
 ## 8. Phase 7: tag editing (module 0.8.0+)

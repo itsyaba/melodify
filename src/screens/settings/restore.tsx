@@ -50,6 +50,8 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
   useEffect(() => {
     if (!backup) return;
     let cancelled = false;
+    // The old match belongs to the old rules; nothing may be restored with it meanwhile.
+    setMatch(null);
     planRestore(db, backup, rules).then(
       (m) => !cancelled && setMatch(m),
       (err: unknown) => !cancelled && setError(err instanceof Error ? err.message : String(err)),
@@ -97,7 +99,7 @@ export function RestoreScreen({ uri, name }: { uri: string; name: string }) {
     if (!ok) return;
     setRestoring(true);
     try {
-      const counts = await restoreBackup(db, backup, match, rules);
+      const counts = await restoreBackup(db, backup, match, rules, uri);
       toast.show(
         `Restored ${formatCount(counts.playlists, 'playlist')}, ${formatCount(counts.queues, 'queue')} and ${formatCount(counts.bookmarks, 'bookmark')}`,
       );
