@@ -6,7 +6,7 @@ import { isExcluded } from '@/db/folders';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
 import { mergeTags, type GuessedColumns } from './merge-tags';
 import { guessTags } from './parse-filename';
-import { canReadTags, readTags, TAG_BATCH } from './read-tags';
+import { canReadTags, readTags, TAG_BATCH, tagReaderVersion } from './read-tags';
 
 interface FoundFile {
   path: string; // relative to Documents/
@@ -87,14 +87,15 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
 type PendingRow = GuessedColumns & { id: number; path: string; folder: string; art_key: string | null };
 
 /**
- * Rows whose tags still need reading: never read, or read without yielding a duration. Every file
- * that plays has a duration, so a row without one is a read that failed, and it is tried again
- * rather than left looking empty until the file changes on disk.
+ * Rows whose tags still need reading: never read, read without yielding a duration, or read by an
+ * older reader than this build's. Every file that plays has a duration, so a row without one is a
+ * read that failed, and it is tried again rather than left looking empty until the file changes.
  */
 function pendingRows(db: SQLiteDatabase): Promise<PendingRow[]> {
   return db.getAllAsync<PendingRow>(
     `SELECT id, path, folder, title, artist, album, track_no, disc_no, art_key FROM tracks
-     WHERE tagged = 0 OR duration_ms IS NULL`,
+     WHERE tagged = 0 OR duration_ms IS NULL OR tag_version < ?`,
+    tagReaderVersion(),
   );
 }
 
@@ -110,6 +111,7 @@ async function tagPending(
   progress: ScanProgress,
   emit: () => void,
 ): Promise<void> {
+  const version = tagReaderVersion();
   for (let i = 0; i < pending.length; i += TAG_BATCH) {
     const batch = pending.slice(i, i + TAG_BATCH);
     const tags = await readTags(batch.map((r) => r.path));
@@ -119,7 +121,9 @@ async function tagPending(
         `UPDATE tracks SET title = $title, artist = $artist, album = $album, album_artist = $album_artist,
            genre = $genre, composer = $composer, year = $year, track_no = $track_no, disc_no = $disc_no,
            duration_ms = $duration_ms, bitrate = $bitrate, sample_rate = $sample_rate,
-           art_key = $art_key, tagged = 1
+           art_key = $art_key, rg_track_gain = $rg_track_gain, rg_album_gain = $rg_album_gain,
+           rg_track_peak = $rg_track_peak, rg_album_peak = $rg_album_peak,
+           tag_version = $tag_version, tagged = 1
          WHERE id = $id`,
       );
       try {
@@ -132,7 +136,9 @@ async function tagPending(
             $title: c.title, $artist: c.artist, $album: c.album, $album_artist: c.album_artist,
             $genre: c.genre, $composer: c.composer, $year: c.year, $track_no: c.track_no,
             $disc_no: c.disc_no, $duration_ms: c.duration_ms, $bitrate: c.bitrate,
-            $sample_rate: c.sample_rate, $art_key: c.art_key, $id: row.id,
+            $sample_rate: c.sample_rate, $art_key: c.art_key, $rg_track_gain: c.rg_track_gain,
+            $rg_album_gain: c.rg_album_gain, $rg_track_peak: c.rg_track_peak, $rg_album_peak: c.rg_album_peak,
+            $tag_version: version, $id: row.id,
           });
           progress.tagged += 1;
           if (found.error) {

@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { getPrefs } from '@/prefs';
 import { engine } from './index';
-import { setTrackEndHook } from './queue-store';
+import { refreshNext, setTrackEndHook } from './queue-store';
+import { setFadeLevel } from './sound';
 
 /**
  * Stops playback later: after some minutes, at the end of the current song, or after a number
@@ -32,10 +33,10 @@ function stopTicker() {
   ticker = null;
 }
 
-async function restoreVolume() {
+function restoreVolume() {
   if (!faded) return;
   faded = false;
-  await engine.setVolume(1).catch(() => undefined);
+  setFadeLevel(1);
 }
 
 async function fire() {
@@ -43,7 +44,7 @@ async function fire() {
   timer = { mode: 'off' };
   publish();
   await engine.pause().catch(() => undefined);
-  await restoreVolume();
+  restoreVolume();
 }
 
 function tick() {
@@ -55,14 +56,14 @@ function tick() {
   }
   if (getPrefs().sleepFade && left < FADE_MS) {
     faded = true;
-    void engine.setVolume(Math.max(0.03, left / FADE_MS)).catch(() => undefined);
+    setFadeLevel(Math.max(0.03, left / FADE_MS));
   }
   publish();
 }
 
 export const sleepTimer = {
   minutes(minutes: number) {
-    void restoreVolume();
+    restoreVolume();
     stopTicker();
     const totalMs = Math.round(minutes * 60_000);
     timer = { mode: 'minutes', endsAt: Date.now() + totalMs, totalMs };
@@ -71,23 +72,27 @@ export const sleepTimer = {
   },
   /** 1 is "at the end of this song". The current song counts as the first. */
   songs(count: number) {
-    void restoreVolume();
+    restoreVolume();
     stopTicker();
     timer = { mode: 'songs', left: Math.max(1, Math.round(count)) };
     publish();
+    // The last song must end for real rather than run into the next without a gap.
+    refreshNext();
   },
   /** Adds time to a running minutes timer, or starts one. */
   extend(minutes: number) {
     if (timer.mode !== 'minutes') return sleepTimer.minutes(minutes);
-    void restoreVolume();
+    restoreVolume();
     timer = { ...timer, endsAt: timer.endsAt + minutes * 60_000, totalMs: timer.totalMs + minutes * 60_000 };
     publish();
   },
   cancel() {
+    const wasSongs = timer.mode === 'songs';
     stopTicker();
     timer = { mode: 'off' };
-    void restoreVolume();
+    restoreVolume();
     publish();
+    if (wasSongs) refreshNext();
   },
   get(): SleepTimer {
     return timer;
@@ -95,18 +100,22 @@ export const sleepTimer = {
 };
 
 // A song that ends by itself counts down the songs timer; at zero the queue moves on but paused,
-// so pressing play later carries on with the next song rather than repeating this one.
-setTrackEndHook(() => {
-  if (timer.mode !== 'songs') return 'continue';
-  const left = timer.left - 1;
-  if (left > 0) {
-    timer = { mode: 'songs', left };
+// so pressing play later carries on with the next song rather than repeating this one. Before the
+// last song the queue asks, and arms nothing, so that one really ends.
+setTrackEndHook({
+  wouldPause: () => timer.mode === 'songs' && timer.left <= 1,
+  onEnd: () => {
+    if (timer.mode !== 'songs') return 'continue';
+    const left = timer.left - 1;
+    if (left > 0) {
+      timer = { mode: 'songs', left };
+      publish();
+      return 'continue';
+    }
+    timer = { mode: 'off' };
     publish();
-    return 'continue';
-  }
-  timer = { mode: 'off' };
-  publish();
-  return 'pause';
+    return 'pause';
+  },
 });
 
 function subscribe(fn: () => void) {

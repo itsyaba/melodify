@@ -30,6 +30,30 @@ export interface NativeNowPlayingPatch {
 export interface NativeLoadOptions {
   autoplay: boolean;
   startMs: number;
+  /** Since 0.7.0. ReplayGain for this track, dB. */
+  gainDb?: number;
+}
+
+/** Since 0.7.0. Mirrors `NextTrack` in src/player/engine.ts. */
+export interface NativeNextTrack {
+  uri: string;
+  meta: NativeNowPlayingMeta;
+  gainDb: number;
+  key: string;
+}
+
+/** Since 0.7.0. */
+export interface NativeEqualizer {
+  enabled: boolean;
+  preampDb: number;
+  gains: number[];
+  bassBoost: number;
+}
+
+/** Since 0.7.0. */
+export interface NativeTransition {
+  crossfadeMs: number;
+  gapless: boolean;
 }
 
 /**
@@ -41,6 +65,8 @@ export type MelodifyAudioEvents = {
   state: (payload: { state: string }) => void;
   position: (payload: NativePosition) => void;
   ended: () => void;
+  /** Since 0.7.0: moved on to the armed next track by itself. */
+  advanced: (payload: { key: string }) => void;
   error: (payload: { message: string }) => void;
   remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
   /** Sent after the player has already paused or resumed for it; see `EngineEvents.routeChange`. */
@@ -64,6 +90,11 @@ export interface NativeTrackTags {
   sampleRate: number | null;
   /** Relative to Documents/, e.g. ".artcache/ab12cd34.jpg". */
   artKey: string | null;
+  /** Since 0.7.0 (absent before). ReplayGain tags, dB and linear peak. */
+  trackGainDb?: number | null;
+  albumGainDb?: number | null;
+  trackPeak?: number | null;
+  albumPeak?: number | null;
   /** Set when this one file failed; the rest of the batch still returns. */
   error: string | null;
 }

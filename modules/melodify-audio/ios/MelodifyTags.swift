@@ -20,6 +20,11 @@ internal struct TrackTagsRecord: Record {
   @Field var sampleRate: Int? = nil
   /// Relative to Documents/, e.g. ".artcache/ab12cd34.jpg". Null when there is no embedded art.
   @Field var artKey: String? = nil
+  /// ReplayGain, since 0.7.0: gains in dB, peaks linear (1.0 is full scale).
+  @Field var trackGainDb: Double? = nil
+  @Field var albumGainDb: Double? = nil
+  @Field var trackPeak: Double? = nil
+  @Field var albumPeak: Double? = nil
   /// Set when this one file failed. The rest of the batch still comes back.
   @Field var error: String? = nil
 }
@@ -170,6 +175,11 @@ internal enum MelodifyTags {
         break
       }
 
+      if let field = await replayGainField(item) {
+        await applyReplayGain(field, item: item, into: result)
+        continue
+      }
+
       // Vorbis comments (FLAC) have no identifier constants, so they are matched on their plain
       // key, uppercased because taggers disagree on case. ID3 and iTunes keys are four-character
       // codes, so nothing here can collide with them. Only fills what the switches above left empty.
@@ -196,6 +206,45 @@ internal enum MelodifyTags {
       default:
         break
       }
+    }
+  }
+
+  private enum ReplayGainField: String, CaseIterable {
+    case trackGain = "replaygain_track_gain"
+    case albumGain = "replaygain_album_gain"
+    case trackPeak = "replaygain_track_peak"
+    case albumPeak = "replaygain_album_peak"
+  }
+
+  /**
+   ReplayGain has no standard container field, so every tagger stores it as a named free-form
+   one: an ID3 TXXX frame whose description is the name, an iTunes `----` atom whose key ends in
+   it, or a Vorbis comment keyed by it. Each spelling is looked at, lowercased.
+   */
+  private static func replayGainField(_ item: AVMetadataItem) async -> ReplayGainField? {
+    var names: [String] = []
+    if let key = item.key as? String { names.append(key) }
+    if let identifier = item.identifier?.rawValue { names.append(identifier) }
+    if item.identifier == .id3MetadataUserText,
+       let extra = try? await item.load(.extraAttributes),
+       let info = extra[.info] as? String {
+      names.append(info)
+    }
+    let joined = names.joined(separator: " ").lowercased()
+    guard joined.contains("replaygain") else { return nil }
+    return ReplayGainField.allCases.first { joined.contains($0.rawValue) }
+  }
+
+  /// Values look like "-6.48 dB" or "0.988525"; the first number in them is the one wanted.
+  private static func applyReplayGain(_ field: ReplayGainField, item: AVMetadataItem, into result: TrackTagsRecord) async {
+    guard let raw = await text(item),
+          let range = raw.range(of: "[-+]?[0-9]*\\.?[0-9]+", options: .regularExpression),
+          let value = Double(raw[range]), value.isFinite else { return }
+    switch field {
+    case .trackGain: if result.trackGainDb == nil { result.trackGainDb = value }
+    case .albumGain: if result.albumGainDb == nil { result.albumGainDb = value }
+    case .trackPeak: if result.trackPeak == nil, value > 0 { result.trackPeak = value }
+    case .albumPeak: if result.albumPeak == nil, value > 0 { result.albumPeak = value }
     }
   }
 

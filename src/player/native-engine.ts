@@ -2,11 +2,15 @@ import Native from '../../modules/melodify-audio/src/MelodifyAudioModule';
 import { Emitter } from '@/utils/events';
 import type {
   EngineEvents,
+  EqualizerSettings,
+  LoadOptions,
+  NextTrack,
   NowPlayingMeta,
   PlaybackState,
   PlayerEngine,
   RemoteCommand,
   RouteChangeReason,
+  TransitionSettings,
 } from './engine';
 
 const STATES: readonly string[] = ['idle', 'loading', 'playing', 'paused', 'ended', 'error'];
@@ -53,6 +57,16 @@ function toRemoteCommand(payload: {
   return null;
 }
 
+function nativeMeta(meta: NowPlayingMeta) {
+  return {
+    title: meta.title,
+    artist: meta.artist ?? null,
+    album: meta.album ?? null,
+    durationMs: meta.durationMs ?? null,
+    artUri: meta.artUri ?? null,
+  };
+}
+
 /**
  * `melodify-audio` behind the same contract FakeEngine implements. Listeners are attached once,
  * in the constructor, and fanned out through a local Emitter so `on()` returns an unsubscribe
@@ -69,6 +83,7 @@ export class NativeEngine implements PlayerEngine {
     });
     Native.addListener('position', (position) => this.events.emit('position', position));
     Native.addListener('ended', () => this.events.emit('ended', undefined));
+    Native.addListener('advanced', ({ key }) => this.events.emit('advanced', { key }));
     Native.addListener('error', ({ message }) => this.events.emit('error', { message }));
     Native.addListener('remote', (payload) => {
       const command = toRemoteCommand(payload);
@@ -79,22 +94,39 @@ export class NativeEngine implements PlayerEngine {
     });
   }
 
-  async load(uri: string, meta: NowPlayingMeta, opts?: { autoplay?: boolean; startMs?: number }) {
-    await Native.load(
-      uri,
-      {
-        title: meta.title,
-        artist: meta.artist ?? null,
-        album: meta.album ?? null,
-        durationMs: meta.durationMs ?? null,
-        artUri: meta.artUri ?? null,
-      },
-      { autoplay: opts?.autoplay ?? false, startMs: opts?.startMs ?? 0 },
-    );
+  async load(uri: string, meta: NowPlayingMeta, opts?: LoadOptions) {
+    await Native.load(uri, nativeMeta(meta), {
+      autoplay: opts?.autoplay ?? false,
+      startMs: opts?.startMs ?? 0,
+      gainDb: opts?.gainDb ?? 0,
+    });
   }
 
   async preload(uri: string) {
     await Native.preload(uri);
+  }
+
+  // The four below arrived in 0.7.0. An older build has no such functions: arming falls back to
+  // opening the file early, and the rest do nothing, so the queue still plays, with gaps.
+
+  async setNext(next: NextTrack | null) {
+    if (!Native.setNext) {
+      if (next) await Native.preload(next.uri);
+      return;
+    }
+    await Native.setNext(next ? { uri: next.uri, meta: nativeMeta(next.meta), gainDb: next.gainDb ?? 0, key: next.key } : null);
+  }
+
+  async setTransition(settings: TransitionSettings) {
+    await Native.setTransition?.(settings);
+  }
+
+  async setEqualizer(settings: EqualizerSettings) {
+    await Native.setEqualizer?.(settings);
+  }
+
+  async setPitch(semitones: number) {
+    await Native.setPitch?.(semitones);
   }
 
   play() {

@@ -61,6 +61,8 @@ internal final class MelodifyNowPlaying {
   /// Read on first use, not at launch: most sessions only ever need it for some tracks.
   private lazy var defaultArtwork: MPMediaItemArtwork? = Self.loadDefaultArtwork()
   private var lastState: PlayerState = .idle
+  /// Playback speed: iOS works out the elapsed time from it between updates.
+  private var playbackRate: Double = 1
   private var lastPosition = PlayerPosition(positionMs: 0, durationMs: 0)
   private var targets: [(command: MPRemoteCommand, token: Any)] = []
 
@@ -93,6 +95,13 @@ internal final class MelodifyNowPlaying {
         self.metadata.artUri = artUri
         self.loadArtwork(artUri)
       }
+      self.publish()
+    }
+  }
+
+  func setRate(_ rate: Double) {
+    onMain {
+      self.playbackRate = rate
       self.publish()
     }
   }
@@ -136,7 +145,8 @@ internal final class MelodifyNowPlaying {
     info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = lastPosition.positionMs / 1000
     // iOS extrapolates elapsed time from this rate, which is why the position ticker does not
     // republish: telling it the rate once is both cheaper and smoother than 4 updates a second.
-    info[MPNowPlayingInfoPropertyPlaybackRate] = lastState == .playing ? 1.0 : 0.0
+    info[MPNowPlayingInfoPropertyPlaybackRate] = lastState == .playing ? playbackRate : 0.0
+    info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = playbackRate
     if let artwork {
       info[MPMediaItemPropertyArtwork] = artwork.image
     }

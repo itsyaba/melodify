@@ -7,6 +7,7 @@ import { startAutoBackup } from '@/backup';
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
+import { startSound } from '@/player/sound';
 import { loadPrefs } from '@/prefs';
 import { readPendingTags } from '@/scan/scanner';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
@@ -19,6 +20,8 @@ import { ACCENTS, currentTheme, useTheme } from '@/theme';
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
   await loadPrefs(db);
+  // Before the queue loads its track, so speed, equalizer and gapless apply from the first note.
+  startSound();
   await restoreQueue(db);
   void readPendingTags(db);
   startAutoBackup(db);

@@ -19,10 +19,11 @@ import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
 import { recordPlay, setFavorite, setResumeMs } from '@/db/tracks';
 import type { Track } from '@/db/types';
-import { getPrefs } from '@/prefs';
+import { getPrefs, subscribePrefs } from '@/prefs';
 import { libraryEvents } from '@/utils/events';
 import { artUri } from '@/components/artwork';
-import { engine, type PlaybackState } from './index';
+import { replayGainDb } from './gain';
+import { engine, type NowPlayingMeta, type PlaybackState } from './index';
 import * as ops from './queue-ops';
 import type { QueueList, RepeatMode } from './queue-ops';
 
@@ -101,6 +102,15 @@ function updateQueue(id: number, patch: Partial<QueueInfo>) {
 
 function trackUri(track: Track): string {
   return Paths.join(Paths.document, track.path);
+}
+
+function nowPlayingMeta(track: Track): NowPlayingMeta {
+  return { title: track.title, artist: track.artist, album: track.album, durationMs: track.duration_ms, artUri: artUri(track.art_key) };
+}
+
+function gainOf(track: Track): number {
+  const p = getPrefs();
+  return replayGainDb(track, p.replayGain, p.replayGainPreampDb);
 }
 
 // Persistence. Set by `restoreQueue`, which runs before any screen can touch the queue.
@@ -186,34 +196,57 @@ function saveInactivePosition(q: QueueInfo): void {
   persist((d) => saveQueuePosition(d, q.id, Math.max(0, q.currentIndex), q.savedMs));
 }
 
-function preloadNext(): void {
+/** Where a track would start when loaded: its remembered position if it keeps one, else 0. */
+function startOf(track: Track): number {
+  const remembered = resumeCache.has(track.id) ? resumeCache.get(track.id) : track.resume_ms;
+  return remembersPosition(track) ? remembered ?? 0 : 0;
+}
+
+/**
+ * Tells the engine what follows the current track if it ends by itself, so it can move on with no
+ * gap (or crossfade). Called after anything that can change that: a load, a queue edit, a repeat
+ * change. Nothing is armed when the queue ends there, when the sleep timer stops after this song,
+ * or when the next song should pick up where it was left, which only a load can do; the end is
+ * then reported as `ended` and handled below as before. The key names the queue, index and track,
+ * so `advanced` can find the track even if the queue changed in between.
+ */
+function armNext(): void {
   const q = active();
   const i = ops.nextIndex(q.tracks.length, q.currentIndex, q.repeat, false);
   const next = q.tracks[i];
-  if (next && i !== q.currentIndex) void engine.preload(trackUri(next)).catch(() => undefined);
+  if (!next || q.currentIndex < 0 || trackEndHook?.wouldPause() || startOf(next) > 0) {
+    run(engine.setNext(null));
+    if (next && i !== q.currentIndex) run(engine.preload(trackUri(next)));
+    return;
+  }
+  run(engine.setNext({ uri: trackUri(next), meta: nowPlayingMeta(next), gainDb: gainOf(next), key: `${q.id}:${i}:${next.id}` }));
+}
+
+/** For outside changes that affect what may be armed: the sleep timer, ReplayGain settings. */
+export function refreshNext(): void {
+  armNext();
 }
 
 async function loadIndex(index: number, opts: { autoplay?: boolean; startMs?: number } = {}) {
   const q = active();
   const track = q.tracks[index];
   if (!track) return;
-  const remembered = resumeCache.has(track.id) ? resumeCache.get(track.id) : track.resume_ms;
-  const startMs = opts.startMs ?? (remembersPosition(track) ? remembered ?? 0 : 0);
+  const startMs = opts.startMs ?? startOf(track);
   counted = false;
   updateQueue(q.id, { currentIndex: index });
   set({ positionMs: startMs, durationMs: track.duration_ms ?? 0 });
   savePosition(startMs);
   loading += 1;
   try {
-    await engine.load(
-      trackUri(track),
-      { title: track.title, artist: track.artist, album: track.album, durationMs: track.duration_ms, artUri: artUri(track.art_key) },
-      { autoplay: opts.autoplay ?? true, startMs },
-    );
+    await engine.load(trackUri(track), nowPlayingMeta(track), {
+      autoplay: opts.autoplay ?? true,
+      startMs,
+      gainDb: gainOf(track),
+    });
   } finally {
     loading -= 1;
   }
-  preloadNext();
+  armNext();
 }
 
 function pushUndo(entry: UndoEntry) {
@@ -263,7 +296,7 @@ async function edit(
     await loadIndex(after.currentIndex, { autoplay: after.currentRemoved === true && isPlaying() });
   } else {
     savePosition();
-    preloadNext();
+    armNext();
   }
 }
 
@@ -452,7 +485,7 @@ export const queue = {
       await loadIndex(entry.currentIndex, { autoplay: isPlaying(), startMs: entry.positionMs });
     } else {
       savePosition();
-      preloadNext();
+      armNext();
     }
   },
 
@@ -460,7 +493,7 @@ export const queue = {
     if (!getQueue(queueId)) return;
     updateQueue(queueId, { repeat });
     persist((d) => setQueueRepeat(d, queueId, repeat));
-    if (queueId === state.activeId) preloadNext();
+    if (queueId === state.activeId) armNext();
   },
   cycleRepeat(queueId = state.activeId) {
     const q = getQueue(queueId);
@@ -618,8 +651,12 @@ AppState.addEventListener('change', (next) => {
 /**
  * Consulted when a track ends by itself, before the queue moves on. The sleep timer uses it to
  * stop after a number of songs; 'pause' still advances, but leaves the next track paused.
+ * `wouldPause` asks ahead, without counting, so the last song is not run into the next.
  */
-type TrackEndHook = () => 'continue' | 'pause';
+interface TrackEndHook {
+  onEnd(): 'continue' | 'pause';
+  wouldPause(): boolean;
+}
 let trackEndHook: TrackEndHook | null = null;
 
 export function setTrackEndHook(hook: TrackEndHook | null): void {
@@ -627,7 +664,7 @@ export function setTrackEndHook(hook: TrackEndHook | null): void {
 }
 
 async function onTrackEnded() {
-  if (trackEndHook?.() !== 'pause') return queue.next(false);
+  if (trackEndHook?.onEnd() !== 'pause') return queue.next(false);
   const q = active();
   const i = ops.nextIndex(q.tracks.length, q.currentIndex, q.repeat, true);
   if (i < 0) await engine.stop();
@@ -635,6 +672,43 @@ async function onTrackEnded() {
 }
 
 engine.on('ended', () => run(onTrackEnded()));
+
+/**
+ * The engine moved on to the armed track by itself. The queue catches up: the key says which
+ * track it was armed as; if the queue changed since and that index no longer holds it, the same
+ * track after the old current one stands in, and failing that the queue moves on normally.
+ */
+function onAdvanced(key: string) {
+  const [queueId, index, trackId] = key.split(':').map(Number);
+  const q = active();
+  let at = queueId === q.id && q.tracks[index]?.id === trackId ? index : -1;
+  if (at < 0) at = q.tracks.findIndex((t, i) => i > q.currentIndex && t.id === trackId);
+  if (at < 0) at = q.tracks.findIndex((t) => t.id === trackId);
+  trackEndHook?.onEnd();
+  if (at < 0) {
+    run(queue.next(false));
+    return;
+  }
+  const track = q.tracks[at];
+  counted = false;
+  updateQueue(q.id, { currentIndex: at });
+  set({ positionMs: 0, durationMs: track.duration_ms ?? 0 });
+  savePosition(0);
+  armNext();
+}
+
+engine.on('advanced', ({ key }) => onAdvanced(key));
+
+// The armed track carries its gain and depends on whether it resumes mid-way, so settings that
+// change either arm it again. Before the queue is restored there is nothing to arm.
+let armedWith = '';
+subscribePrefs(() => {
+  const p = getPrefs();
+  const next = `${p.replayGain}:${p.replayGainPreampDb}:${p.resumeMinMs}`;
+  if (next === armedWith) return;
+  armedWith = next;
+  if (db) armNext();
+});
 engine.on('remote', (cmd) => {
   switch (cmd.type) {
     case 'play': return run(engine.play());

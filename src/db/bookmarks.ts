@@ -23,7 +23,9 @@ export async function listBookmarks(db: SQLiteDatabase, trackId?: number): Promi
        'bitrate', t.bitrate, 'sample_rate', t.sample_rate, 'art_key', t.art_key,
        'lyrics_path', t.lyrics_path, 'tagged', t.tagged, 'hidden', t.hidden, 'favorite', t.favorite,
        'play_count', t.play_count, 'skip_count', t.skip_count, 'last_played_at', t.last_played_at,
-       'resume_ms', t.resume_ms, 'added_at', t.added_at) AS track_json
+       'resume_ms', t.resume_ms, 'added_at', t.added_at, 'rg_track_gain', t.rg_track_gain,
+       'rg_album_gain', t.rg_album_gain, 'rg_track_peak', t.rg_track_peak,
+       'rg_album_peak', t.rg_album_peak, 'tag_version', t.tag_version) AS track_json
      FROM bookmarks b JOIN tracks t ON t.id = b.track_id
      ${trackId === undefined ? '' : 'WHERE b.track_id = ?'}
      ORDER BY ${trackId === undefined ? 'b.created_at DESC' : 'b.position_ms'}`,

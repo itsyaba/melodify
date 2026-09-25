@@ -3,11 +3,14 @@ import { NativeModule, requireNativeModule } from 'expo';
 import type {
   MelodifyAudioEvents,
   NativeAudioConstants,
+  NativeEqualizer,
   NativeLoadOptions,
+  NativeNextTrack,
   NativeNowPlayingMeta,
   NativeNowPlayingPatch,
   NativePosition,
   NativeTrackTags,
+  NativeTransition,
 } from './MelodifyAudio.types';
 
 declare class MelodifyAudioModule
@@ -26,6 +29,11 @@ declare class MelodifyAudioModule
   seek(positionMs: number): Promise<void>;
   setRate(rate: number): Promise<void>;
   setVolume(volume: number): Promise<void>;
+  /** Since 0.7.0. The ones below may be missing on an older build; callers check first. */
+  setPitch?(semitones: number): Promise<void>;
+  setNext?(next: NativeNextTrack | null): Promise<void>;
+  setEqualizer?(settings: NativeEqualizer): Promise<void>;
+  setTransition?(settings: NativeTransition): Promise<void>;
   getPosition(): Promise<NativePosition>;
   readTags(uris: string[], artCacheDirectory: string): Promise<NativeTrackTags[]>;
   /** Since 0.5.0. Embedded lyrics (ID3 USLT, iTunes, Vorbis LYRICS), or null. */

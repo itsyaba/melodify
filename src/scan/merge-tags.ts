@@ -19,6 +19,10 @@ export interface TaggedColumns extends GuessedColumns {
   bitrate: number | null;
   sample_rate: number | null;
   art_key: string | null;
+  rg_track_gain: number | null;
+  rg_album_gain: number | null;
+  rg_track_peak: number | null;
+  rg_album_peak: number | null;
 }
 
 /**
@@ -43,5 +47,10 @@ export function mergeTags(guess: GuessedColumns, tags: NativeTrackTags, folderAr
     bitrate: tags.bitrate,
     sample_rate: tags.sampleRate,
     art_key: tags.artKey ?? folderArt,
+    // Absent altogether from a reader older than 0.7.0.
+    rg_track_gain: tags.trackGainDb ?? null,
+    rg_album_gain: tags.albumGainDb ?? null,
+    rg_track_peak: tags.trackPeak ?? null,
+    rg_album_peak: tags.albumPeak ?? null,
   };
 }

@@ -33,7 +33,43 @@ export interface Prefs {
 
   // Data.
   autoBackup: AutoBackup;
+
+  // Sound.
+  /** 0.5 to 2. */
+  playbackRate: number;
+  /** -12 to 12, when it does not follow the speed. */
+  pitchSemitones: number;
+  /** Pitch rises and falls with the speed, as on a record player. */
+  pitchFollowsSpeed: boolean;
+  equalizer: EqualizerPrefs;
+  /** The user's own equalizer presets, by name. */
+  eqPresets: EqPreset[];
+  /** 0 for none. */
+  crossfadeMs: number;
+  gapless: boolean;
+  replayGain: ReplayGainMode;
+  /** Added to every ReplayGain value, dB. */
+  replayGainPreampDb: number;
+  /** In-app volume, 0 to 1, on top of the system's. */
+  volume: number;
+  /** A volume slider under the player's controls. */
+  showVolume: boolean;
 }
+
+export interface EqPreset {
+  name: string;
+  gains: number[];
+  preampDb: number;
+}
+
+/** `name` is the preset the gains came from, or '' once they were changed by hand. */
+export interface EqualizerPrefs extends EqPreset {
+  enabled: boolean;
+  /** 0 to 1. */
+  bassBoost: number;
+}
+
+export type ReplayGainMode = 'off' | 'track' | 'album';
 
 export type AutoBackup = 'off' | 'daily' | 'weekly';
 export type PlayerLayout = 'standard' | 'edge' | 'compact';
@@ -65,7 +101,27 @@ export const DEFAULT_PREFS: Prefs = {
   tabs: [...ALL_TABS],
   libraryViews: [...ALL_LIBRARY_VIEWS],
   autoBackup: 'weekly',
+  playbackRate: 1,
+  pitchSemitones: 0,
+  pitchFollowsSpeed: false,
+  equalizer: { enabled: false, name: 'Flat', gains: Array(10).fill(0), preampDb: 0, bassBoost: 0 },
+  eqPresets: [],
+  crossfadeMs: 0,
+  gapless: true,
+  replayGain: 'off',
+  replayGainPreampDb: 0,
+  volume: 1,
+  showVolume: false,
 };
+
+const clamp = (v: unknown, lo: number, hi: number, fallback: number) =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+
+/** Ten band gains, whatever was stored. */
+function bands(gains: unknown): number[] {
+  const list = Array.isArray(gains) ? gains : [];
+  return Array.from({ length: 10 }, (_, i) => clamp(list[i], -12, 12, 0));
+}
 
 /**
  * A stored list may predate a tab or view added since, or have lost a required one; this keeps
@@ -75,7 +131,27 @@ function sanitize(p: Prefs): Prefs {
   const tabs = p.tabs.filter((t, i) => ALL_TABS.includes(t) && p.tabs.indexOf(t) === i);
   for (const t of REQUIRED_TABS) if (!tabs.includes(t)) tabs.push(t);
   const views = p.libraryViews.filter((v, i) => ALL_LIBRARY_VIEWS.includes(v) && p.libraryViews.indexOf(v) === i);
-  return { ...p, tabs, libraryViews: views.length ? views : [...ALL_LIBRARY_VIEWS] };
+  const eq = { ...DEFAULT_PREFS.equalizer, ...(p.equalizer ?? {}) };
+  return {
+    ...p,
+    tabs,
+    libraryViews: views.length ? views : [...ALL_LIBRARY_VIEWS],
+    playbackRate: clamp(p.playbackRate, 0.5, 2, 1),
+    pitchSemitones: clamp(p.pitchSemitones, -12, 12, 0),
+    equalizer: {
+      enabled: eq.enabled === true,
+      name: typeof eq.name === 'string' ? eq.name : '',
+      gains: bands(eq.gains),
+      preampDb: clamp(eq.preampDb, -12, 12, 0),
+      bassBoost: clamp(eq.bassBoost, 0, 1, 0),
+    },
+    eqPresets: (Array.isArray(p.eqPresets) ? p.eqPresets : [])
+      .filter((x) => x && typeof x.name === 'string' && x.name)
+      .map((x) => ({ name: x.name, gains: bands(x.gains), preampDb: clamp(x.preampDb, -12, 12, 0) })),
+    crossfadeMs: clamp(p.crossfadeMs, 0, 12_000, 0),
+    replayGainPreampDb: clamp(p.replayGainPreampDb, -12, 12, 0),
+    volume: clamp(p.volume, 0, 1, 1),
+  };
 }
 
 /** Side effects of the preferences that live outside React. */
@@ -117,12 +193,14 @@ export function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]): void {
   }
 }
 
-function subscribe(fn: () => void) {
+/** Runs `fn` after every preference change, outside React. Returns the unsubscribe. */
+export function subscribePrefs(fn: () => void): () => void {
   subscribers.add(fn);
   return () => {
     subscribers.delete(fn);
   };
 }
+const subscribe = subscribePrefs;
 
 export function usePrefs(): Prefs {
   return useSyncExternalStore(subscribe, getPrefs, getPrefs);

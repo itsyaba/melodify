@@ -10,7 +10,7 @@ export const ART_CACHE_DIR = '.artcache';
 /** How many files one bridge call covers. Small enough that progress keeps moving. */
 export const TAG_BATCH = 50;
 
-type NativeModule = { readTags(uris: string[], dir: string): Promise<NativeTrackTags[]> };
+type NativeModule = { readTags(uris: string[], dir: string): Promise<NativeTrackTags[]>; tagVersion?: number };
 
 let cached: NativeModule | null | undefined;
 
@@ -35,6 +35,15 @@ function native(): NativeModule | null {
 
 export function canReadTags(): boolean {
   return native() !== null;
+}
+
+/**
+ * What the linked reader knows how to read: 1 up to module 0.6.0, 2 from 0.7.0, which added
+ * ReplayGain. Rows last read by an older reader are read again, once, by a newer one.
+ */
+export function tagReaderVersion(): number {
+  const v = native()?.tagVersion;
+  return typeof v === 'number' && v > 0 ? v : 1;
 }
 
 /** Reads tags for a batch of paths relative to Documents/. Keyed by path on the way back. */

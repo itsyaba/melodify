@@ -102,4 +102,14 @@ export const migrations: string[] = [
 
   INSERT INTO queues (id, name, position, created_at) VALUES (1, 'Queue 1', 0, strftime('%s','now') * 1000);
   `,
+
+  // v2: ReplayGain, and which tag reader last read a row. Rows tagged before this were read by
+  // reader 1, which knew no ReplayGain; a newer reader reads them again (see src/scan/read-tags.ts).
+  `
+  ALTER TABLE tracks ADD COLUMN rg_track_gain REAL;   -- dB
+  ALTER TABLE tracks ADD COLUMN rg_album_gain REAL;   -- dB
+  ALTER TABLE tracks ADD COLUMN rg_track_peak REAL;   -- linear, 1.0 = full scale
+  ALTER TABLE tracks ADD COLUMN rg_album_peak REAL;
+  ALTER TABLE tracks ADD COLUMN tag_version INTEGER NOT NULL DEFAULT 1;
+  `,
 ];

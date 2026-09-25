@@ -28,6 +28,12 @@ export interface Track {
   last_played_at: number | null;
   resume_ms: number | null;
   added_at: number;
+  rg_track_gain: number | null;
+  rg_album_gain: number | null;
+  rg_track_peak: number | null;
+  rg_album_peak: number | null;
+  /** Which tag reader last read this row; see `tagReaderVersion`. */
+  tag_version: number;
 }
 
 export interface AlbumSummary {

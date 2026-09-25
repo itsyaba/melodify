@@ -22,6 +22,29 @@ internal struct NowPlayingPatchRecord: Record {
 internal struct LoadOptionsRecord: Record {
   @Field var autoplay: Bool = false
   @Field var startMs: Double = 0
+  @Field var gainDb: Double = 0
+}
+
+/// Mirrors `NextTrack` in src/player/engine.ts.
+internal struct NextTrackRecord: Record {
+  @Field var uri: String = ""
+  @Field var meta: NowPlayingMetaRecord = NowPlayingMetaRecord()
+  @Field var gainDb: Double = 0
+  @Field var key: String = ""
+}
+
+/// Mirrors `EqualizerSettings` in src/player/engine.ts.
+internal struct EqualizerRecord: Record {
+  @Field var enabled: Bool = false
+  @Field var preampDb: Double = 0
+  @Field var gains: [Double] = []
+  @Field var bassBoost: Double = 0
+}
+
+/// Mirrors `TransitionSettings` in src/player/engine.ts.
+internal struct TransitionRecord: Record {
+  @Field var crossfadeMs: Double = 0
+  @Field var gapless: Bool = true
 }
 
 /**
@@ -38,9 +61,11 @@ public class MelodifyAudioModule: Module {
     // Distinguishes a real native module from any JS fallback, so the Settings diagnostic
     // cannot report success just because something answered.
     Constant("implementation") { "native-swift" }
-    Constant("version") { "0.6.0" }
+    Constant("version") { "0.7.0" }
+    // What `readTags` reads; see src/scan/read-tags.ts. 2 added ReplayGain.
+    Constant("tagVersion") { 2 }
 
-    Events("state", "position", "ended", "remote", "routeChange", "error")
+    Events("state", "position", "ended", "advanced", "remote", "routeChange", "error")
 
     OnCreate {
       self.attachPlayerCallbacks()
@@ -55,16 +80,39 @@ public class MelodifyAudioModule: Module {
       let url = try Self.fileURL(from: uri)
       // Before the load, so the lock screen changes to the new track as playback starts rather
       // than a frame later: loading is itself a state change and publishes what is set here.
-      self.nowPlaying.setMetadata(
-        NowPlayingMetadata(
-          title: meta.title,
-          artist: meta.artist,
-          album: meta.album,
-          durationMs: meta.durationMs,
-          artUri: meta.artUri
+      self.nowPlaying.setMetadata(Self.metadata(meta))
+      try self.player.load(url: url, startMs: options.startMs, autoplay: options.autoplay, gainDb: options.gainDb)
+    }
+
+    // Since 0.7.0: the track to move on to without a gap, or with a crossfade. Nil disarms.
+    AsyncFunction("setNext") { (next: NextTrackRecord?) in
+      guard let next else {
+        self.player.setNext(nil)
+        return
+      }
+      // A file that has gone missing is not armed; the end is then reported as `ended` and the
+      // queue deals with it as it would without gapless.
+      guard let url = try? Self.fileURL(from: next.uri) else {
+        self.player.setNext(nil)
+        return
+      }
+      self.player.setNext(NextTrackItem(url: url, meta: Self.metadata(next.meta), gainDb: next.gainDb, key: next.key))
+    }
+
+    AsyncFunction("setTransition") { (settings: TransitionRecord) in
+      self.player.setTransition(crossfadeMs: settings.crossfadeMs, gapless: settings.gapless)
+    }
+
+    AsyncFunction("setEqualizer") { (settings: EqualizerRecord) in
+      self.player.setEqualizer(
+        EqualizerConfig(
+          enabled: settings.enabled, preampDb: settings.preampDb, gains: settings.gains, bassBoost: settings.bassBoost
         )
       )
-      try self.player.load(url: url, startMs: options.startMs, autoplay: options.autoplay)
+    }
+
+    AsyncFunction("setPitch") { (semitones: Double) in
+      self.player.setPitch(semitones: semitones)
     }
 
     AsyncFunction("updateNowPlaying") { (meta: NowPlayingPatchRecord) in
@@ -100,6 +148,7 @@ public class MelodifyAudioModule: Module {
 
     AsyncFunction("setRate") { (rate: Double) in
       self.player.setRate(rate)
+      self.nowPlaying.setRate(rate)
     }
 
     AsyncFunction("setVolume") { (volume: Double) in
@@ -144,6 +193,11 @@ public class MelodifyAudioModule: Module {
     player.onEnded = { [weak self] in
       self?.emit("ended", [:])
     }
+    player.onAdvanced = { [weak self] item in
+      // The lock screen changes to the new track before JS hears about it, as it does on a load.
+      self?.nowPlaying.setMetadata(item.meta)
+      self?.emit("advanced", ["key": item.key])
+    }
     player.onNowPlaying = { [weak self] state, position in
       self?.nowPlaying.update(state: state, position: position)
     }
@@ -162,6 +216,12 @@ public class MelodifyAudioModule: Module {
     DispatchQueue.main.async { [weak self] in
       self?.sendEvent(name, body)
     }
+  }
+
+  private static func metadata(_ meta: NowPlayingMetaRecord) -> NowPlayingMetadata {
+    NowPlayingMetadata(
+      title: meta.title, artist: meta.artist, album: meta.album, durationMs: meta.durationMs, artUri: meta.artUri
+    )
   }
 
   /// `expo-file-system` hands JS a percent-encoded `file://` URI; accept a bare path too.
