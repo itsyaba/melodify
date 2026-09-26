@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The home screen widget: the song's cover, its title and artist, and the transport buttons.
+     RemoteViews only knows a few view classes, so it is plain LinearLayouts. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/melodify_widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/melodify_widget_background"
+  android:gravity="center_vertical"
+  android:orientation="horizontal"
+  android:padding="10dp">
+
+  <ImageView
+    android:id="@+id/melodify_widget_art"
+    android:layout_width="64dp"
+    android:layout_height="64dp"
+    android:contentDescription="@null"
+    android:scaleType="centerCrop"
+    android:src="@drawable/melodify_widget_placeholder" />
+
+  <LinearLayout
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_weight="1"
+    android:orientation="vertical">
+
+    <TextView
+      android:id="@+id/melodify_widget_title"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:singleLine="true"
+      android:text="@string/melodify_widget_idle_title"
+      android:textColor="@color/melodify_widget_label"
+      android:textSize="15sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/melodify_widget_artist"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:singleLine="true"
+      android:text="@string/melodify_widget_idle_subtitle"
+      android:textColor="@color/melodify_widget_secondary"
+      android:textSize="13sp" />
+  </LinearLayout>
+
+  <ImageButton
+    android:id="@+id/melodify_widget_previous"
+    android:layout_width="40dp"
+    android:layout_height="40dp"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/melodify_widget_previous"
+    android:src="@drawable/melodify_widget_previous" />
+
+  <ImageButton
+    android:id="@+id/melodify_widget_toggle"
+    android:layout_width="44dp"
+    android:layout_height="44dp"
+    android:layout_marginHorizontal="2dp"
+    android:background="@drawable/melodify_widget_button"
+    android:contentDescription="@string/melodify_widget_play"
+    android:src="@drawable/melodify_widget_play" />
+
+  <ImageButton
+    android:id="@+id/melodify_widget_next"
+    android:layout_width="40dp"
+    android:layout_height="40dp"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/melodify_widget_next"
+    android:src="@drawable/melodify_widget_next" />
+</LinearLayout>

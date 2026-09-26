@@ -1,0 +1,51 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Background playback: Media3 runs MelodifyPlaybackService in the foreground while music plays. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!-- The music is in shared storage. All files access (Android 11+) lets Melodify scan it, write
+       .lrc files and tags beside the songs, and keep backups in Melodify/Backups; the others are
+       the fallback where it is refused, and what Android 10 and earlier use. -->
+  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+  <application android:requestLegacyExternalStorage="true">
+    <service
+      android:name=".MelodifyPlaybackService"
+      android:exported="true"
+      android:foregroundServiceType="mediaPlayback">
+      <intent-filter>
+        <action android:name="androidx.media3.session.MediaSessionService" />
+      </intent-filter>
+    </service>
+
+    <!-- The home screen widget. -->
+    <receiver
+      android:name=".MelodifyWidget"
+      android:exported="false"
+      android:label="@string/melodify_widget_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/melodify_widget_info" />
+    </receiver>
+
+    <!-- Hands files to the share sheet as content:// URIs. -->
+    <provider
+      android:name=".MelodifyFileProvider"
+      android:authorities="${applicationId}.melodify.files"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/melodify_file_paths" />
+    </provider>
+  </application>
+</manifest>

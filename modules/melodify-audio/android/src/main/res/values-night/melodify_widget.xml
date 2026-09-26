@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="melodify_widget_surface">#FF1C1C1E</color>
+  <color name="melodify_widget_label">#FFFFFFFF</color>
+  <color name="melodify_widget_secondary">#99EBEBF5</color>
+  <color name="melodify_widget_accent">#FFFF375F</color>
+</resources>

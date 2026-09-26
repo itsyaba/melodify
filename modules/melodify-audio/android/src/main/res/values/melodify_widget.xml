@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="melodify_widget_surface">#FFFFFFFF</color>
+  <color name="melodify_widget_label">#FF000000</color>
+  <color name="melodify_widget_secondary">#993C3C43</color>
+  <color name="melodify_widget_accent">#FFFF2D55</color>
+  <string name="melodify_widget_label">Melodify</string>
+  <string name="melodify_widget_description">The song playing, with play, next and previous</string>
+  <string name="melodify_widget_idle_title">Melodify</string>
+  <string name="melodify_widget_idle_subtitle">Tap to open</string>
+  <string name="melodify_widget_previous">Previous song</string>
+  <string name="melodify_widget_next">Next song</string>
+  <string name="melodify_widget_play">Play</string>
+  <string name="melodify_widget_pause">Pause</string>
+</resources>

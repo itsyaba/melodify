@@ -39,6 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# the audio module's Android build output (Gradle and CMake)
+modules/melodify-audio/android/build/
+modules/melodify-audio/android/.cxx/
 
 # third-party UI screenshots, local design reference only
 /reference/

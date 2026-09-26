@@ -1,0 +1,45 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.yeab.melodify'
+version = '0.11.0'
+
+def reactNativeArchitectures() {
+  def value = project.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
+android {
+  namespace "dev.yeab.melodify.audio"
+  // React Native's NDK, rather than the Android plugin's default: one NDK on the machine, not two.
+  if (rootProject.hasProperty("ext") && rootProject.ext.has("ndkVersion")) {
+    ndkVersion rootProject.ext.ndkVersion
+  }
+  defaultConfig {
+    versionCode 11
+    versionName "0.11.0"
+    externalNativeBuild {
+      cmake {
+        abiFilters(*reactNativeArchitectures())
+        // TagLib is linked statically into the one library, so it brings its own C++ runtime
+        // rather than sharing React Native's libc++_shared.
+        arguments "-DANDROID_STL=c++_static", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+        cppFlags "-std=c++17", "-frtti", "-fexceptions"
+      }
+    }
+  }
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+}
+
+dependencies {
+  def media3 = "1.11.1"
+  implementation "androidx.media3:media3-exoplayer:$media3"
+  implementation "androidx.media3:media3-session:$media3"
+  implementation "androidx.core:core-ktx:1.13.1"
+}

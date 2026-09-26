@@ -16,6 +16,8 @@ export interface NativeNowPlayingMeta {
   album?: string | null;
   durationMs?: number | null;
   artUri?: string | null;
+  /** Android: fills the notification's heart. iOS ignores it. */
+  favorite?: boolean | null;
 }
 
 /** A partial `NativeNowPlayingMeta`: the fields present are applied, the rest are left alone. */
@@ -25,6 +27,7 @@ export interface NativeNowPlayingPatch {
   album?: string | null;
   durationMs?: number | null;
   artUri?: string | null;
+  favorite?: boolean | null;
 }
 
 export interface NativeLoadOptions {
@@ -68,7 +71,8 @@ export type MelodifyAudioEvents = {
   /** Since 0.7.0: moved on to the armed next track by itself. */
   advanced: (payload: { key: string }) => void;
   error: (payload: { message: string }) => void;
-  remote: (payload: { type: string; positionMs?: number; intervalMs?: number }) => void;
+  /** `clicks` since the Android module: a headset button pressed that many times in a row. */
+  remote: (payload: { type: string; positionMs?: number; intervalMs?: number; clicks?: number }) => void;
   /** Sent after the player has already paused or resumed for it; see `EngineEvents.routeChange`. */
   /** `wasPlaying` since 0.9.2. */
   routeChange: (payload: { reason: string; wasPlaying?: boolean }) => void;

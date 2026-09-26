@@ -1,6 +1,7 @@
 {
   "platforms": [
-    "apple"
+    "apple",
+    "android"
   ],
   "apple": {
     "modules": [
@@ -8,6 +9,11 @@
     ],
     "appDelegateSubscribers": [
       "MelodifyShortcutSubscriber"
+    ]
+  },
+  "android": {
+    "modules": [
+      "dev.yeab.melodify.audio.MelodifyAudioModule"
     ]
   }
 }

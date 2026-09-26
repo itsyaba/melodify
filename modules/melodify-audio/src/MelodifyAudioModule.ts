@@ -63,6 +63,25 @@ declare class MelodifyAudioModule
   inflate?(data: Uint8Array, size: number): Promise<Uint8Array>;
   /** Widened to string here; `src/player/native-engine.ts` narrows it to PlaybackState. */
   getState(): string;
+
+  // Android only (the Kotlin module, 0.11.0). Absent on iOS; callers check first.
+  /** The primary shared storage, the music folder on Android: /storage/emulated/0. */
+  readonly storageRoot?: string;
+  /** Android 12's wallpaper accent, light and dark; null before Android 12. */
+  readonly systemAccent?: { light: string; dark: string } | null;
+  readonly sdkVersion?: number;
+  /** "full": read and write everything; "read": audio and images only; "none". */
+  storageAccess?(): NativeStorageAccess;
+  /** "full" opens the All files access page; "read" asks for the media permissions. */
+  requestStorageAccess?(kind: 'full' | 'read'): Promise<NativeStorageAccess>;
+  /** Leaves silence out of what plays (ExoPlayer's silence skipping). */
+  setSkipSilence?(enabled: boolean): Promise<void>;
+  /** Tells the system's media index that these files changed, appeared or went. */
+  scanMediaFiles?(uris: string[]): Promise<void>;
+  /** The share sheet with the file itself. */
+  shareFile?(uri: string, mimeType: string | null, title: string | null): Promise<void>;
 }
+
+export type NativeStorageAccess = 'full' | 'read' | 'none';
 
 export default requireNativeModule<MelodifyAudioModule>('MelodifyAudio');

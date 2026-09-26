@@ -1,0 +1,17 @@
+<!-- The widget's cover before a song's is known: a note on the accent. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="64dp"
+  android:height="64dp"
+  android:viewportWidth="48"
+  android:viewportHeight="48">
+  <path
+    android:fillColor="@color/melodify_widget_accent"
+    android:pathData="M8,0h32a8,8 0,0 1,8 8v32a8,8 0,0 1,-8 8h-32a8,8 0,0 1,-8 -8v-32a8,8 0,0 1,8 -8z" />
+  <group
+    android:translateX="12"
+    android:translateY="12">
+    <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z" />
+  </group>
+</vector>
