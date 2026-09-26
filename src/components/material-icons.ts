@@ -65,8 +65,8 @@ const TABLE: Record<string, string> = {
   'clock.arrow.circlepath': 'history',
   'calendar.badge.plus': 'event',
   'text.badge.plus': 'playlist-add',
-  'text.line.first.and.arrowtriangle.forward': 'queue-play-next',
-  'text.line.last.and.arrowtriangle.forward': 'add-to-queue',
+  'text.line.first.and.arrowtriangle.forward': 'playlist-play',
+  'text.line.last.and.arrowtriangle.forward': 'low-priority',
 
   // State.
   'heart': 'favorite-border',

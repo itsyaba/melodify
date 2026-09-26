@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Platform, Switch, Text, View } from 'react-native';
 import { setPref, usePrefs, type Prefs } from '@/prefs';
 import { makeStyles, spacing, type, useTheme } from '@/theme';
 import { ListRow } from './list-row';
@@ -29,7 +29,14 @@ export function ToggleRow({ title, value, onChange }: { title: string; value: bo
   return (
     <View style={styles.toggle}>
       <Text style={[type.body, { color: colors.label, flex: 1 }]}>{title}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.tint }} accessibilityLabel={title} />
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: colors.tint, false: Platform.OS === 'android' ? colors.fill : undefined }}
+        // Android paints the thumb in its own teal otherwise; iOS keeps its white one.
+        thumbColor={Platform.OS === 'android' ? colors.onTint : undefined}
+        accessibilityLabel={title}
+      />
     </View>
   );
 }

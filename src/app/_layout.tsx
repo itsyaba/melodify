@@ -68,7 +68,8 @@ export default function RootLayout() {
       {Platform.OS === 'android' ? <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /> : null}
       <Suspense fallback={<Loading />}>
         <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase} useSuspense>
-          <Stack>
+          {/* Centred as on iOS: Android would put a modal's title hard against its Cancel button. */}
+          <Stack screenOptions={{ headerTitleAlign: 'center' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             {/* The player draws its own header, Spotify style: a chevron to close, the queue, a menu. */}
             <Stack.Screen name="player" options={{ presentation: 'modal', title: 'Now Playing', headerShown: false }} />
@@ -90,9 +91,10 @@ export default function RootLayout() {
 }
 
 function Loading() {
+  const colors = useTheme();
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator color={colors.secondaryLabel} />
     </View>
   );
 }

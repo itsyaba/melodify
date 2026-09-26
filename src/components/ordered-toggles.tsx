@@ -1,4 +1,4 @@
-import { Switch, Text, View } from 'react-native';
+import { Platform, Switch, Text, View } from 'react-native';
 import { makeStyles, spacing, type, useTheme } from '@/theme';
 import { IconButton } from './icon-button';
 
@@ -61,7 +61,8 @@ export function OrderedToggles<K extends string>({
             <Switch
               value={on}
               disabled={required.includes(key)}
-              trackColor={{ true: colors.tint }}
+              trackColor={{ true: colors.tint, false: Platform.OS === 'android' ? colors.fill : undefined }}
+              thumbColor={Platform.OS === 'android' ? colors.onTint : undefined}
               onValueChange={(v) => onChange(v ? [...shown, key] : shown.filter((k) => k !== key))}
               accessibilityLabel={`Show ${labels[key]}`}
             />

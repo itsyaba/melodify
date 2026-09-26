@@ -87,7 +87,7 @@ const useStyles = makeStyles((colors) => ({
   },
   bar: { flexDirection: 'row', paddingTop: spacing.sm, paddingBottom: spacing.xs },
   tab: { flex: 1, alignItems: 'center', gap: 4 },
-  pill: { width: 56, height: 30, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  pill: { width: 56, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   pillOn: { backgroundColor: colors.fill },
   label: { fontSize: 12, fontWeight: '500' },
   labelOn: { fontWeight: '700' },
