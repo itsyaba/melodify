@@ -20,6 +20,8 @@ export function Chips<T extends string | number>({ options, value, onChange, onL
   return (
     <ScrollView
       horizontal
+      // A tap on the status bar is for the list below: iOS ignores it if two scroll views claim it.
+      scrollsToTop={false}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
       keyboardShouldPersistTaps="handled"

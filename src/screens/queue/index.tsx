@@ -10,7 +10,8 @@ import { IconButton } from '@/components/icon-button';
 import { ListToolbar } from '@/components/list-toolbar';
 import { confirm, promptText, showMenu, type MenuItem } from '@/components/menus';
 import { ReorderableList } from '@/components/reorderable-list';
-import { useSelectionHeader } from '@/components/selection-header';
+import { SelectionHeader } from '@/components/selection-header';
+import { TabScreen } from '@/components/tab-screen';
 import { toast } from '@/components/toast';
 import { albumHref, choosePlaylist, chooseQueue, groupHref, newPlaylistWith } from '@/components/track-actions';
 import { TrackRow } from '@/components/track-row';
@@ -30,9 +31,10 @@ function undoToast(text: string) {
 /**
  * The queues, one tab each. The tab being looked at need not be the one playing: queues can be
  * built and rearranged without interrupting playback, and tapping a song in another queue is
- * what switches to it.
+ * what switches to it. The Queue tab draws its own header with the tabs pinned in it; as a
+ * `sheet` over the player it sits under the stack's header, the tabs scrolling with the list.
  */
-export function QueueScreen() {
+export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   const styles = useStyles();
   const colors = useTheme();
   const router = useRouter();
@@ -111,40 +113,44 @@ export function QueueScreen() {
     else setViewedId(id);
   };
 
-  useSelectionHeader({
-    selection,
-    count: tracks.length,
-    onMenu: () =>
-      showMenu({
-        items: [
-          { label: undoLabel ? `Undo ${undoLabel.toLowerCase()}` : 'Undo', hidden: !undoLabel, onPress: () => void queue.undo() },
-          { label: 'New queue', onPress: () => void newQueue() },
-          { label: `${viewed.name} options…`, onPress: () => tabMenu(viewed) },
-        ],
-      }),
-    onActions: () => {
-      const indexes = selection.indexes();
-      const picked = indexes.map((i) => tracks[i]);
-      showMenu({
-        title: `${formatCount(picked.length, 'song')} selected`,
-        items: [
-          {
-            label: 'Play next',
-            hidden: !isActive && viewed.currentIndex < 0,
-            onPress: () => void queue.moveNext(indexes, viewed.id).then(() => undoToast(`Moved ${formatCount(indexes.length, 'song')}`)),
-          },
-          { label: 'Add to another queue…', onPress: () => chooseQueue(picked) },
-          { label: 'Add to playlist…', onPress: () => void choosePlaylist(db, picked) },
-          { label: 'Save as playlist…', onPress: () => void newPlaylistWith(db, picked) },
-          {
-            label: 'Remove from queue',
-            destructive: true,
-            onPress: () => void queue.remove(indexes, viewed.id).then(() => undoToast(`Removed ${formatCount(indexes.length, 'song')}`)),
-          },
-        ],
-      });
-    },
-  });
+  // An element rather than the hook: in the tab, the TabScreen it hands its buttons to is below here.
+  const selectionHeader = (
+    <SelectionHeader
+      selection={selection}
+      count={tracks.length}
+      onMenu={() =>
+        showMenu({
+          items: [
+            { label: undoLabel ? `Undo ${undoLabel.toLowerCase()}` : 'Undo', hidden: !undoLabel, onPress: () => void queue.undo() },
+            { label: 'New queue', onPress: () => void newQueue() },
+            { label: `${viewed.name} options…`, onPress: () => tabMenu(viewed) },
+          ],
+        })
+      }
+      onActions={() => {
+        const indexes = selection.indexes();
+        const picked = indexes.map((i) => tracks[i]);
+        showMenu({
+          title: `${formatCount(picked.length, 'song')} selected`,
+          items: [
+            {
+              label: 'Play next',
+              hidden: !isActive && viewed.currentIndex < 0,
+              onPress: () => void queue.moveNext(indexes, viewed.id).then(() => undoToast(`Moved ${formatCount(indexes.length, 'song')}`)),
+            },
+            { label: 'Add to another queue…', onPress: () => chooseQueue(picked) },
+            { label: 'Add to playlist…', onPress: () => void choosePlaylist(db, picked) },
+            { label: 'Save as playlist…', onPress: () => void newPlaylistWith(db, picked) },
+            {
+              label: 'Remove from queue',
+              destructive: true,
+              onPress: () => void queue.remove(indexes, viewed.id).then(() => undoToast(`Removed ${formatCount(indexes.length, 'song')}`)),
+            },
+          ],
+        });
+      }}
+    />
+  );
 
   const rowMenu = (track: Track, index: number) => {
     const items: MenuItem[] = [
@@ -176,18 +182,22 @@ export function QueueScreen() {
     label: `${q.id === activeId ? '▶︎ ' : ''}${q.name} · ${q.tracks.length}`,
   }));
 
+  const chips = (
+    <Chips
+      options={tabs}
+      value={viewed.id}
+      onChange={setViewedId}
+      onLongPress={(id) => {
+        const q = queues.find((x) => x.id === id);
+        if (q) tabMenu(q);
+      }}
+      action={{ label: '+', onPress: () => void newQueue(), accessibilityLabel: 'New queue' }}
+    />
+  );
+
   const header = (
     <View>
-      <Chips
-        options={tabs}
-        value={viewed.id}
-        onChange={setViewedId}
-        onLongPress={(id) => {
-          const q = queues.find((x) => x.id === id);
-          if (q) tabMenu(q);
-        }}
-        action={{ label: '+', onPress: () => void newQueue(), accessibilityLabel: 'New queue' }}
-      />
+      {sheet ? chips : null}
       {isActive ? <NowPlaying /> : null}
       {!isActive && viewed.tracks.length > 0 ? (
         <Pressable
@@ -233,64 +243,75 @@ export function QueueScreen() {
 
   const extraData = useMemo(() => [selection, viewed.currentIndex, isActive], [selection, viewed.currentIndex, isActive]);
 
-  return (
-    <View style={styles.root}>
-      <ReorderableList
-        data={tracks}
-        keyExtractor={(t, i) => `${t.id}:${i}`}
-        extraData={extraData}
-        header={header}
-        empty={
-          <EmptyState
-            title="Queue is empty"
-            body="Tap any song to start playing, or long-press one and choose Add to queue."
-          />
-        }
-        onMove={(from, to) => void queue.move(from, to, viewed.id)}
-        onSwipeRemove={
-          selection.active
-            ? undefined
-            : (index) => {
-                const title = tracks[index]?.title ?? 'song';
-                void queue.remove([index], viewed.id).then(() => undoToast(`Removed “${title}”`));
+  const list = (
+    <ReorderableList
+      data={tracks}
+      keyExtractor={(t, i) => `${t.id}:${i}`}
+      extraData={extraData}
+      header={header}
+      empty={
+        <EmptyState
+          title="Queue is empty"
+          body="Tap any song to start playing, or long-press one and choose Add to queue."
+        />
+      }
+      onMove={(from, to) => void queue.move(from, to, viewed.id)}
+      onSwipeRemove={
+        selection.active
+          ? undefined
+          : (index) => {
+              const title = tracks[index]?.title ?? 'song';
+              void queue.remove([index], viewed.id).then(() => undoToast(`Removed “${title}”`));
+            }
+      }
+      renderItem={({ item, index, handle, lifted }) => {
+        const checked = selection.selected.has(index);
+        const isCurrent = index === viewed.currentIndex;
+        return (
+          <View style={[isCurrent && !lifted && styles.current]}>
+            <TrackRow
+              track={item}
+              active={isCurrent && isActive}
+              trailing={
+                selection.active ? (
+                  <View style={styles.check}>
+                    <SymbolView
+                      name={checked ? 'checkmark.circle.fill' : 'circle'}
+                      size={22}
+                      tintColor={checked ? colors.tint : colors.tertiaryLabel}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.trailing}>
+                    <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(item.duration_ms)}</Text>
+                    {handle}
+                  </View>
+                )
               }
-        }
-        renderItem={({ item, index, handle, lifted }) => {
-          const checked = selection.selected.has(index);
-          const isCurrent = index === viewed.currentIndex;
-          return (
-            <View style={[isCurrent && !lifted && styles.current]}>
-              <TrackRow
-                track={item}
-                active={isCurrent && isActive}
-                trailing={
-                  selection.active ? (
-                    <View style={styles.check}>
-                      <SymbolView
-                        name={checked ? 'checkmark.circle.fill' : 'circle'}
-                        size={22}
-                        tintColor={checked ? colors.tint : colors.tertiaryLabel}
-                      />
-                    </View>
-                  ) : (
-                    <View style={styles.trailing}>
-                      <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(item.duration_ms)}</Text>
-                      {handle}
-                    </View>
-                  )
-                }
-                onPress={() => {
-                  if (selection.active) selection.toggle(index);
-                  else if (isActive) void queue.playAt(index);
-                  else void queue.playQueueAt(viewed.id, index);
-                }}
-                onLongPress={() => (selection.active ? selection.toggle(index) : rowMenu(item, index))}
-              />
-            </View>
-          );
-        }}
-      />
+              onPress={() => {
+                if (selection.active) selection.toggle(index);
+                else if (isActive) void queue.playAt(index);
+                else void queue.playQueueAt(viewed.id, index);
+              }}
+              onLongPress={() => (selection.active ? selection.toggle(index) : rowMenu(item, index))}
+            />
+          </View>
+        );
+      }}
+    />
+  );
+
+  // The header element goes after the list: it renders nothing, and nothing may come before the list.
+  return sheet ? (
+    <View style={styles.root}>
+      {list}
+      {selectionHeader}
     </View>
+  ) : (
+    <TabScreen title="Queue" below={chips}>
+      {list}
+      {selectionHeader}
+    </TabScreen>
   );
 }
 

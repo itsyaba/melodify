@@ -15,10 +15,11 @@ export const unstable_settings = {
  */
 export default function SharedLayout({ segment }: { segment: string }) {
   const group = segment.match(/\((.*)\)/)?.[1] ?? 'home';
-  // Home and Search draw their own headers: Home a greeting and the settings gear, Search its field.
+  // The roots draw their own headers: Home a greeting and the settings gear, Library its title and
+  // view pills, Search its field.
   const roots = {
     home: <Stack.Screen key="index" name="index" options={{ title: 'Home', headerShown: false }} />,
-    library: <Stack.Screen key="library" name="library" options={{ title: 'Library' }} />,
+    library: <Stack.Screen key="library" name="library" options={{ title: 'Library', headerShown: false }} />,
     search: <Stack.Screen key="search" name="search" options={{ title: 'Search', headerShown: false }} />,
   };
   const first = group === 'library' || group === 'search' ? group : 'home';

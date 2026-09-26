@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState, type ReactElement } from 'react';
-import { FlatList, useWindowDimensions, View } from 'react-native';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { FlatList, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { AlbumCard } from '@/components/album-card';
@@ -10,6 +10,7 @@ import { IconButton } from '@/components/icon-button';
 import { ListRow } from '@/components/list-row';
 import { ListToolbar, type SortOption } from '@/components/list-toolbar';
 import { confirm, promptText } from '@/components/menus';
+import { TabScreen } from '@/components/tab-screen';
 import { Tile, tileColumns, tileGap, tileSize } from '@/components/tile';
 import { albumHref, groupHref, newPlaylistWith, useTrackActions } from '@/components/track-actions';
 import { TrackList } from '@/components/track-list';
@@ -41,7 +42,7 @@ import { usePrefs } from '@/prefs';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
 import { QuickCards, type QuickCard } from '@/screens/library/quick-cards';
 import { queue } from '@/player/queue-store';
-import { makeStyles, spacing, useTheme } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { findIn } from '@/utils/find';
 import { formatCount, formatDuration } from '@/utils/format';
@@ -112,17 +113,12 @@ const NO_ALBUMS: AlbumSummary[] = [];
 const NO_GROUPS: GroupSummary[] = [];
 const NO_PLAYLISTS: PlaylistSummary[] = [];
 
-interface ListProps {
-  /** The view pills, rendered at the top of each list. */
-  chips: ReactElement;
-}
-
 /**
  * Spotify's library over Musicolet's views: accent pills for Songs, Albums, Artists and the rest,
- * a sort row with find and a grid toggle, bigger covers with round artists, and a ⋯ on each row.
+ * pinned under the title, a sort row with find and a grid toggle, bigger covers with round
+ * artists, and a ⋯ on each row.
  */
 export function LibraryScreen() {
-  const styles = useStyles();
   const { libraryViews } = usePrefs();
   // In the order chosen in Settings, leaving out the ones switched off there.
   const shown = useMemo(
@@ -131,18 +127,14 @@ export function LibraryScreen() {
   );
   const [stored, setView] = useStoredChoice<LibraryView>('library.view', shown[0]?.key ?? 'songs', shown);
   const view = shown.some((v) => v.key === stored) ? stored : (shown[0]?.key ?? 'songs');
-  // The pills go inside the lists rather than beside them: with a large-title header iOS lays
-  // content out under the nav bar and only a scroll view receives the matching content inset,
-  // so a plain sibling View renders under the status bar.
-  const chips = <Chips options={shown} value={view} onChange={setView} tinted />;
   const group = GROUP_VIEWS[view];
   return (
-    <View style={styles.root}>
-      {view === 'songs' && <Songs chips={chips} />}
-      {view === 'albums' && <Albums chips={chips} />}
-      {group && <Groups key={group.kind} chips={chips} {...group} />}
-      {view === 'playlists' && <Playlists chips={chips} />}
-    </View>
+    <TabScreen title="Library" below={<Chips options={shown} value={view} onChange={setView} tinted />}>
+      {view === 'songs' && <Songs />}
+      {view === 'albums' && <Albums />}
+      {group && <Groups key={group.kind} {...group} />}
+      {view === 'playlists' && <Playlists />}
+    </TabScreen>
   );
 }
 
@@ -200,7 +192,7 @@ function useGrid(grid: boolean) {
   };
 }
 
-function Songs({ chips }: ListProps) {
+function Songs() {
   const [sort, setSort] = useStoredChoice<TrackSort>('sort.songs', 'title', SONG_SORTS);
   const { data } = useLibraryQuery((db) => listTracks(db, sort), [sort]);
   const { query, find } = useFind('Find in songs');
@@ -211,25 +203,22 @@ function Songs({ chips }: ListProps) {
     <TrackList
       tracks={tracks}
       header={
-        <>
-          {chips}
-          {all.length ? (
-            <ListToolbar
-              summary={`${countOf(query, tracks.length, all.length, 'song')} · ${formatDuration(total)}`}
-              sort={{ options: SONG_SORTS, value: sort, onChange: setSort }}
-              find={find}
-              onShuffle={tracks.length ? () => void queue.playShuffled(tracks) : undefined}
-              onPlay={tracks.length ? () => void queue.replace(tracks, 0) : undefined}
-            />
-          ) : null}
-        </>
+        all.length ? (
+          <ListToolbar
+            summary={`${countOf(query, tracks.length, all.length, 'song')} · ${formatDuration(total)}`}
+            sort={{ options: SONG_SORTS, value: sort, onChange: setSort }}
+            find={find}
+            onShuffle={tracks.length ? () => void queue.playShuffled(tracks) : undefined}
+            onPlay={tracks.length ? () => void queue.replace(tracks, 0) : undefined}
+          />
+        ) : null
       }
       empty={query ? noMatches(query) : data ? <NoMusic title="No songs yet" /> : null}
     />
   );
 }
 
-function Albums({ chips }: ListProps) {
+function Albums() {
   const router = useRouter();
   const actions = useTrackActions();
   const density = useDensity();
@@ -272,23 +261,20 @@ function Albums({ chips }: ListProps) {
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
-        <>
-          {chips}
-          {all.length ? (
-            <ListToolbar
-              summary={countOf(query, albums.length, all.length, 'album')}
-              sort={{ options: ALBUM_SORTS, value: sort, onChange: setSort }}
-              find={find}
-              trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
-            />
-          ) : null}
-        </>
+        all.length ? (
+          <ListToolbar
+            summary={countOf(query, albums.length, all.length, 'album')}
+            sort={{ options: ALBUM_SORTS, value: sort, onChange: setSort }}
+            find={find}
+            trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
+          />
+        ) : null
       }
     />
   );
 }
 
-function Groups({ chips, kind, singular, plural }: ListProps & { kind: GroupKind; singular: string; plural: string }) {
+function Groups({ kind, singular, plural }: { kind: GroupKind; singular: string; plural: string }) {
   const router = useRouter();
   const actions = useTrackActions();
   const density = useDensity();
@@ -348,23 +334,20 @@ function Groups({ chips, kind, singular, plural }: ListProps & { kind: GroupKind
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
-        <>
-          {chips}
-          {all.length ? (
-            <ListToolbar
-              summary={countOf(query, groups.length, all.length, singular, plural)}
-              sort={{ options: GROUP_SORTS, value: sort, onChange: setSort }}
-              find={find}
-              trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
-            />
-          ) : null}
-        </>
+        all.length ? (
+          <ListToolbar
+            summary={countOf(query, groups.length, all.length, singular, plural)}
+            sort={{ options: GROUP_SORTS, value: sort, onChange: setSort }}
+            find={find}
+            trailing={<LayoutToggle layout={layout} onChange={setLayout} />}
+          />
+        ) : null
       }
     />
   );
 }
 
-function Playlists({ chips }: ListProps) {
+function Playlists() {
   const router = useRouter();
   const db = useSQLiteContext();
   const actions = useTrackActions();
@@ -441,7 +424,6 @@ function Playlists({ chips }: ListProps) {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
-          {chips}
           <QuickCards cards={cards} />
           {all.length ? (
             <ListToolbar
@@ -455,7 +437,3 @@ function Playlists({ chips }: ListProps) {
     />
   );
 }
-
-const useStyles = makeStyles((colors) => ({
-  root: { flex: 1, backgroundColor: colors.background },
-}));

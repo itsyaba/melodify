@@ -2,8 +2,9 @@ import { Stack } from 'expo-router/stack';
 
 export default function QueueLayout() {
   return (
-    <Stack screenOptions={{ headerLargeTitleEnabled: true }}>
-      <Stack.Screen name="index" options={{ title: 'Queue' }} />
+    <Stack>
+      {/* Draws its own header, the queue tabs pinned in it. */}
+      <Stack.Screen name="index" options={{ title: 'Queue', headerShown: false }} />
     </Stack>
   );
 }

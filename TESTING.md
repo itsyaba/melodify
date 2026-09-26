@@ -253,7 +253,7 @@ JS only, like the player: no new IPA needed. Try it in dark first, then light, a
 compact density (Settings › Appearance).
 
 - [ ] **Pills:** the chosen view's pill is filled with the accent, white text; the others grey.
-      Nothing sits under the status bar or the large title.
+      They stay pinned under the Library title while the list scrolls (see section 16).
 - [ ] **Sort row:** "⇅ Title" (or whatever the sort is) on the left opens Sort by and changes the
       order; the magnifier and, on Albums, Artists, Album artists, Genres, Composers and Years, the
       grid button sit on the right.
@@ -431,6 +431,30 @@ Files sees (or into the music folder over USB). Note roughly how long each step 
       Note anything it rejects or loses, and whether songs added only on the iPhone show up.
 - [ ] **Back in Melodify:** restore a Melodify zip that Musicolet has not touched: bookmarks and
       Melodify's settings come back too (they travel in `melodify.json`).
+
+## 16. Queue, Folders and Library headers; dragging in the queue
+
+JS only: no new IPA needed. These three tabs draw their own header now, like Home: a big title
+with Select and ⋯ on the same row, opaque from the status bar down.
+
+- [ ] **Scrolling:** scroll each of Queue, Folders and Library far down and back. The title stays
+      put and big; rows vanish cleanly at the header's bottom edge and never show behind the
+      title, the buttons or the status bar. The queue tabs (Queue) and the view pills (Library)
+      stay pinned under the title.
+- [ ] **Header buttons:** Select switches to multi-select; the row then shows Select All, ⋯ and
+      Done, and Select All becomes Deselect All once everything is picked. On Library, Select is
+      only on Songs, and leaves when you switch to Albums. Folders' ⋯ opens the folder menu.
+- [ ] **Still native:** tapping the tab again scrolls its list back to the top, and the tab bar
+      shrinks as you scroll down. A tap on the status bar scrolls up too. Opening an album, artist
+      or subfolder slides the stack's header in, with the back chevron.
+- [ ] **Queue from the player:** the queue button there opens the queue as a sheet, with the
+      stack's small "Queue" header, Select and ⋯ in it, and the tabs at the top of the list.
+- [ ] **Drag:** hold a row's handle and drag it up and down past several rows, including far
+      enough that the list scrolls by itself both ways. The rows you pass slide aside smoothly
+      and every one stays visible (before this, a blank band opened as long as the drag). On
+      release the row glides into the gap, then the queue reorders without a flash back to the
+      old order. A playlist's Reorder and remove slides the same way, though there the row can
+      still blink back for a moment while the new order saves.
 
 ## What to send back
 

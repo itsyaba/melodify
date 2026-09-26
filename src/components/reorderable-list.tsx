@@ -1,6 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type RefObject } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from 'react';
 import {
   Animated,
+  Easing,
   FlatList,
   PanResponder,
   StyleSheet,
@@ -20,7 +31,9 @@ import { makeStyles, spacing, useTheme } from '@/theme';
  * Rows must all be the same height (they are: one track row each), which lets the drop target be
  * worked out from the finger position alone. The dragged row is drawn as a floating copy over
  * the list while the original stays mounted, invisible, holding the gesture: FlatList keeps ten
- * screens of rows either side rendered, so the original survives any realistic autoscroll.
+ * screens of rows either side rendered, so the original survives any realistic autoscroll. The
+ * rows it passes slide out of its way, and on release the copy settles into the gap they left
+ * before the list reorders.
  */
 
 interface RenderInfo<T> {
@@ -50,6 +63,9 @@ const EDGE = 72;
 /** The tab bar and the mini player cover roughly this much of the list's bottom. */
 const BOTTOM_COVERED = 120;
 const MAX_SCROLL_STEP = 14;
+/** How long a row takes to slide out of the lifted row's way, and the lifted row to settle. */
+const SLIDE_MS = 150;
+const SLIDE_EASING = Easing.out(Easing.cubic);
 
 export function ReorderableList<T>({
   data,
@@ -87,6 +103,8 @@ export function ReorderableList<T>({
     from: -1,
     to: -1,
     measured: false,
+    /** The lifted row is gliding into its gap: the drag is over but the list not yet reordered. */
+    settling: false,
     frame: 0 as number | ReturnType<typeof requestAnimationFrame>,
   }).current;
   const ghostTop = useRef(new Animated.Value(0)).current;
@@ -132,20 +150,30 @@ export function ReorderableList<T>({
     g.frame = requestAnimationFrame(autoscroll);
   }, [g, listRef, updateTarget]);
 
-  const finish = useCallback(
-    (commit: boolean) => {
-      if (g.from < 0) return;
-      cancelAnimationFrame(g.frame as number);
-      const { from, to } = g;
+  const finish = useCallback(() => {
+    if (g.from < 0 || g.settling) return;
+    cancelAnimationFrame(g.frame as number);
+    const { from, to } = g;
+    // The reset and the reorder onMove makes render together, though this runs from an animation
+    // rather than a touch: React renders default- and sync-priority updates from one task as one.
+    const land = () => {
+      g.settling = false;
       g.from = -1;
       g.to = -1;
       g.measured = false;
       setDrag(null);
       setScrollEnabled(true);
-      if (commit && from !== to && to >= 0) latest.current.onMove(from, to);
-    },
-    [g],
-  );
+      if (from !== to && to >= 0) latest.current.onMove(from, to);
+    };
+    if (!g.measured) {
+      land();
+      return;
+    }
+    // Where the row at `to` sits now: the gap the other rows opened for the lifted one.
+    g.settling = true;
+    const slot = g.startTop + (to - from) * g.rowHeight - (g.scrollY - g.startScrollY);
+    Animated.timing(ghostTop, { toValue: slot, duration: SLIDE_MS, easing: SLIDE_EASING, useNativeDriver: false }).start(land);
+  }, [g, ghostTop]);
 
   useEffect(() => () => cancelAnimationFrame(g.frame as number), [g]);
 
@@ -160,7 +188,7 @@ export function ReorderableList<T>({
       setScrollEnabled(false);
       setDrag({ from: index, to: index });
       // Where the row actually is on screen, rather than where arithmetic says it should be:
-      // the content inset under a large title is not known here, but this settles it.
+      // the content inset is not known here, but this settles it.
       const row = rowRefs.current.get(index);
       const container = containerRef.current;
       if (row && container) {
@@ -186,8 +214,9 @@ export function ReorderableList<T>({
       let responder = responders.get(index);
       if (!responder) {
         responder = PanResponder.create({
-          onStartShouldSetPanResponder: () => true,
-          onMoveShouldSetPanResponder: () => true,
+          // Not while the last drop is still settling: that drag still owns the geometry.
+          onStartShouldSetPanResponder: () => !g.settling,
+          onMoveShouldSetPanResponder: () => !g.settling,
           onPanResponderTerminationRequest: () => false,
           onPanResponderGrant: () => begin(index),
           onPanResponderMove: (_e, gesture) => {
@@ -195,8 +224,8 @@ export function ReorderableList<T>({
             if (g.measured) ghostTop.setValue(g.startTop + gesture.dy);
             updateTarget();
           },
-          onPanResponderRelease: () => finish(true),
-          onPanResponderTerminate: () => finish(true),
+          onPanResponderRelease: finish,
+          onPanResponderTerminate: finish,
         });
         responders.set(index, responder);
       }
@@ -269,35 +298,34 @@ export function ReorderableList<T>({
         }
         ListEmptyComponent={empty}
         renderItem={({ item, index }) => {
-          const row = (
-            <View
-              ref={(v) => {
+          const body = <RowBody item={item} index={index} renderItem={renderItem} handleFor={handleFor} extraData={extraData} />;
+          return (
+            <SlidingRow
+              rowRef={(v) => {
                 if (v) rowRefs.current.set(index, v);
                 else rowRefs.current.delete(index);
               }}
               onLayout={(e) => {
                 g.rowHeight = e.nativeEvent.layout.height || g.rowHeight;
               }}
-              style={[
-                drag && { transform: [{ translateY: shift(index) }] },
-                drag?.from === index && styles.placeholder,
-              ]}
+              shift={shift(index)}
+              sliding={drag !== null}
+              hidden={drag?.from === index}
             >
-              {renderItem({ item, index, handle: handleFor(index), lifted: false })}
-            </View>
-          );
-          // Always wrapped when swiping is on, even mid-drag: changing the element tree would
-          // remount the row, and with it the handle that owns the drag gesture.
-          return onSwipeRemove ? (
-            <SwipeToRemove
-              enabled={!drag}
-              onRemove={() => onSwipeRemove(index)}
-              onActive={(active) => setScrollEnabled(!active)}
-            >
-              {row}
-            </SwipeToRemove>
-          ) : (
-            row
+              {/* Always wrapped when swiping is on, even mid-drag: changing the element tree would
+                  remount the row, and with it the handle that owns the drag gesture. */}
+              {onSwipeRemove ? (
+                <SwipeToRemove
+                  enabled={!drag}
+                  onRemove={() => onSwipeRemove(index)}
+                  onActive={(active) => setScrollEnabled(!active)}
+                >
+                  {body}
+                </SwipeToRemove>
+              ) : (
+                body
+              )}
+            </SlidingRow>
           );
         }}
       />
@@ -312,6 +340,62 @@ export function ReorderableList<T>({
     </View>
   );
 }
+
+/**
+ * A row's place in the list. While a row is lifted, the rows it passes slide a row's height out
+ * of its way; at the drop they snap back in the same render that reorders the list. The shift is
+ * applied out here, around the swipe wrapper, because that clips what is inside it: a row moved
+ * in there vanished instead, leaving a blank band as long as the drag.
+ */
+function SlidingRow({
+  shift,
+  sliding,
+  hidden,
+  rowRef,
+  onLayout,
+  children,
+}: {
+  shift: number;
+  sliding: boolean;
+  /** The lifted row's own slot, held open while its copy follows the finger. */
+  hidden: boolean;
+  rowRef: (view: View | null) => void;
+  onLayout: (e: LayoutChangeEvent) => void;
+  children: ReactElement;
+}) {
+  const styles = useStyles();
+  const y = useRef(new Animated.Value(shift)).current;
+  const target = useRef(shift);
+  // A layout effect, so the snap back at a drop lands in the same frame as the reorder.
+  useLayoutEffect(() => {
+    if (shift === target.current) return;
+    target.current = shift;
+    if (sliding) Animated.timing(y, { toValue: shift, duration: SLIDE_MS, easing: SLIDE_EASING, useNativeDriver: true }).start();
+    else y.setValue(shift);
+  }, [y, shift, sliding]);
+  return (
+    <Animated.View ref={rowRef} onLayout={onLayout} style={[{ transform: [{ translateY: y }] }, hidden && styles.placeholder]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+interface RowBodyProps<T> {
+  item: T;
+  index: number;
+  renderItem: (info: RenderInfo<T>) => ReactElement;
+  handleFor: (index: number) => ReactElement;
+  /** Not read here: a change to it re-renders the row, as it does a FlatList's. */
+  extraData: unknown;
+}
+
+/**
+ * A row's content, left alone while a drag moves rows around it: a change of drop target
+ * re-renders only the SlidingRows, not every track row the list has mounted.
+ */
+const RowBody = memo(function RowBody<T>({ item, index, renderItem, handleFor }: RowBodyProps<T>) {
+  return renderItem({ item, index, handle: handleFor(index), lifted: false });
+}) as <T>(props: RowBodyProps<T>) => ReactElement;
 
 /** Swipe a row sideways past a third of the screen, or flick it, to remove it. */
 function SwipeToRemove({

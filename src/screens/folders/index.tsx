@@ -8,6 +8,7 @@ import { ListRow } from '@/components/list-row';
 import { ListToolbar } from '@/components/list-toolbar';
 import { confirm, type MenuItem } from '@/components/menus';
 import { toast } from '@/components/toast';
+import { TabScreen } from '@/components/tab-screen';
 import { useTrackActions } from '@/components/track-actions';
 import { TrackList, type LeadingRow } from '@/components/track-list';
 import { excludeFolder } from '@/db/folders';
@@ -23,7 +24,8 @@ const NO_TRACKS: Track[] = [];
 
 /**
  * One folder: its subfolders, then the songs directly inside it. Play and shuffle take in
- * everything beneath the folder, as Musicolet's do; tapping a song plays just this level.
+ * everything beneath the folder, as Musicolet's do; tapping a song plays just this level. The
+ * top folder is the tab's first screen and draws its own header; the rest sit under the stack's.
  */
 export function FoldersScreen({ path }: { path: string }) {
   const styles = useStyles();
@@ -88,34 +90,34 @@ export function FoldersScreen({ path }: { path: string }) {
     formatCount(below, 'song'),
   ].filter(Boolean).join(' · ');
 
-  return (
-    <View style={styles.root}>
-      <TrackList
-        tracks={tracks}
-        leading={leading}
-        header={
-          below > 0 ? (
-            <ListToolbar summary={summary} onShuffle={() => void playAll(true)} onPlay={() => void playAll(false)} />
-          ) : null
-        }
-        onMenu={
-          below > 0
-            ? () =>
-                actions.collectionMenu(
-                  path.split('/').pop() || 'All music',
-                  (d) => listFolderTracksRecursive(d, path),
-                  path ? [excludeItem(path, path.split('/').pop()!, true)] : [],
-                )
-            : undefined
-        }
-        empty={
-          data && leading.length === 0 ? (
-            <EmptyState title="Empty folder" body={path === '' ? 'Import music in Settings › Import and scan.' : undefined} />
-          ) : null
-        }
-      />
-    </View>
+  const list = (
+    <TrackList
+      tracks={tracks}
+      leading={leading}
+      header={
+        below > 0 ? (
+          <ListToolbar summary={summary} onShuffle={() => void playAll(true)} onPlay={() => void playAll(false)} />
+        ) : null
+      }
+      onMenu={
+        below > 0
+          ? () =>
+              actions.collectionMenu(
+                path.split('/').pop() || 'All music',
+                (d) => listFolderTracksRecursive(d, path),
+                path ? [excludeItem(path, path.split('/').pop()!, true)] : [],
+              )
+          : undefined
+      }
+      empty={
+        data && leading.length === 0 ? (
+          <EmptyState title="Empty folder" body={path === '' ? 'Import music in Settings › Import and scan.' : undefined} />
+        ) : null
+      }
+    />
   );
+
+  return path === '' ? <TabScreen title="Folders">{list}</TabScreen> : <View style={styles.root}>{list}</View>;
 }
 
 const useStyles = makeStyles((colors) => ({ root: { flex: 1, backgroundColor: colors.background } }));
