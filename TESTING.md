@@ -487,6 +487,41 @@ JS only: no new IPA needed. Try it in a dark theme and in Light, and with a seco
       shrinks as you scroll down, and a tap on the status bar scrolls up too.
 - [ ] **Import and scan** still shows its two coloured import tiles as before.
 
+## 18. Welcome pages (onboarding)
+
+JS only: no new IPA needed. An install that already has songs is never shown the pages by itself,
+so open them from **Settings › Help › Welcome tour**. To see a real first launch, install fresh
+(or clear Melodify's data in LiveContainer) and open the app.
+
+- [ ] **First launch:** a fresh install opens straight onto the welcome pages, with no flash of Home
+      first. The accent washes down from behind the status bar. *Skip* top right, four dots and a
+      full-width accent *Continue* at the bottom.
+- [ ] **Paging:** swipe left and right, or tap *Continue*: the accent dot slides with the swipe and
+      the pages snap. On the last page *Skip* is gone and the button says *Done* (or *Start
+      listening* once there are songs). VoiceOver reads the dots as "Page 2 of 4".
+- [ ] **1. Welcome:** three coloured covers (headphones, note, waveform) fan out as the page opens,
+      then "Your music, offline" and three points with icons: no connection needed, nothing
+      tracked, built after Musicolet.
+- [ ] **2. What it does:** six coloured tiles in two columns (Up to 20 queues, Folders, Bookmarks,
+      Synced lyrics, Equalizer, Tag editor), each with a tilted white icon in its corner, and a
+      grey line under them listing the rest.
+- [ ] **3. Add your music:** the same purple *Import a folder* and green *Import songs* tiles as
+      Import and scan. Import a small folder from here: the "Importing…" and scan cards appear on
+      this page, the toast comes up over the pages, and the title turns into "4 songs ready".
+      *Scan the folder* scans (spinner and "Scanning…" while it runs; dimmed while busy). The
+      LiveContainer card shows only when running there; the *A whole library?* card names
+      Files › On My iPhone › Melodify outside LiveContainer.
+- [ ] **4. Pick a look:** tapping a theme (System, Light, Dark, Black) changes the whole app at
+      once, the pages included; each swatch is a tiny page with a cover in the accent, and the
+      chosen one has an accent border. Tapping an accent dot moves the check and repaints the
+      wash, the button and the dots. Settings › Appearance shows the same choices after.
+- [ ] **Restore from here:** *Restore a backup* opens the file picker; cancelling it leaves the
+      pages up. Choosing a Musicolet or Melodify backup closes the pages and opens the Restore
+      screen for it. With no songs yet, the card asks to add music first.
+- [ ] **Closing:** *Skip* or *Done* fades the pages out onto Home. Force-quit and reopen: they do
+      not come back. *Welcome tour* in Settings fades them in again, back on page 1, and closing
+      them returns to Settings.
+
 ## What to send back
 
 For anything that fails: the item's name, what you did, what happened instead, and any toast or

@@ -11,17 +11,20 @@ import { restoreQueue } from '@/player/queue-store';
 import { startSound } from '@/player/sound';
 import { loadPrefs } from '@/prefs';
 import { readPendingTags } from '@/scan/scanner';
+import { OnboardingHost } from '@/screens/onboarding';
+import { loadOnboarding } from '@/screens/onboarding/state';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
 import { startQuickActions } from '@/utils/quick-actions';
 
 /**
  * Migrations first: the restore reads tables they create, and preferences before either. Unread
  * tags are read, and an automatic backup written if one is due, in the background afterwards;
- * the first screen does not wait for them.
+ * the first screen does not wait for them. It does wait to know whether it is the welcome pages.
  */
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
   await loadPrefs(db);
+  await loadOnboarding(db);
   // Before the queue loads its track, so speed, equalizer and gapless apply from the first note.
   startSound();
   await restoreQueue(db);
@@ -70,6 +73,8 @@ export default function RootLayout() {
             <Stack.Screen name="tags" options={{ presentation: 'modal', title: 'Edit Tags' }} />
             <Stack.Screen name="lyrics/[id]" options={{ presentation: 'modal', title: 'Lyrics' }} />
           </Stack>
+          {/* Over the tabs, under the toasts and menus the welcome pages raise themselves. */}
+          <OnboardingHost />
           <ToastHost />
           <MenuHost />
         </SQLiteProvider>

@@ -69,6 +69,7 @@ to double-check against the current Musicolet release.
 | Hidden tracks | Hide individual tracks without deleting | JS | wip |
 | Rescan / custom scan folders | Choose scan roots, rescan on demand, don't depend on system media DB | JS | wip |
 | Import from Files | Settings › Import and scan copies songs, or a whole folder with its subfolders, covers and lyrics, in from the Files app (On My iPhone, iCloud Drive, USB drives), then scans. Importing a folder again copies only what is new. Android reads storage directly, so Musicolet has no such step | iOS≈ | wip |
+| Welcome pages | The first launch opens four pages over the app: what Melodify is, what it does, adding music (the import tiles, a scan, their progress), and the theme and accent, with a Musicolet backup restore. An install that already has songs skips them; Settings › Help › Welcome tour opens them again | JS | wip |
 | Delete file from device | Remove the file, not just the DB entry | JS | wip |
 | Share track | Share the audio file with another app | JS | wip |
 | Set as ringtone | Android-only | N/A | skip |

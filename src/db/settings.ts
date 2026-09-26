@@ -19,6 +19,8 @@ export interface Settings {
   lastAutoBackupAt: number;
   /** From the last Musicolet backup restored, to write the same back (see src/backup/musicolet.ts). */
   musicolet: MusicoletMeta;
+  /** When the welcome pages were finished or skipped, ms since epoch. */
+  onboardedAt: number;
 }
 
 export const RECENT_SEARCHES = 12;
