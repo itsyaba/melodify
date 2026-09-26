@@ -10,6 +10,8 @@ import androidx.media3.session.MediaSessionService
 /** The session the module made, for the service; the module and the service share one process. */
 internal object MelodifyPlayback {
   @Volatile var session: MediaSession? = null
+  /** The engine, for what the service may ask off the audio thread (the session's player may not be). */
+  @Volatile var player: MelodifyPlayer? = null
   /** Sends a `remote` command to JS; null while the app is not running. The widget uses it. */
   @Volatile var remote: ((Map<String, Any?>) -> Unit)? = null
 }
@@ -34,9 +36,12 @@ class MelodifyPlaybackService : MediaSessionService() {
   // to play: the queue lives in JS. Null makes Media3 let the request go.
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = MelodifyPlayback.session
 
-  /** Swiping the app away while paused ends it; while playing, the notification keeps it going. */
+  /**
+   * Swiping the app away while paused ends it; while playing, the notification keeps it going.
+   * This runs on the main thread, and the session's player answers only on the audio thread, so
+   * the engine's own state is read instead.
+   */
   override fun onTaskRemoved(rootIntent: Intent?) {
-    val player = MelodifyPlayback.session?.player
-    if (player == null || !player.playWhenReady) stopSelf()
+    if (MelodifyPlayback.player?.isActive() != true) stopSelf()
   }
 }

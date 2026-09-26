@@ -10,6 +10,7 @@ import { getPrefs, loadPrefs } from '@/prefs';
 import { musicDirectory, skipsFolder } from '@/storage';
 import { libraryEvents } from '@/utils/events';
 import { shareFile as shareSheet } from '@/utils/share';
+import { storageAccess } from '@/utils/storage-access';
 import { collectBackupSource, collectMusicoletCarry, listLibraryForMatching, writeRestore, type RestoreCounts } from './db';
 import { jsCodec, nativeCodec, provesItself, type Codec, type NativeCodec } from './codec';
 import { buildBackup, parseBackup, type Backup, type BackupReason } from './format';
@@ -118,6 +119,11 @@ function reasonOf(name: string): BackupReason {
  * safety copies stay Melodify's JSON, which restores the same in Melodify.
  */
 export async function writeBackup(db: SQLiteDatabase, reason: BackupReason, keep?: string): Promise<BackupFile> {
+  // Android lets Melodify write beside the music only with All files access; say so, rather than
+  // fail on the first file with "Operation not permitted".
+  if (storageAccess() !== 'full') {
+    throw new Error('Backups are saved in Melodify/Backups, which needs All files access: Settings › Storage › Access to your music.');
+  }
   const codec = await backupCodec();
   const asZip = reason === 'manual' || codec !== jsCodec;
   const { source, carry } = await serial(async () => ({
@@ -228,7 +234,8 @@ let autoRunning = false;
 /** Writes an automatic backup when one is due. Silent: a failure is logged, never shown. */
 export async function maybeAutoBackup(db: SQLiteDatabase): Promise<void> {
   const mode = getPrefs().autoBackup;
-  if (mode === 'off' || autoRunning) return;
+  // Without write access there is nowhere to put one; it waits until access is given.
+  if (mode === 'off' || autoRunning || storageAccess() !== 'full') return;
   autoRunning = true;
   try {
     const last = (await getSetting(db, 'lastAutoBackupAt')) ?? 0;
@@ -258,7 +265,7 @@ export function startAutoBackup(db: SQLiteDatabase): void {
 
 // Playlists as M3U.
 
-/** Writes one playlist to `Melodify/Playlists/<name>.m3u8`: its path relative to Documents/, and its URI. */
+/** Writes one playlist to `Melodify/Playlists/<name>.m3u8`: its path relative to the music folder, and its URI. */
 export async function exportPlaylist(db: SQLiteDatabase, id: number, name: string): Promise<{ path: string; uri: string }> {
   const tracks = await listPlaylistTracks(db, id);
   const fileName = fileNameForPlaylist(name);

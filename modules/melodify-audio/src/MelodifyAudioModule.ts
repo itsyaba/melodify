@@ -78,6 +78,8 @@ declare class MelodifyAudioModule
   setSkipSilence?(enabled: boolean): Promise<void>;
   /** Tells the system's media index that these files changed, appeared or went. */
   scanMediaFiles?(uris: string[]): Promise<void>;
+  /** A file another app opened with Melodify: where it is in shared storage, its name and size. */
+  resolveOpenedFile?(uri: string): Promise<{ path: string | null; name: string | null; size: number | null }>;
   /** The share sheet with the file itself. */
   shareFile?(uri: string, mimeType: string | null, title: string | null): Promise<void>;
 }

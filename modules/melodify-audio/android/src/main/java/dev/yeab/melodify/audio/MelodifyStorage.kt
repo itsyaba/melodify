@@ -9,6 +9,9 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.provider.Settings
 import android.webkit.MimeTypeMap
 import androidx.core.content.ContextCompat
@@ -85,6 +88,79 @@ internal object MelodifyStorage {
     title?.let { send.putExtra(Intent.EXTRA_TITLE, it) }
     activity.startActivity(Intent.createChooser(send, title))
   }
+
+  /**
+   * Where a file another app opened with Melodify (a file manager's "Open with") really is: its
+   * path in shared storage when it can be told, and its name and size to look it up by otherwise.
+   * File managers hand over content:// URIs of every shape; each way of reading one is tried.
+   */
+  fun resolveOpened(context: Context, uriString: String): Map<String, Any?> {
+    val uri = Uri.parse(uriString)
+    if (uri.scheme == "file") {
+      val file = File(uri.path ?: "")
+      return mapOf("path" to file.absolutePath, "name" to file.name, "size" to file.length().takeIf { file.isFile })
+    }
+    var path: String? = null
+    var name: String? = null
+    var size: Long? = null
+    try {
+      if (DocumentsContract.isDocumentUri(context, uri)) {
+        val id = DocumentsContract.getDocumentId(uri)
+        when (uri.authority) {
+          "com.android.externalstorage.documents" -> {
+            val parts = id.split(":", limit = 2)
+            if (parts.size == 2 && parts[0] == "primary") path = "${root()}/${parts[1]}"
+          }
+          "com.android.providers.media.documents" -> {
+            val parts = id.split(":", limit = 2)
+            if (parts.size == 2) {
+              path = dataColumn(context, MediaStore.Files.getContentUri("external"), "${MediaStore.MediaColumns._ID} = ?", arrayOf(parts[1]))
+            }
+          }
+        }
+      }
+    } catch (_: Exception) {
+    }
+    try {
+      context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          fun column(key: String) = cursor.getColumnIndex(key).takeIf { it >= 0 }
+          if (path == null) column(MediaStore.MediaColumns.DATA)?.let { path = cursor.getString(it) }
+          column(OpenableColumns.DISPLAY_NAME)?.let { name = cursor.getString(it) }
+          column(OpenableColumns.SIZE)?.let { if (!cursor.isNull(it)) size = cursor.getLong(it) }
+        }
+      }
+    } catch (_: Exception) {
+    }
+    // Many file managers put the path in the URI itself, under a name of their own
+    // (…/external_files/Music/Song.mp3, or a whole file:// URI encoded in one segment).
+    if (path == null) {
+      val decoded = Uri.decode(uriString)
+      val storage = decoded.indexOf("/storage/")
+      if (storage >= 0) File(decoded.substring(storage)).takeIf { it.isFile }?.let { path = it.absolutePath }
+    }
+    if (path == null) {
+      val segments = uri.pathSegments
+      for (i in segments.indices) {
+        val candidate = File(root(), segments.drop(i).joinToString("/"))
+        if (candidate.isFile) {
+          path = candidate.absolutePath
+          break
+        }
+      }
+    }
+    val file = path?.let { File(it) }?.takeIf { it.isFile }
+    return mapOf(
+      "path" to file?.absolutePath,
+      "name" to (name ?: file?.name),
+      "size" to (size ?: file?.length()),
+    )
+  }
+
+  private fun dataColumn(context: Context, uri: Uri, selection: String, args: Array<String>): String? =
+    context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATA), selection, args, null)?.use { cursor ->
+      if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
 
   /** Android 12's wallpaper colors, as hex for light and dark themes; null before Android 12. */
   fun systemAccent(context: Context): Map<String, String>? {

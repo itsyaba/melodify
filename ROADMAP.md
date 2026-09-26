@@ -336,7 +336,8 @@ tried there and what still wants a real phone). CI builds a signed release APK
       on Android); Material icons for every SF Symbol; a text prompt dialog (no Alert.prompt);
       real dark colors (no semantic colors); back closes sheets and steps through the welcome pages
 - [ ] Android-only: headset clicks mapped in Settings, the notification's heart, a home screen
-      widget, skip silence, Ogg and Opus, the wallpaper accent, launcher shortcuts
+      widget, skip silence, Ogg and Opus, the wallpaper accent, launcher shortcuts, and Open with
+      Melodify from other apps (`src/app/+native-intent.tsx` turns the file's link into a play)
 - [ ] Signed release APK from CI, the key in the repository secrets
 
 ## Definition of done per phase

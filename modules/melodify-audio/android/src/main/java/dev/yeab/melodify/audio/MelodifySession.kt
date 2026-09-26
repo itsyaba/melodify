@@ -53,6 +53,8 @@ internal class MelodifySession(private val context: Context, private val player:
     }
   }
   private var lastFavorite: Boolean? = null
+  /** Set on release (a JS reload): art loads still in flight then find nothing to update. */
+  @Volatile private var released = false
 
   val session: MediaSession = player.runSync {
     MediaSession.Builder(context, CommandForwarder(stand, remote))
@@ -65,6 +67,7 @@ internal class MelodifySession(private val context: Context, private val player:
 
   /** Called on the audio thread whenever the picture of playback changes. */
   fun refresh() {
+    if (released) return
     val snap = player.snapshot()
     val favorite = snap.meta?.favorite ?: false
     if (favorite != lastFavorite) {
@@ -90,6 +93,7 @@ internal class MelodifySession(private val context: Context, private val player:
       return
     }
     val bytes = artworkFor(meta.artUri)
+    if (released) return
     artLoader.execute {
       MelodifyWidget.update(context, MelodifyWidget.Face(meta.title, meta.artist, playing, MelodifyWidget.cover(bytes)))
     }
@@ -97,8 +101,8 @@ internal class MelodifySession(private val context: Context, private val player:
 
   fun release() {
     player.runSync {
+      released = true
       session.release()
-      stand.release()
     }
     artLoader.shutdown()
   }
@@ -121,6 +125,7 @@ internal class MelodifySession(private val context: Context, private val player:
       return defaultArt
     }
     art = uri to null
+    if (released) return defaultArt
     artLoader.execute {
       val bytes = try {
         fileFrom(uri).takeIf { it.isFile && it.length() < MAX_ART_BYTES }?.readBytes()
@@ -234,7 +239,7 @@ private class NowPlayingPlayer(
       .setDurationUs(if (durationMs > 0) durationMs * 1000 else C.TIME_UNSET)
       .setIsSeekable(true)
       .build()
-    val playing = snap.state == PlayerState.PLAYING
+    val playing = snap.playing
     return builder
       .setPlaylist(listOf(item))
       .setCurrentMediaItemIndex(0)

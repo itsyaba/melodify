@@ -570,6 +570,13 @@ asked), or `adb install -r Melodify-Release.apk`. Later builds install over it a
 - [ ] **Home screen widget**: hold the home screen › Widgets › Melodify. It shows the song and
       its cover; previous, play/pause and next work. With the app closed it shows "Tap to open".
       *Emulator: added, showed the song and cover; pause and next worked.*
+- [ ] **Open with Melodify**: in Files (or any file manager), tap a song and pick Melodify. It plays
+      next, at once, and the queue keeps the rest. A song copied in since the last scan is scanned
+      first ("Adding it to the library…"). *Emulator: a MediaStore link opened the player on the
+      song, playing.*
+- [ ] **Swipe Melodify away from recents** while a song plays: the music carries on, with the
+      notification. Paused, the app just goes. *Emulator: carried on playing (this crashed before
+      the review fix).*
 - [ ] **Launcher shortcuts**: hold the icon for Resume, Shuffle all, Favorites and Search.
       *Emulator: all four registered; Search opened the Search tab.*
 - [ ] **Wallpaper accent** (Android 12+): Settings › Accent color › Wallpaper follows it.

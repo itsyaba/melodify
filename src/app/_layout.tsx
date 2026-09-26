@@ -16,6 +16,7 @@ import { readPendingTags } from '@/scan/scanner';
 import { OnboardingHost } from '@/screens/onboarding';
 import { loadOnboarding } from '@/screens/onboarding/state';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
+import { startOpenWith } from '@/utils/open-with';
 import { startQuickActions } from '@/utils/quick-actions';
 
 /**
@@ -31,6 +32,7 @@ async function initDatabase(db: SQLiteDatabase) {
   startSound();
   await restoreQueue(db);
   startQuickActions(db);
+  startOpenWith(db);
   void readPendingTags(db);
   startAutoBackup(db);
 }

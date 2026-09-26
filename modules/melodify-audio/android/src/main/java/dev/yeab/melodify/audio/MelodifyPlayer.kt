@@ -68,6 +68,8 @@ internal data class NowPlayingSnapshot(
   val rate: Float,
   /** Changes with every new track, so the session can tell one track from the next. */
   val trackId: Long,
+  /** Playing, or opening a file that will play once ready: the notification keeps its pause button. */
+  val playing: Boolean,
 )
 
 /**
@@ -180,12 +182,15 @@ internal class MelodifyPlayer(private val context: Context) {
     }
   }
 
+  /** Playing, or opening a file that will play once ready. */
+  private fun isPlayingLocked(): Boolean = state == PlayerState.PLAYING || pendingLoad?.autoplay == true
+
   private val noisyReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
       if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
       // Headphones pulled or Bluetooth gone: Android carries on through the speaker unless the
       // app stops, and a music player is expected to stop.
-      val wasPlaying = state == PlayerState.PLAYING
+      val wasPlaying = isPlayingLocked()
       pauseLocked()
       onRouteChange?.invoke("unplugged", wasPlaying)
     }
@@ -447,8 +452,11 @@ internal class MelodifyPlayer(private val context: Context) {
   /** On the audio thread only: the session reads it from there. */
   fun snapshot(): NowPlayingSnapshot {
     val deck = decks[active]
-    return NowPlayingSnapshot(deck.meta, state, positionOf(deck), durationOf(deck), rate, trackId)
+    return NowPlayingSnapshot(deck.meta, state, positionOf(deck), durationOf(deck), rate, trackId, isPlayingLocked())
   }
+
+  /** Playing or about to, readable from any thread: the service asks when the app is swiped away. */
+  fun isActive(): Boolean = state == PlayerState.PLAYING || state == PlayerState.LOADING
 
   fun teardown() {
     runSync {
@@ -510,12 +518,25 @@ internal class MelodifyPlayer(private val context: Context) {
       }
       return
     }
-    if (deck.index != active || playbackState != Player.STATE_ENDED) return
-    // The active file ran out by itself.
-    if (arming == Arming.OTHER_DECK) {
-      val armed = next
+    if (deck.index != active) return
+    // Ready at last after the load gave up waiting (a slow card, a big file): the state catches up.
+    if (playbackState == Player.STATE_READY && state == PlayerState.LOADING) {
+      val playing = deck.exo.playWhenReady
+      setState(if (playing) PlayerState.PLAYING else PlayerState.PAUSED)
+      if (playing) startTicker()
+      emitPosition()
+      return
+    }
+    if (playbackState != Player.STATE_ENDED) return
+    // The active file ran out by itself. A crossfade still sounding is finished off first.
+    endFadeLocked()
+    val armed = next
+    if (armed != null && arming == Arming.OTHER_DECK) {
       val other = decks[1 - active]
-      if (armed != null && other.exo.mediaItemCount > 0) {
+      if (other.exo.mediaItemCount > 0) {
+        // The armed file may have been armed again under a new key since the deck was made ready.
+        other.meta = armed.meta
+        other.setGain(armed.gainDb)
         other.exo.play()
         deck.clear()
         active = other.index
@@ -523,6 +544,23 @@ internal class MelodifyPlayer(private val context: Context) {
         advanced(armed)
         return
       }
+    }
+    // Armed, but nothing was scheduled in time (a crossfade whose moment the ticker missed, a
+    // length that proved wrong): start it on the other deck now rather than stop, as iOS does.
+    if (armed != null && (gapless || crossfadeMs > 0)) {
+      val other = decks[1 - active]
+      other.clear()
+      other.meta = armed.meta
+      other.setGain(armed.gainDb)
+      other.exo.playbackParameters = parameters()
+      other.exo.setMediaItem(mediaItem(armed.uri, armed.key))
+      other.exo.prepare()
+      other.exo.play()
+      deck.clear()
+      active = other.index
+      arming = Arming.NONE
+      advanced(armed)
+      return
     }
     finishNaturally()
   }
@@ -565,6 +603,8 @@ internal class MelodifyPlayer(private val context: Context) {
 
   /** Sets up whatever `next`, the crossfade and gapless settings call for, dropping what was there. */
   private fun armLocked() {
+    // The idle deck is the outgoing side of a crossfade until it ends; it cannot be armed over.
+    endFadeLocked()
     val deck = decks[active]
     if (deck.exo.mediaItemCount > 1) deck.exo.removeMediaItems(1, deck.exo.mediaItemCount)
     if (arming == Arming.OTHER_DECK) decks[1 - active].clear()
@@ -680,6 +720,10 @@ internal class MelodifyPlayer(private val context: Context) {
       audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
     }
     hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    if (hasFocus && duck != 1f) {
+      duck = 1f
+      for (deck in decks) deck.applyVolume()
+    }
     return hasFocus
   }
 
@@ -702,14 +746,16 @@ internal class MelodifyPlayer(private val context: Context) {
     when (change) {
       AudioManager.AUDIOFOCUS_LOSS -> {
         hasFocus = false
-        val wasPlaying = state == PlayerState.PLAYING
+        duck = 1f
+        for (deck in decks) deck.applyVolume()
+        val wasPlaying = isPlayingLocked()
         interruptedWhilePlaying = false
         pauseLocked()
         onRouteChange?.invoke("interruptionBegan", wasPlaying)
       }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
         hasFocus = false
-        val wasPlaying = state == PlayerState.PLAYING
+        val wasPlaying = isPlayingLocked()
         interruptedWhilePlaying = wasPlaying
         pauseLocked()
         onRouteChange?.invoke("interruptionBegan", wasPlaying)
@@ -724,7 +770,12 @@ internal class MelodifyPlayer(private val context: Context) {
         for (deck in decks) deck.applyVolume()
         val wasPlaying = interruptedWhilePlaying
         interruptedWhilePlaying = false
-        if (wasPlaying && state == PlayerState.PAUSED) {
+        val pending = pendingLoad
+        if (wasPlaying && pending != null) {
+          // Still opening: it plays once ready, which is when the load reports playing.
+          pending.autoplay = true
+          decks[active].exo.play()
+        } else if (wasPlaying && state == PlayerState.PAUSED) {
           decks[active].exo.play()
           setState(PlayerState.PLAYING)
           startTicker()

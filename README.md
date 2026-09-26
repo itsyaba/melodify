@@ -108,6 +108,8 @@ anywhere), then Scan now. From Linux: `adb push ~/Music /sdcard/`.
 - The media notification with a favorite heart beside previous, play and next; it also drives the
   lock screen, Bluetooth, cars and watches.
 - A home screen widget (4×1): cover, title, artist, previous, play/pause, next.
+- *Open with Melodify* from a file manager, the downloads list or a chat app: the song plays next,
+  straight away, without touching the rest of the queue; one no scan has seen yet is scanned in.
 - Skip silence (Settings › Playback).
 - Ogg Vorbis and Opus playback, which iOS cannot decode.
 - The accent can follow the wallpaper (Material You, Android 12 and later).

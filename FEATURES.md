@@ -73,6 +73,7 @@ to double-check against the current Musicolet release.
 | Welcome pages | The first launch opens four pages over the app: what Melodify is, what it does, adding music (the import tiles, a scan, their progress), and the theme and accent, with a Musicolet backup restore. An install that already has songs skips them; Settings › Help › Welcome tour opens them again | JS | same, asking for storage access instead of importing | wip |
 | Delete file from device | Remove the file, not just the DB entry | JS | same (All files access) | wip |
 | Share track | Share the audio file with another app | JS | same, share sheet via FileProvider | wip |
+| Open with | Play a song another app hands over (a file manager's Open with): it plays next, at once, and the queue is otherwise kept; a song no scan has seen is scanned in first | N/A | Kotlin: the content:// URI resolved to its path | wip |
 | Set as ringtone | Android-only | N/A | possible (WRITE_SETTINGS) | skip |
 
 ## 4. Lyrics

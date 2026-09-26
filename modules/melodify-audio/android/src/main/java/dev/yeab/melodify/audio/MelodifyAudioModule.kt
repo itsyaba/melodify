@@ -123,13 +123,16 @@ class MelodifyAudioModule : Module() {
       val made = MelodifySession(context, created) { command -> sendEvent("remote", command) }
       session = made
       MelodifyPlayback.session = made.session
+      MelodifyPlayback.player = created
       MelodifyPlayback.remote = { command -> sendEvent("remote", command) }
     }
 
     OnDestroy {
-      controller?.let { future -> future.addListener({ runCatching { future.get().release() } }, Runnable::run) }
+      // A controller is released on its own looper, the audio thread.
+      controller?.let { future -> runCatching { player?.runSync { MediaController.releaseFuture(future) } } }
       controller = null
       MelodifyPlayback.session = null
+      MelodifyPlayback.player = null
       MelodifyPlayback.remote = null
       session?.release()
       session = null
@@ -298,6 +301,9 @@ class MelodifyAudioModule : Module() {
     }
 
     AsyncFunction("scanMediaFiles") { uris: List<String> -> MelodifyStorage.scan(context, uris) }
+
+    // A file another app opened with Melodify: its path, name and size, as far as they can be told.
+    AsyncFunction("resolveOpenedFile") { uri: String -> MelodifyStorage.resolveOpened(context, uri) }
 
     AsyncFunction("shareFile") { uri: String, mimeType: String?, title: String? ->
       val activity = appContext.currentActivity ?: throw NoActivityException()
