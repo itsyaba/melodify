@@ -7,7 +7,7 @@ import { countTracks } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { engineInfo } from '@/player';
 import { HEADSET_ACTIONS, setPref, usePrefs, type HeadsetAction, type Prefs } from '@/prefs';
-import { showOnboarding } from '@/screens/onboarding/state';
+import { openOnboarding } from '@/screens/onboarding/fonts';
 import { SHORTCUTS } from '@/screens/player/shortcuts';
 import { ACCENTS, availableAccents, makeStyles, type ThemeName } from '@/theme';
 import { musicRootLabel } from '@/storage';
@@ -199,7 +199,7 @@ export function SettingsScreen() {
         <ListRow title="Backup and restore" subtitle="Playlists, queues, play counts, settings" onPress={() => router.push('/settings/backup')} />
       </Section>
       <Section title="Help">
-        <ListRow title="Welcome tour" subtitle="What Melodify does, and how to add music" onPress={showOnboarding} />
+        <ListRow title="Welcome tour" subtitle="What Melodify does, and how to add music" onPress={() => void openOnboarding()} />
       </Section>
       <Section title="Audio engine">
         <Note>

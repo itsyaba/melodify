@@ -489,38 +489,43 @@ JS only: no new IPA needed. Try it in a dark theme and in Light, and with a seco
 
 ## 18. Welcome pages (onboarding)
 
-JS only: no new IPA needed. An install that already has songs is never shown the pages by itself,
-so open them from **Settings › Help › Welcome tour**. To see a real first launch, install fresh
-(or clear Melodify's data in LiveContainer) and open the app.
+Redesigned after the Panora reference: a photo first, then four dark pages. JS only, no new IPA
+needed (the Outfit font and the photo ship in the JS bundle). An install that already has songs is
+never shown the pages by itself, so open them from **Settings › Help › Welcome tour**. To see a real
+first launch, install fresh (or clear Melodify's data in LiveContainer) and open the app.
 
-- [ ] **First launch:** a fresh install opens straight onto the welcome pages, with no flash of Home
-      first. The accent washes down from behind the status bar. *Skip* top right, four dots and a
-      full-width accent *Continue* at the bottom.
-- [ ] **Paging:** swipe left and right, or tap *Continue*: the accent dot slides with the swipe and
-      the pages snap. On the last page *Skip* is gone and the button says *Done* (or *Start
-      listening* once there are songs). VoiceOver reads the dots as "Page 2 of 4".
-- [ ] **1. Welcome:** three coloured covers (headphones, note, waveform) fan out as the page opens,
-      then "Your music, offline" and three points with icons: no connection needed, nothing
-      tracked, built after Musicolet.
-- [ ] **2. What it does:** six coloured tiles in two columns (Up to 20 queues, Folders, Bookmarks,
-      Synced lyrics, Equalizer, Tag editor), each with a tilted white icon in its corner, and a
-      grey line under them listing the rest.
-- [ ] **3. Add your music:** the same purple *Import a folder* and green *Import songs* tiles as
-      Import and scan. Import a small folder from here: the "Importing…" and scan cards appear on
-      this page, the toast comes up over the pages, and the title turns into "4 songs ready".
-      *Scan the folder* scans (spinner and "Scanning…" while it runs; dimmed while busy). The
-      LiveContainer card shows only when running there; the *A whole library?* card names
-      Files › On My iPhone › Melodify outside LiveContainer.
-- [ ] **4. Pick a look:** tapping a theme (System, Light, Dark, Black) changes the whole app at
-      once, the pages included; each swatch is a tiny page with a cover in the accent, and the
-      chosen one has an accent border. Tapping an accent dot moves the check and repaints the
-      wash, the button and the dots. Settings › Appearance shows the same choices after.
-- [ ] **Restore from here:** *Restore a backup* opens the file picker; cancelling it leaves the
-      pages up. Choosing a Musicolet or Melodify backup closes the pages and opens the Restore
-      screen for it. With no songs yet, the card asks to add music first.
-- [ ] **Closing:** *Skip* or *Done* fades the pages out onto Home. Force-quit and reopen: they do
-      not come back. *Welcome tour* in Settings fades them in again, back on page 1, and closing
-      them returns to Settings.
+- [ ] **First launch:** a fresh install opens straight onto the photo (the misty green valley with
+      the little house), with no flash of Home first. "Melodify" in a large rounded typeface over
+      the fog with "Your music, offline." under it, rising into place as the photo settles in; a
+      white *Get started* pill at the bottom. The status bar is white.
+- [ ] **The pages:** *Get started* fades the photo into near-black pages. Each has one picture
+      glowing in the accent, a centred white title, a grey line, four small dots (the accent one
+      slides as you swipe) and a white *Continue* pill. A glass *Skip* pill sits top right. Swipe
+      left and right, or tap *Continue*; the picture drifts a little slower than its page.
+- [ ] **1. Melodify:** a player card with the valley as its cover, "Northern Valley", an accent
+      seek bar and play controls, with an accent waveform running out behind it on both sides.
+- [ ] **2. Built like Musicolet:** a peak of glowing accent bars with a dotted trail up to a round
+      queue badge in radar rings; six round badges (folders, bookmarks, lyrics, equalizer, tags,
+      sleep) float gently around it, the far two dimmer. With Reduce Motion on they stay still.
+- [ ] **3. Add your music:** the top of a phone showing the lock screen (today's date and time over
+      the valley) with a glowing Melodify notification on it. iPhone: glass *Import folder* and
+      *Import songs* pills, and "Copied over USB? *Scan the folder*". Import a small folder: the
+      notification turns into "Importing Test Album · 1 of 4 songs" with a bar, then "Reading tags
+      and artwork", then "4 songs ready to play · 1 album · 1 artist"; the toast shows over the
+      pages. In LiveContainer a grey line says to turn on Fix File Picker first. Android: *Allow
+      all files* and *Music only* (then *Scan the phone* once allowed).
+- [ ] **4. Make it yours:** four tiny app screens (System split light and dark, Light, Dark, Black)
+      scattered like a collage with faded photo tiles at the edges. Tap one: it grows, gets an
+      accent border and a glow, and the app's theme changes. Below, a row of accent dots (13 on
+      Android 12+, with Wallpaper): tapping one repaints every glow, the dots, the link and the
+      button at once. The button is an accent pill, *Start Melodify*, and *Skip* is gone.
+- [ ] **Restore from here:** "Coming from Musicolet? *Restore a backup*" opens the file picker;
+      cancelling it leaves the pages up. Choosing a Musicolet or Melodify backup closes the pages
+      and opens the Restore screen for it. With no songs yet it asks to add music first.
+- [ ] **Closing:** *Skip* or *Start Melodify* fades the pages out onto Home. Force-quit and reopen:
+      they do not come back. *Welcome tour* in Settings fades them in again, from the photo.
+- [ ] **Android back:** steps back a page, from page 1 to the photo, and from the photo closes them.
+- [ ] **Small phone** (SE-sized): the pictures shrink to fit; no text or button overlaps.
 
 ## 19. Android (new, 2026-09-26)
 

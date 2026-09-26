@@ -12,6 +12,7 @@
     "test": "node --import ./scripts/test-hooks.mjs --test \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "@expo-google-fonts/outfit": "^0.4.3",
     "@expo/vector-icons": "^15.1.1",
     "expo": "~57.0.22",
     "expo-build-properties": "~57.0.17",

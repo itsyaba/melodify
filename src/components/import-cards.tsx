@@ -10,8 +10,8 @@ import { formatCount } from '@/utils/format';
 import { accessIsASettingsPage, useStorageAccess } from '@/utils/storage-access';
 
 /**
- * The pieces Import and scan and the welcome pages share: the two ways to add music as tiles,
- * the cards for an import or scan that is running or just finished, and a plain info card.
+ * Import and scan's pieces: the two ways to add music as tiles (Android's access steps in their
+ * place), the cards for an import or scan that is running or just finished, and a plain info card.
  */
 
 /** The two import tiles' fills. */

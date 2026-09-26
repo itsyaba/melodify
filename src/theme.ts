@@ -217,10 +217,7 @@ export const artSize = { row: 48, cover: 60, card: 160, player: 320 } as const;
  */
 export const VINYL = { disc: '#121212', groove: 'rgba(255, 255, 255, 0.08)', sheen: 'rgba(255, 255, 255, 0.05)' } as const;
 
-/**
- * Bright fills under white text (`onTint`), the same in every theme: Import and scan's two tiles,
- * and the welcome pages' covers and feature tiles.
- */
+/** Bright fills under white text (`onTint`), the same in every theme: Import and scan's two tiles. */
 export const BROWSE_TILE_COLORS = [
   '#dc148c',
   '#8400e7',
@@ -237,17 +234,34 @@ export const BROWSE_TILE_COLORS = [
   '#477d95',
 ] as const;
 
-/** An accent's own colour, as its swatch shows it; the tint is this for the accent in use. */
-export function accentColor(accent: AccentName): ColorValue {
-  return ios(ACCENTS[accent].ios, ACCENTS[accent].hex, ACCENTS[accent].dark);
-}
-
 /**
- * The welcome pages' theme swatches: each theme's page and a line of text on it, drawn the same
+ * The welcome pages' theme cards: each theme's page and a line of text on it, drawn the same
  * whichever theme is on, so they can be compared. System shows light and dark halves.
  */
 export const THEME_SWATCHES = {
   light: { page: '#ffffff', ink: '#d1d1d6' },
   dark: { page: '#1c1c1e', ink: '#48484a' },
   black: { page: '#000000', ink: '#2c2c2e' },
+} as const;
+
+/**
+ * The welcome pages: dark in every theme, a photo behind the first and near-black behind the
+ * rest, with white text, a white button and glass pills. The accent only glows.
+ */
+export const ONBOARDING = {
+  background: '#0e0e10',
+  ink: '#ffffff',
+  muted: 'rgba(255, 255, 255, 0.58)',
+  faint: 'rgba(255, 255, 255, 0.16)',
+  glass: 'rgba(255, 255, 255, 0.08)',
+  glassEdge: 'rgba(255, 255, 255, 0.14)',
+  /** The floating cards and badges in the pictures. */
+  card: '#1b1b1e',
+  cardEdge: '#2c2c30',
+  button: '#f5f5f7',
+  buttonInk: '#111113',
+  /** Over the photo: darker at the top for the name, and at the foot for the button. */
+  photoShade: 'rgba(6, 10, 12, 0.62)',
+  clear: 'rgba(6, 10, 12, 0)',
+  highlight: 'rgba(255, 255, 255, 0.28)',
 } as const;

@@ -14,7 +14,8 @@ import { startSound } from '@/player/sound';
 import { loadPrefs } from '@/prefs';
 import { readPendingTags } from '@/scan/scanner';
 import { OnboardingHost } from '@/screens/onboarding';
-import { loadOnboarding } from '@/screens/onboarding/state';
+import { loadOnboardingFonts } from '@/screens/onboarding/fonts';
+import { isOnboardingOpen, loadOnboarding } from '@/screens/onboarding/state';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
 import { startOpenWith } from '@/utils/open-with';
 import { startQuickActions } from '@/utils/quick-actions';
@@ -22,12 +23,14 @@ import { startQuickActions } from '@/utils/quick-actions';
 /**
  * Migrations first: the restore reads tables they create, and preferences before either. Unread
  * tags are read, and an automatic backup written if one is due, in the background afterwards;
- * the first screen does not wait for them. It does wait to know whether it is the welcome pages.
+ * the first screen does not wait for them. It does wait to know whether it is the welcome pages,
+ * and for their font if it is.
  */
 async function initDatabase(db: SQLiteDatabase) {
   await migrate(db);
   await loadPrefs(db);
   await loadOnboarding(db);
+  if (isOnboardingOpen()) await loadOnboardingFonts();
   // Before the queue loads its track, so speed, equalizer and gapless apply from the first note.
   startSound();
   await restoreQueue(db);
