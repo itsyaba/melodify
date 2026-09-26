@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, ty
 import { Pressable, SectionList, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';

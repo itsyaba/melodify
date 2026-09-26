@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View, type ColorValue } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useRouter } from 'expo-router';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { importFolder, importSongs, isImporting, stopImport } from '@/scan/import';
 import { IMPORT_DIR, importSummary } from '@/scan/import-plan';
 import { BROWSE_TILE_COLORS, makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import type { ImportProgress, ScanProgress } from '@/utils/events';
 import { formatCount } from '@/utils/format';
+import { accessIsASettingsPage, useStorageAccess } from '@/utils/storage-access';
 
 /**
  * The pieces Import and scan and the welcome pages share: the two ways to add music as tiles,
@@ -38,6 +40,64 @@ export function ImportTiles({ disabled, onImport }: { disabled: boolean; onImpor
         subtitle="Pick one or many"
         disabled={disabled}
         onPress={() => onImport(importSongs)}
+      />
+    </View>
+  );
+}
+
+/**
+ * Android's tiles in place of the import ones: the music is already on the phone, so the steps
+ * are letting Melodify at it, then scanning. Without access, All files (everything works) or
+ * Music only (songs play; lyrics files, tag editing and deleting need All files). With it, Scan
+ * the phone, and Leave folders out for the excluded folders.
+ */
+export function AndroidAccessTiles({ disabled, onScan }: { disabled: boolean; onScan: () => void }) {
+  const styles = useStyles();
+  const router = useRouter();
+  const [access, request] = useStorageAccess();
+  const askThenScan = async (kind: 'full' | 'read') => {
+    const granted = await request(kind);
+    if (granted !== 'none') onScan();
+  };
+  if (access === 'full') {
+    return (
+      <View style={styles.tiles}>
+        <ImportTile
+          color={FOLDER_TILE}
+          icon="arrow.clockwise"
+          title="Scan the phone"
+          subtitle="Every folder, as it is now"
+          disabled={disabled}
+          onPress={onScan}
+        />
+        <ImportTile
+          color={SONGS_TILE}
+          icon="folder.badge.minus"
+          title="Leave folders out"
+          subtitle="Ringtones, recordings"
+          disabled={false}
+          onPress={() => router.push('/settings/excluded')}
+        />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.tiles}>
+      <ImportTile
+        color={FOLDER_TILE}
+        icon="folder.fill"
+        title="Allow all files"
+        subtitle={accessIsASettingsPage() ? 'Everything works; turn it on and come back' : 'Everything works'}
+        disabled={disabled}
+        onPress={() => void askThenScan('full')}
+      />
+      <ImportTile
+        color={SONGS_TILE}
+        icon="music.note"
+        title={access === 'read' ? 'Music only: on' : 'Music only'}
+        subtitle="Songs play, nothing is changed"
+        disabled={disabled || access === 'read'}
+        onPress={() => void askThenScan('read')}
       />
     </View>
   );

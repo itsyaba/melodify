@@ -32,6 +32,7 @@ export class FakeEngine implements PlayerEngine {
   equalizer: EqualizerSettings | null = null;
   pitch = 0;
   volume = 1;
+  skipSilence = false;
   gainDb = 0;
 
   async load(_uri: string, meta: NowPlayingMeta, opts?: LoadOptions) {
@@ -75,6 +76,7 @@ export class FakeEngine implements PlayerEngine {
   }
   async setRate(rate: number) { this.rate = rate; }
   async setPitch(semitones: number) { this.pitch = semitones; }
+  async setSkipSilence(enabled: boolean) { this.skipSilence = enabled; }
   async setVolume(volume: number) { this.volume = volume; }
   updateNowPlaying() {}
   getState() { return this.state; }

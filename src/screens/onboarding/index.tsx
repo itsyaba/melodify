@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import {
   ActivityIndicator,
   Animated,
+  BackHandler,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,11 +15,11 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pickFile } from '@/backup';
 import { IconTile } from '@/components/icon-tile';
-import { ImportCard, ImportTiles, InfoCard, ScanCard } from '@/components/import-cards';
+import { AndroidAccessTiles, ImportCard, ImportTiles, InfoCard, ScanCard } from '@/components/import-cards';
 import { toast } from '@/components/toast';
 import { MAX_QUEUES } from '@/db/queues';
 import { libraryOverview } from '@/db/tracks';
@@ -27,6 +29,7 @@ import { setPref, usePrefs } from '@/prefs';
 import {
   accentColor,
   ACCENTS,
+  availableAccents,
   BROWSE_TILE_COLORS,
   currentTheme,
   makeStyles,
@@ -43,6 +46,7 @@ import { finishOnboarding, isOnboardingOpen, subscribeOnboarding } from './state
 
 const PAGES = 4;
 const BAR = 44;
+const android = Platform.OS === 'android';
 /** How far down from the top the accent wash fades out. */
 const WASH = 420;
 const DOT = 8;
@@ -118,6 +122,17 @@ function Onboarding() {
     if (last) finishOnboarding();
     else pager.current?.scrollTo({ x: (page + 1) * width, animated: true });
   };
+
+  // Android's back steps back a page, and on the first closes the pages, rather than reaching
+  // the app underneath.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (pageRef.current === 0) finishOnboarding();
+      else pager.current?.scrollTo({ x: (pageRef.current - 1) * width, animated: true });
+      return true;
+    });
+    return () => sub.remove();
+  }, [width]);
 
   // The accent, as strong as Import and scan's, fading to nothing down the page.
   const wash = `${ACCENTS[currentTheme().accent].hex}${scheme === 'dark' ? '8c' : '59'}`;
@@ -256,7 +271,8 @@ function Welcome() {
     <>
       <Fan />
       <Heading eyebrow="WELCOME TO MELODIFY" title="Your music, offline">
-        Melodify plays the songs you keep on this iPhone. There is no account to make, nothing to stream and no ads.
+        Melodify plays the songs you keep on this {android ? 'phone' : 'iPhone'}. There is no account to make, nothing to
+        stream and no ads.
       </Heading>
       <View style={styles.points}>
         <Point icon="wifi.slash" title="Works without a connection">
@@ -266,7 +282,9 @@ function Welcome() {
           No sign-in and no analytics. Your library, play counts and history stay here.
         </Point>
         <Point icon="square.stack.fill" title="Built after Musicolet">
-          Its queues, folders, bookmarks and backups, made for iPhone.
+          {android
+            ? 'Its queues, folders, bookmarks, headset clicks and backups, with a player of its own.'
+            : 'Its queues, folders, bookmarks and backups, made for iPhone.'}
         </Point>
       </View>
     </>
@@ -322,8 +340,9 @@ function Features({ width }: { width: number }) {
         ))}
       </View>
       <Text style={[type.footnote, styles.note]}>
-        And a sleep timer that fades out, A–B repeat, gapless playback, crossfade, ReplayGain, and backups Musicolet on
-        Android can restore.
+        {android
+          ? 'And a sleep timer that fades out, A–B repeat, gapless playback, crossfade, ReplayGain, and backups that go both ways with Musicolet.'
+          : 'And a sleep timer that fades out, A–B repeat, gapless playback, crossfade, ReplayGain, and backups Musicolet on Android can restore.'}
       </Text>
     </>
   );
@@ -345,14 +364,29 @@ function AddMusic({ songs }: { songs: number }) {
     <>
       <Heading eyebrow="ADD YOUR MUSIC" title={songs ? `${songs.toLocaleString()} ${songs === 1 ? 'song' : 'songs'} ready` : 'Bring your music in'}>
         {songs
-          ? 'They are in the library. Add more the same way, now or later from Settings › Import and scan.'
-          : 'Melodify has its own music folder on this iPhone and plays what is in it. The quickest way in is the Files picker:'}
+          ? android
+            ? 'They are in the library. Scan again after adding more, now or later from Settings › Scan music.'
+            : 'They are in the library. Add more the same way, now or later from Settings › Import and scan.'
+          : android
+            ? 'Melodify plays the music already on this phone, wherever it is. Let it at your storage, and it scans:'
+            : 'Melodify has its own music folder on this iPhone and plays what is in it. The quickest way in is the Files picker:'}
       </Heading>
-      <ImportTiles disabled={busy} onImport={runImport} />
-      <Text style={[type.footnote, styles.note]}>
-        From On My iPhone, iCloud Drive, a USB drive or a server. A folder keeps its subfolders, covers and .lrc lyrics.
-        Download an iCloud Drive folder in Files first.
-      </Text>
+      {android ? (
+        <>
+          <AndroidAccessTiles disabled={busy} onScan={scan} />
+          <Text style={[type.footnote, styles.note]}>
+            All files lets Melodify save lyrics beside your songs, edit tags and keep backups in Melodify/Backups.
+          </Text>
+        </>
+      ) : (
+        <>
+          <ImportTiles disabled={busy} onImport={runImport} />
+          <Text style={[type.footnote, styles.note]}>
+            From On My iPhone, iCloud Drive, a USB drive or a server. A folder keeps its subfolders, covers and .lrc lyrics.
+            Download an iCloud Drive folder in Files first.
+          </Text>
+        </>
+      )}
 
       {imported || progress ? (
         <View style={styles.cards}>
@@ -369,9 +403,11 @@ function AddMusic({ songs }: { songs: number }) {
           </InfoCard>
         ) : null}
         <InfoCard icon="cable.connector" title="A whole library?">
-          {guest
-            ? 'Copying it over USB from a computer is faster. Melodify’s folder sits inside LiveContainer’s own; copy the music into it, then scan.'
-            : 'Put it in Files › On My iPhone › Melodify, or copy it over USB from a computer, then scan the folder.'}
+          {android
+            ? 'Connect the phone to a computer, choose File transfer, and copy the music into Music/. Then scan.'
+            : guest
+              ? 'Copying it over USB from a computer is faster. Melodify’s folder sits inside LiveContainer’s own; copy the music into it, then scan.'
+              : 'Put it in Files › On My iPhone › Melodify, or copy it over USB from a computer, then scan the folder.'}
         </InfoCard>
         <Pressable
           disabled={busy}
@@ -384,7 +420,7 @@ function AddMusic({ songs }: { songs: number }) {
           ) : (
             <SymbolView name="arrow.clockwise" size={15} tintColor={colors.label} weight="bold" />
           )}
-          <Text style={[type.subhead, styles.outlineLabel]}>{scanning ? 'Scanning…' : 'Scan the folder'}</Text>
+          <Text style={[type.subhead, styles.outlineLabel]}>{scanning ? 'Scanning…' : android ? 'Scan the phone' : 'Scan the folder'}</Text>
         </Pressable>
       </View>
     </>
@@ -441,7 +477,7 @@ function MakeItYours({ width, songs }: { width: number; songs: number }) {
 
       <Text style={[type.footnote, styles.group]}>ACCENT COLOR</Text>
       <View style={styles.accents} accessibilityRole="radiogroup">
-        {(Object.keys(ACCENTS) as AccentName[]).map((a) => {
+        {availableAccents().map((a) => {
           const selected = prefs.accent === a;
           return (
             <View key={a} style={styles.accentCell}>

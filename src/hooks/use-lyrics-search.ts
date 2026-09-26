@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { File, Paths } from 'expo-file-system';
+import { musicFile } from '@/storage';
 import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
 import { promptText, showMenu } from '@/components/menus';
 import { toast } from '@/components/toast';
@@ -78,7 +78,7 @@ async function begin(db: SQLiteDatabase, track: Track, inline: boolean): Promise
   set(track.id, before);
   // A `.lrc` the lyrics are not from (unscanned, or empty) is the user's own: never replaced with
   // something from the internet. The one they are from can be, since Undo writes it back.
-  if (job.existing?.source !== 'lrc' && new File(Paths.document, ...lrcPathFor(track).split('/')).exists) {
+  if (job.existing?.source !== 'lrc' && musicFile(lrcPathFor(track)).exists) {
     fail(job, 'There is already a .lrc file beside this song. Rescan, or fix it in Edit lyrics.', null);
     return null;
   }

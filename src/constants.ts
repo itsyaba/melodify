@@ -5,6 +5,14 @@ export const AUDIO_EXTENSIONS = new Set([
   'mp3', 'm4a', 'aac', 'flac', 'wav', 'aif', 'aiff', 'alac', 'caf', 'm4b', 'mp4',
 ]);
 
+/**
+ * Extensions ExoPlayer plays on Android, through the phone's own decoders: Ogg Vorbis and Opus
+ * too, which iOS cannot, but not AIFF or CAF, which Android has no reader for.
+ */
+export const ANDROID_AUDIO_EXTENSIONS = new Set([
+  'mp3', 'm4a', 'aac', 'flac', 'wav', 'm4b', 'mp4', 'ogg', 'oga', 'opus', 'mka', 'amr', 'awb',
+]);
+
 export const ART_FILENAMES = ['cover', 'folder', 'front', 'album', 'artwork'];
 export const ART_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 export const LYRICS_EXTENSION = 'lrc';

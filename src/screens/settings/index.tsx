@@ -1,16 +1,18 @@
-import { ScrollView } from 'react-native';
+import { Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Paths } from 'expo-file-system';
 import { ListRow } from '@/components/list-row';
+import { showMenu } from '@/components/menus';
 import { ChoiceRow, Note, Section, ToggleRow } from '@/components/settings-rows';
 import { countTracks } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { engineInfo } from '@/player';
-import { setPref, usePrefs, type Prefs } from '@/prefs';
+import { HEADSET_ACTIONS, setPref, usePrefs, type HeadsetAction, type Prefs } from '@/prefs';
 import { showOnboarding } from '@/screens/onboarding/state';
 import { SHORTCUTS } from '@/screens/player/shortcuts';
-import { ACCENTS, makeStyles, type AccentName, type ThemeName } from '@/theme';
+import { ACCENTS, availableAccents, makeStyles, type ThemeName } from '@/theme';
+import { musicRootLabel } from '@/storage';
 import { canLockOrientation } from '@/utils/device';
+import { useStorageAccess, type StorageAccess } from '@/utils/storage-access';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
 
@@ -37,6 +39,44 @@ const ORIENTATIONS: Record<Prefs['orientation'], string> = {
   landscape: 'Landscape only',
 };
 
+const HEADSET_LABELS: Record<HeadsetAction, string> = {
+  toggle: 'Play or pause',
+  next: 'Next song',
+  previous: 'Previous song',
+  skipForward: 'Skip forward',
+  skipBackward: 'Skip back',
+  none: 'Nothing',
+};
+const CLICKS = ['One click', 'Two clicks', 'Three clicks'];
+const ACCESS_LABELS: Record<StorageAccess, string> = {
+  full: 'All files: scan, lyrics files, tag editing and backups',
+  read: 'Music only: songs play, but lyrics files, tag editing, deleting and backups need all files',
+  none: 'None yet: Melodify cannot see your music',
+};
+const android = Platform.OS === 'android';
+
+/** Android: what each run of headset clicks does, one row per count (Musicolet's own setting). */
+function HeadsetRows() {
+  const prefs = usePrefs();
+  return CLICKS.map((title, i) => (
+    <ListRow
+      key={title}
+      title={title}
+      subtitle={HEADSET_LABELS[prefs.headsetClicks[i]]}
+      onPress={() =>
+        showMenu({
+          title: `Headset button, ${title.toLowerCase()}`,
+          items: HEADSET_ACTIONS.map((action) => ({
+            label: HEADSET_LABELS[action],
+            selected: prefs.headsetClicks[i] === action,
+            onPress: () => setPref('headsetClicks', prefs.headsetClicks.map((a, j) => (j === i ? action : a))),
+          })),
+        })
+      }
+    />
+  ));
+}
+
 function minutesLabel(ms: number): string {
   return ms === 0 ? 'Off' : `${ms / 60_000} min or longer`;
 }
@@ -59,11 +99,12 @@ export function SettingsScreen() {
   const router = useRouter();
   const prefs = usePrefs();
   const { data: count } = useLibraryQuery(countTracks);
+  const [access, requestAccess] = useStorageAccess();
 
   return (
     <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
       <Section title="Library">
-        <ListRow title="Import and scan" subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/settings/scan')} />
+        <ListRow title={android ? 'Scan music' : 'Import and scan'} subtitle={count == null ? '' : formatCount(count, 'song')} onPress={() => router.push('/settings/scan')} />
         <ChoiceRow
           pref="minDurationMs"
           title="Hide short songs"
@@ -73,10 +114,17 @@ export function SettingsScreen() {
         />
         <ListRow title="Hidden songs" onPress={() => router.push('/settings/hidden')} />
         <ListRow title="Excluded folders" onPress={() => router.push('/settings/excluded')} />
+        {android ? (
+          <ToggleRow
+            title="Skip folders with a .nomedia file"
+            value={prefs.respectNomedia}
+            onChange={(v) => setPref('respectNomedia', v)}
+          />
+        ) : null}
       </Section>
       <Section title="Appearance">
         <ChoiceRow pref="theme" title="Theme" options={Object.keys(THEMES) as ThemeName[]} label={(t) => THEMES[t]} />
-        <ChoiceRow pref="accent" title="Accent color" options={Object.keys(ACCENTS) as AccentName[]} label={(a) => ACCENTS[a].label} />
+        <ChoiceRow pref="accent" title="Accent color" options={availableAccents()} label={(a) => ACCENTS[a].label} />
         <ChoiceRow
           pref="playerLayout"
           title="Player layout"
@@ -105,6 +153,9 @@ export function SettingsScreen() {
           label={(ms) => (ms === 0 ? 'Off' : `${ms / 1000} seconds`)}
         />
         <ToggleRow title="Gapless playback" value={prefs.gapless} onChange={(v) => setPref('gapless', v)} />
+        {android ? (
+          <ToggleRow title="Skip silence" value={prefs.skipSilence} onChange={(v) => setPref('skipSilence', v)} />
+        ) : null}
         <ChoiceRow
           pref="replayGain"
           title="ReplayGain"
@@ -126,6 +177,12 @@ export function SettingsScreen() {
           onChange={(v) => setPref('resumeOnConnect', v)}
         />
         <ChoiceRow pref="skipSeconds" title="Skip back and forward" options={SKIP_CHOICES} label={(s) => `${s} seconds`} />
+        {android ? (
+          <>
+            <Note>Headset and Bluetooth button</Note>
+            <HeadsetRows />
+          </>
+        ) : null}
         <ChoiceRow pref="resumeMinMs" title="Remember position in long songs" options={RESUME_CHOICES} label={minutesLabel} />
         <ToggleRow title="Fade out before the sleep timer stops" value={prefs.sleepFade} onChange={(v) => setPref('sleepFade', v)} />
         <ToggleRow title="Keep the screen on in the player" value={prefs.keepAwake} onChange={(v) => setPref('keepAwake', v)} />
@@ -148,16 +205,30 @@ export function SettingsScreen() {
         <Note>
           {engineInfo.kind === 'native'
             ? `melodify-audio ${engineInfo.version} (${engineInfo.implementation})`
-            : 'Fake engine: melodify-audio is not in this build, so nothing will play. Install a newer IPA.'}
+            : `Fake engine: melodify-audio is not in this build, so nothing will play. Install a newer ${android ? 'APK' : 'IPA'}.`}
         </Note>
         {engineInfo.reason ? <Note>{engineInfo.reason}</Note> : null}
       </Section>
       <Section title="Storage">
-        <Note>Music folder: {decodeURIComponent(Paths.document.uri)}</Note>
-        <Note>
-          Copy music into the folder above, over USB with ifuse or through the Files app. A LiveContainer install
-          nests it inside LiveContainer’s own container; see the README.
-        </Note>
+        <Note>Music folder: {musicRootLabel()}</Note>
+        {android ? (
+          <>
+            <ListRow
+              title="Access to your music"
+              subtitle={ACCESS_LABELS[access]}
+              onPress={access === 'full' ? undefined : () => void requestAccess('full')}
+            />
+            <Note>
+              Melodify reads your music where it already is: every folder in the phone’s storage except Android/ and
+              hidden ones. Copy songs over USB or with any file manager, then scan. Backups go to Melodify/Backups.
+            </Note>
+          </>
+        ) : (
+          <Note>
+            Copy music into the folder above, over USB with ifuse or through the Files app. A LiveContainer install
+            nests it inside LiveContainer’s own container; see the README.
+          </Note>
+        )}
       </Section>
     </ScrollView>
   );

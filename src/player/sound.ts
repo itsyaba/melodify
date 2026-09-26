@@ -14,6 +14,7 @@ interface Applied {
   eq: string;
   transition: string;
   volume: number;
+  skipSilence: boolean;
 }
 
 let applied: Applied | null = null;
@@ -44,6 +45,7 @@ function apply(p: Prefs, force = false) {
     eq: JSON.stringify(equalizerOf(p)),
     transition: JSON.stringify(transitionOf(p)),
     volume: p.volume * fadeLevel,
+    skipSilence: p.skipSilence,
   };
   const was = force ? null : applied;
   if (next.rate !== was?.rate) run(engine.setRate(next.rate));
@@ -51,6 +53,7 @@ function apply(p: Prefs, force = false) {
   if (next.eq !== was?.eq) run(engine.setEqualizer(equalizerOf(p)));
   if (next.transition !== was?.transition) run(engine.setTransition(transitionOf(p)));
   if (next.volume !== was?.volume) run(engine.setVolume(next.volume));
+  if (next.skipSilence !== was?.skipSilence) run(engine.setSkipSilence(next.skipSilence));
   applied = next;
 }
 

@@ -1,5 +1,5 @@
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 
 export interface QuickCard {

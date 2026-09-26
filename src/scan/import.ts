@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { musicDirectory, musicRoot } from '@/storage';
 import { libraryEvents, type ImportProgress } from '@/utils/events';
 import { formatBytes } from '@/utils/format';
 import { freeName, IMPORT_DIR, importFolderName, importKind, isInside, planFolderImport, type FoundEntry } from './import-plan';
@@ -8,6 +9,7 @@ import { scanLibrary } from './scanner';
 /**
  * Copying music in from the Files app: On My iPhone, iCloud Drive, a USB drive, a server. Only
  * Melodify's own Documents/ is scanned, so everything picked is copied there, then scanned.
+ * iOS only: on Android the scan reads the phone's storage where the music already is.
  */
 
 /** What the song picker offers. FLAC is named as well, in case iOS files it outside public.audio. */
@@ -86,7 +88,7 @@ export async function importSongs(db: SQLiteDatabase): Promise<ImportProgress | 
   p.total = songs.length;
   p.unsupported = picked.result.length - songs.length;
   publish(p);
-  const dir = new Directory(Paths.document, IMPORT_DIR);
+  const dir = musicDirectory(IMPORT_DIR);
   try {
     if (songs.length && !dir.exists) dir.create({ intermediates: true, idempotent: true });
   } catch (err) {
@@ -141,7 +143,7 @@ function walk(root: Directory): Found[] {
     for (const entry of entries) {
       const path = rel ? `${rel}/${entry.name}` : entry.name;
       if (entry instanceof Directory) {
-        if (!entry.name.startsWith('.') && !isInside(entry.uri, Paths.document.uri)) stack.push({ dir: entry, rel: path });
+        if (!entry.name.startsWith('.') && !isInside(entry.uri, musicRoot.uri)) stack.push({ dir: entry, rel: path });
       } else {
         found.push({ rel: path, name: entry.name, file: entry });
       }
@@ -199,7 +201,7 @@ export async function importFolder(db: SQLiteDatabase): Promise<ImportProgress |
   // The walk holds the JS thread; let "Looking through…" reach the screen first.
   await new Promise((resolve) => setTimeout(resolve, 50));
   try {
-    if (isInside(source.uri, Paths.document.uri)) {
+    if (isInside(source.uri, musicRoot.uri)) {
       p.phase = 'done';
       p.message = 'That folder is already in Melodify’s folder, so it was scanned instead';
       publish(p);
@@ -207,7 +209,7 @@ export async function importFolder(db: SQLiteDatabase): Promise<ImportProgress |
       return p;
     }
 
-    const dest = new Directory(Paths.document, name);
+    const dest = musicDirectory(name);
     const plan = planFolderImport(walk(source), (rel) => new File(dest, ...rel.split('/')).exists);
     p.total = plan.songs;
     p.skipped = plan.skipped;

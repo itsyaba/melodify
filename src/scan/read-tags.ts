@@ -1,11 +1,6 @@
 import { Paths } from 'expo-file-system';
+import { appRoot, ART_CACHE_DIR, musicUri } from '@/storage';
 import type { NativeTrackTags } from '../../modules/melodify-audio/src/MelodifyAudio.types';
-
-/**
- * Extracted artwork lives here, relative to Documents/. The leading dot matters: the scanner's
- * walk skips dot-directories, so the cache never shows up as library content.
- */
-export const ART_CACHE_DIR = '.artcache';
 
 /** How many files one bridge call covers. Small enough that progress keeps moving. */
 export const TAG_BATCH = 50;
@@ -46,14 +41,14 @@ export function tagReaderVersion(): number {
   return typeof v === 'number' && v > 0 ? v : 1;
 }
 
-/** Reads tags for a batch of paths relative to Documents/. Keyed by path on the way back. */
+/** Reads tags for a batch of paths relative to the music folder. Keyed by path on the way back. */
 export async function readTags(relativePaths: string[]): Promise<Map<string, NativeTrackTags>> {
   const mod = native();
   const byPath = new Map<string, NativeTrackTags>();
   if (!mod || relativePaths.length === 0) return byPath;
 
-  const uris = relativePaths.map((p) => Paths.join(Paths.document, p));
-  const results = await mod.readTags(uris, Paths.join(Paths.document, ART_CACHE_DIR));
+  const uris = relativePaths.map((p) => musicUri(p));
+  const results = await mod.readTags(uris, Paths.join(appRoot, ART_CACHE_DIR));
   // Match on the echoed uri rather than array position, so a reordered or short result is safe.
   const byUri = new Map(results.map((r) => [r.uri, r]));
   relativePaths.forEach((relative, i) => {

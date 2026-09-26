@@ -1,4 +1,7 @@
+import { Platform } from 'react-native';
+import { Tabs } from 'expo-router/tabs';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { AndroidTabBar } from '@/components/android-tab-bar';
 import { MiniPlayer } from '@/components/mini-player';
 import { useCurrentTrack } from '@/player/queue-store';
 import { ALL_TABS, usePrefs, type TabKey } from '@/prefs';
@@ -51,7 +54,34 @@ function trigger(key: TabKey, hidden: boolean) {
   }
 }
 
+const TITLES: Record<TabKey, string> = { home: 'Home', queue: 'Queue', folders: 'Folders', library: 'Library', search: 'Search' };
+
 export default function TabsLayout() {
+  return Platform.OS === 'android' ? <AndroidTabs /> : <IosTabs />;
+}
+
+/**
+ * Android: JavaScript tabs, so the mini player can sit above the bar (AndroidTabBar); the
+ * native bar there has no slot for one. The order and the hidden tabs follow Settings as on iOS.
+ */
+function AndroidTabs() {
+  const { tabs } = usePrefs();
+  const order = [...tabs, ...ALL_TABS.filter((t) => !tabs.includes(t))];
+  return (
+    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <AndroidTabBar {...props} />}>
+      {order.map((key) => (
+        <Tabs.Screen
+          key={key}
+          name={`(${key})`}
+          options={{ title: TITLES[key], href: tabs.includes(key) ? undefined : null }}
+          listeners={key === 'search' ? { tabPress: () => searchEvents.emit('focus', undefined) } : undefined}
+        />
+      ))}
+    </Tabs>
+  );
+}
+
+function IosTabs() {
   // The accessory is only mounted while something is loaded, so an empty queue leaves no bar
   // behind. This reads the current track through a selector rather than the full queue snapshot:
   // the snapshot changes four times a second while playing, and re-rendering NativeTabs at that

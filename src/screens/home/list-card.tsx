@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { Artwork } from '@/components/artwork';
 import { makeStyles, radius, spacing, type, useTheme, VINYL } from '@/theme';
 

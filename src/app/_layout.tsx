@@ -1,10 +1,12 @@
 import { Suspense } from 'react';
-import { ActivityIndicator, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Platform, useColorScheme, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack } from 'expo-router/stack';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { startAutoBackup } from '@/backup';
 import { MenuHost } from '@/components/menu-sheet';
+import { PromptHost } from '@/components/prompt-dialog';
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
@@ -57,10 +59,13 @@ function useNavigationTheme() {
 
 export default function RootLayout() {
   const navigationTheme = useNavigationTheme();
+  const scheme = useColorScheme();
   // A Stack above the tabs, so the player can present as a sheet over the tab bar. The tabs
   // themselves live in (tabs) and render their own header, hence headerShown: false here.
   return (
     <ThemeProvider value={navigationTheme}>
+      {/* Android draws the app under a see-through status bar, whose icons must suit the theme. */}
+      {Platform.OS === 'android' ? <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /> : null}
       <Suspense fallback={<Loading />}>
         <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase} useSuspense>
           <Stack>
@@ -77,6 +82,7 @@ export default function RootLayout() {
           <OnboardingHost />
           <ToastHost />
           <MenuHost />
+          {Platform.OS === 'android' ? <PromptHost /> : null}
         </SQLiteProvider>
       </Suspense>
     </ThemeProvider>

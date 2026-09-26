@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, FlatList, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { Animated, FlatList, Platform, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';
@@ -258,8 +258,12 @@ export function HomeScreen() {
         {empty ? (
           <EmptyState
             title="No music yet"
-            body="Import a folder or some songs from the Files app, or copy your music over USB."
-            action={{ label: 'Import music', onPress: () => router.push('/settings/scan') }}
+            body={
+              Platform.OS === 'android'
+                ? 'Let Melodify at the music on this phone, or copy some over USB, then scan.'
+                : 'Import a folder or some songs from the Files app, or copy your music over USB.'
+            }
+            action={{ label: Platform.OS === 'android' ? 'Find my music' : 'Import music', onPress: () => router.push('/settings/scan') }}
           />
         ) : (
           <>

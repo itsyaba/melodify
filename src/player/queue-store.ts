@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
-import { Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   createQueue,
@@ -19,7 +18,8 @@ import { serial } from '@/db/serial';
 import { getSetting, setSetting } from '@/db/settings';
 import { recordPlay, recordSkip, setFavorite, setResumeMs } from '@/db/tracks';
 import type { Track } from '@/db/types';
-import { getPrefs, subscribePrefs } from '@/prefs';
+import { getPrefs, subscribePrefs, type HeadsetAction } from '@/prefs';
+import { musicUri } from '@/storage';
 import { libraryEvents } from '@/utils/events';
 import { artUri } from '@/components/artwork';
 import { replayGainDb } from './gain';
@@ -101,11 +101,18 @@ function updateQueue(id: number, patch: Partial<QueueInfo>) {
 }
 
 function trackUri(track: Track): string {
-  return Paths.join(Paths.document, track.path);
+  return musicUri(track.path);
 }
 
 function nowPlayingMeta(track: Track): NowPlayingMeta {
-  return { title: track.title, artist: track.artist, album: track.album, durationMs: track.duration_ms, artUri: artUri(track.art_key) };
+  return {
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    durationMs: track.duration_ms,
+    artUri: artUri(track.art_key),
+    favorite: track.favorite === 1,
+  };
 }
 
 function gainOf(track: Track): number {
@@ -342,6 +349,11 @@ export function patchTracks(ids: number[], patch: Partial<Track>): void {
     return { ...q, tracks: q.tracks.map((t) => (wanted.has(t.id) ? { ...t, ...patch } : t)) };
   });
   if (touched) set({ queues });
+  // The notification's heart follows the playing song (Android).
+  const current = state.tracks[state.currentIndex];
+  if (patch.favorite !== undefined && current && wanted.has(current.id)) {
+    engine.updateNowPlaying({ favorite: patch.favorite === 1 });
+  }
 }
 
 export const queue = {
@@ -796,8 +808,23 @@ engine.on('remote', (cmd) => {
       const track = state.tracks[state.currentIndex];
       return track ? run(queue.setFavorite(track, !track.favorite)) : undefined;
     }
+    case 'headset':
+      return headsetAction(getPrefs().headsetClicks[Math.min(cmd.clicks, 3) - 1] ?? 'none');
   }
 });
+
+/** One, two or three clicks of a headset's button, as Settings maps them (Android). */
+function headsetAction(action: HeadsetAction): void {
+  const skipMs = getPrefs().skipSeconds * 1000;
+  switch (action) {
+    case 'toggle': return run(queue.toggle());
+    case 'next': return run(queue.next());
+    case 'previous': return run(queue.previous());
+    case 'skipForward': return run(engine.seek(state.positionMs + skipMs));
+    case 'skipBackward': return run(engine.seek(Math.max(0, state.positionMs - skipMs)));
+    case 'none': return;
+  }
+}
 
 function subscribe(fn: () => void): () => void {
   subscribers.add(fn);

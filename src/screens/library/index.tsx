@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react';
-import { FlatList, useWindowDimensions } from 'react-native';
+import { FlatList, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { AlbumCard } from '@/components/album-card';
@@ -99,13 +99,19 @@ const LAYOUTS = [{ key: 'list' }, { key: 'grid' }] as const;
 type Layout = (typeof LAYOUTS)[number]['key'];
 
 const EMPTY_BODY =
-  'Import songs or whole folders from the Files app, or copy music into the Melodify folder over USB and scan it.';
+  Platform.OS === 'android'
+    ? 'Let Melodify at the music on this phone, or copy some over USB, then scan.'
+    : 'Import songs or whole folders from the Files app, or copy music into the Melodify folder over USB and scan it.';
 
 /** An empty library, with the way to fill it. */
 function NoMusic({ title }: { title: string }) {
   const router = useRouter();
   return (
-    <EmptyState title={title} body={EMPTY_BODY} action={{ label: 'Import music', onPress: () => router.push('/settings/scan') }} />
+    <EmptyState
+      title={title}
+      body={EMPTY_BODY}
+      action={{ label: Platform.OS === 'android' ? 'Find my music' : 'Import music', onPress: () => router.push('/settings/scan') }}
+    />
   );
 }
 const NO_TRACKS: Track[] = [];

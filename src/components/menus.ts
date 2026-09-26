@@ -65,11 +65,28 @@ export function showMenu(opts: MenuRequest): void {
   ]);
 }
 
+export interface PromptRequest {
+  title: string;
+  message?: string;
+  defaultValue?: string;
+  ok?: string;
+  /** The trimmed text (possibly empty), or null when cancelled. */
+  resolve: (value: string | null) => void;
+}
+
+let promptHost: ((request: PromptRequest) => void) | null = null;
+
+/** Android's text prompt, mounted at the root (`PromptHost`); iOS has Alert.prompt. */
+export function setPromptHost(fn: ((request: PromptRequest) => void) | null): void {
+  promptHost = fn;
+}
+
 /** Resolves with the trimmed text (possibly empty), or null when cancelled. */
 export function promptText(title: string, opts: { message?: string; defaultValue?: string; ok?: string } = {}): Promise<string | null> {
   return new Promise((resolve) => {
     if (Platform.OS !== 'ios') {
-      resolve(opts.defaultValue?.trim() ?? '');
+      if (promptHost) promptHost({ title, ...opts, resolve });
+      else resolve(opts.defaultValue?.trim() ?? '');
       return;
     }
     Alert.prompt(

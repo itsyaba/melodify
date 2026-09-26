@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, type ColorValue } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { spacing, useTheme } from '@/theme';
 
 interface Props {

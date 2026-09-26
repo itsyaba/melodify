@@ -43,8 +43,12 @@ function toRemoteCommand(payload: {
   type: string;
   positionMs?: number;
   intervalMs?: number;
+  clicks?: number;
 }): RemoteCommand | null {
   if (isSimpleCommand(payload.type)) return { type: payload.type };
+  if (payload.type === 'headset' && typeof payload.clicks === 'number' && payload.clicks > 0) {
+    return { type: 'headset', clicks: Math.round(payload.clicks) };
+  }
   if (payload.type === 'seek' && typeof payload.positionMs === 'number') {
     return { type: 'seek', positionMs: payload.positionMs };
   }
@@ -64,6 +68,7 @@ function nativeMeta(meta: NowPlayingMeta) {
     album: meta.album ?? null,
     durationMs: meta.durationMs ?? null,
     artUri: meta.artUri ?? null,
+    favorite: meta.favorite ?? null,
   };
 }
 
@@ -130,6 +135,11 @@ export class NativeEngine implements PlayerEngine {
 
   async setPitch(semitones: number) {
     await Native.setPitch?.(semitones);
+  }
+
+  /** Android only (module 0.11.0): the Swift module has no such function. */
+  async setSkipSilence(enabled: boolean) {
+    await Native.setSkipSilence?.(enabled);
   }
 
   play() {

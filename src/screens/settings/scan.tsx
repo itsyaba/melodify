@@ -1,12 +1,12 @@
 import { useMemo, useRef } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components/icon-button';
 import { IconTile } from '@/components/icon-tile';
-import { ImportCard, ImportTiles, InfoCard, Meter, ScanCard } from '@/components/import-cards';
+import { AndroidAccessTiles, ImportCard, ImportTiles, InfoCard, Meter, ScanCard } from '@/components/import-cards';
 import { ListRow } from '@/components/list-row';
 import { confirm } from '@/components/menus';
 import { toast } from '@/components/toast';
@@ -20,6 +20,9 @@ import { formatBytes, formatCount, formatTotalTime } from '@/utils/format';
 import { isLiveContainerGuest } from '@/utils/quick-actions';
 
 const BAR = 44;
+const android = Platform.OS === 'android';
+/** Android imports nothing: the music is already in the phone's storage, so the page only scans it. */
+const TITLE = android ? 'Scan music' : 'Import and scan';
 /** How far the wash reaches above the page, so pulling it down never shows its edge. */
 const OVERSCROLL = 600;
 /** How far down the page the wash fades out. */
@@ -91,7 +94,7 @@ export function ScanScreen() {
           accessibilityRole="header"
           style={[type.headline, styles.barTitle, { opacity: titleOpacity }]}
         >
-          Import and scan
+          {TITLE}
         </Animated.Text>
         <View style={styles.barSide} />
       </View>
@@ -129,22 +132,40 @@ export function ScanScreen() {
         ) : null}
 
         <Text style={[type.title, styles.heading]}>Add music</Text>
-        <ImportTiles disabled={busy} onImport={runImport} />
-        <Text style={[type.footnote, styles.note]}>
-          From On My iPhone, iCloud Drive, a USB drive or a server. Importing a folder again copies only what is new.
-          Download an iCloud Drive folder in Files first.
-        </Text>
-        <View style={styles.cards}>
-          {isLiveContainerGuest() ? (
-            <InfoCard icon="lightbulb.fill" title="Using LiveContainer?">
-              The picker’s Open button does nothing until Fix File Picker is on for Melodify: hold its card in
-              LiveContainer, then Settings › Fixes. Not the legacy one, which cannot open folders.
-            </InfoCard>
-          ) : null}
-          <InfoCard icon="cable.connector" title="Copy over USB">
-            Faster for a whole library: copy music into the Melodify folder with a computer, then tap Scan now.
-          </InfoCard>
-        </View>
+        {android ? (
+          <>
+            <AndroidAccessTiles disabled={busy} onScan={scan} />
+            <Text style={[type.footnote, styles.note]}>
+              Melodify plays your music where it is: every folder in the phone’s storage, except Android/, hidden
+              folders and, unless Settings says otherwise, folders with a .nomedia file.
+            </Text>
+            <View style={styles.cards}>
+              <InfoCard icon="cable.connector" title="Copy over USB">
+                Connect the phone to a computer, choose File transfer, and copy music into Music/ or anywhere you like.
+                Then tap Scan now.
+              </InfoCard>
+            </View>
+          </>
+        ) : (
+          <>
+            <ImportTiles disabled={busy} onImport={runImport} />
+            <Text style={[type.footnote, styles.note]}>
+              From On My iPhone, iCloud Drive, a USB drive or a server. Importing a folder again copies only what is new.
+              Download an iCloud Drive folder in Files first.
+            </Text>
+            <View style={styles.cards}>
+              {isLiveContainerGuest() ? (
+                <InfoCard icon="lightbulb.fill" title="Using LiveContainer?">
+                  The picker’s Open button does nothing until Fix File Picker is on for Melodify: hold its card in
+                  LiveContainer, then Settings › Fixes. Not the legacy one, which cannot open folders.
+                </InfoCard>
+              ) : null}
+              <InfoCard icon="cable.connector" title="Copy over USB">
+                Faster for a whole library: copy music into the Melodify folder with a computer, then tap Scan now.
+              </InfoCard>
+            </View>
+          </>
+        )}
 
         {coverage && coverage.songs > 0 ? (
           <>
@@ -185,11 +206,13 @@ function Hero({ overview }: { overview: LibraryOverview | undefined }) {
         ]
           .filter(Boolean)
           .join(' · ')
-      : 'Import a folder or some songs below to get started.'
+      : android
+        ? 'Let Melodify at your music below to get started.'
+        : 'Import a folder or some songs below to get started.'
     : ' ';
   return (
     <View style={styles.hero}>
-      <Text style={[type.caption, styles.eyebrow]}>IMPORT AND SCAN</Text>
+      <Text style={[type.caption, styles.eyebrow]}>{TITLE.toUpperCase()}</Text>
       <Text numberOfLines={1} adjustsFontSizeToFit style={styles.count}>
         {overview ? (songs ? `${songs.toLocaleString()} ${songs === 1 ? 'song' : 'songs'}` : 'No music yet') : ' '}
       </Text>

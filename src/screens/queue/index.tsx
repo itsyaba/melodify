@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { Artwork } from '@/components/artwork';
 import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';

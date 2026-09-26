@@ -58,6 +58,15 @@ export interface Prefs {
   showVolume: boolean;
   /** Carry on playing when headphones come back after being pulled out mid-song. */
   resumeOnConnect: boolean;
+  /**
+   * Android: what one, two and three presses of a headset's button do, in that order. iOS keeps
+   * its own mapping (play/pause, next, previous) and never reports the clicks.
+   */
+  headsetClicks: HeadsetAction[];
+  /** Android: skip folders holding a `.nomedia` file, as the system's own media scanner does. */
+  respectNomedia: boolean;
+  /** Android: leave out silence in what plays. */
+  skipSilence: boolean;
   /** Which of the one-time changes in `migrate` the stored preferences have had. */
   version: number;
 }
@@ -76,6 +85,9 @@ export interface EqualizerPrefs extends EqPreset {
 }
 
 export type ReplayGainMode = 'off' | 'track' | 'album';
+
+export type HeadsetAction = 'toggle' | 'next' | 'previous' | 'skipForward' | 'skipBackward' | 'none';
+export const HEADSET_ACTIONS: readonly HeadsetAction[] = ['toggle', 'next', 'previous', 'skipForward', 'skipBackward', 'none'];
 
 export type AutoBackup = 'off' | 'daily' | 'weekly';
 export type PlayerLayout = 'standard' | 'edge' | 'compact';
@@ -129,6 +141,10 @@ export const DEFAULT_PREFS: Prefs = {
   volume: 1,
   showVolume: false,
   resumeOnConnect: false,
+  // Musicolet's defaults.
+  headsetClicks: ['toggle', 'next', 'previous'],
+  respectNomedia: true,
+  skipSilence: false,
   version: 2,
 };
 
@@ -178,11 +194,18 @@ function sanitize(p: Prefs): Prefs {
     ? p.playerShortcuts.filter((k, i) => ALL_PLAYER_SHORTCUTS.includes(k) && p.playerShortcuts.indexOf(k) === i)
     : [...DEFAULT_PREFS.playerShortcuts];
   const eq = { ...DEFAULT_PREFS.equalizer, ...(p.equalizer ?? {}) };
+  const clicks = Array.isArray(p.headsetClicks) ? p.headsetClicks : [];
+  const headsetClicks = DEFAULT_PREFS.headsetClicks.map((fallback, i) =>
+    HEADSET_ACTIONS.includes(clicks[i]) ? clicks[i] : fallback,
+  );
   return {
     ...p,
     tabs,
     libraryViews: views.length ? views : [...ALL_LIBRARY_VIEWS],
     playerShortcuts: shortcuts,
+    headsetClicks,
+    respectNomedia: p.respectNomedia !== false,
+    skipSilence: p.skipSilence === true,
     playbackRate: clamp(p.playbackRate, 0.5, 2, 1),
     pitchSemitones: clamp(p.pitchSemitones, -12, 12, 0),
     equalizer: {

@@ -1,4 +1,4 @@
-import { File, Paths } from 'expo-file-system';
+import { musicFile, musicUri } from '@/storage';
 import type { Track } from '@/db/types';
 import { parseLyrics, type Lyrics } from './lrc';
 
@@ -40,7 +40,7 @@ export async function loadLyrics(track: Track): Promise<LoadedLyrics | null> {
   let result: LoadedLyrics | null = null;
   if (track.lyrics_path) {
     try {
-      const text = await new File(Paths.join(Paths.document, track.lyrics_path)).text();
+      const text = await musicFile(track.lyrics_path).text();
       const parsed = parseLyrics(text);
       if (parsed.lines.length) result = { ...parsed, source: 'lrc' };
     } catch (err) {
@@ -50,7 +50,7 @@ export async function loadLyrics(track: Track): Promise<LoadedLyrics | null> {
   const mod = native();
   if (!result && mod) {
     try {
-      const text = await mod.readLyrics(Paths.join(Paths.document, track.path));
+      const text = await mod.readLyrics(musicUri(track.path));
       const parsed = text ? parseLyrics(text) : null;
       if (parsed?.lines.length) result = { ...parsed, source: 'embedded' };
     } catch (err) {
@@ -68,13 +68,13 @@ export async function loadLyrics(track: Track): Promise<LoadedLyrics | null> {
 export async function loadRawLyrics(track: Track): Promise<{ text: string; source: LoadedLyrics['source'] } | null> {
   if (track.lyrics_path) {
     try {
-      const text = await new File(Paths.join(Paths.document, track.lyrics_path)).text();
+      const text = await musicFile(track.lyrics_path).text();
       if (text.trim()) return { text: text.replace(/\r\n?/g, '\n').trim(), source: 'lrc' };
     } catch (err) {
       console.warn('[melodify] reading lyrics failed:', track.lyrics_path, err);
     }
   }
-  const text = await native()?.readLyrics(Paths.join(Paths.document, track.path)).catch(() => null);
+  const text = await native()?.readLyrics(musicUri(track.path)).catch(() => null);
   return text?.trim() ? { text: text.replace(/\r\n?/g, '\n').trim(), source: 'embedded' } : null;
 }
 

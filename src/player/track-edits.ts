@@ -1,10 +1,11 @@
-import { Share } from 'react-native';
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { serial } from '@/db/serial';
 import { deleteTrackRows, setFavorite, setHidden } from '@/db/tracks';
 import type { Track } from '@/db/types';
+import { musicUri, notifyMediaChanged } from '@/storage';
 import { libraryEvents } from '@/utils/events';
+import { shareFile } from '@/utils/share';
 import { patchTracks, queue } from './queue-store';
 
 /**
@@ -13,7 +14,7 @@ import { patchTracks, queue } from './queue-store';
  */
 
 export function fileUri(track: Track): string {
-  return Paths.join(Paths.document, track.path);
+  return musicUri(track.path);
 }
 
 export async function setFavorites(db: SQLiteDatabase, tracks: Track[], favorite: boolean): Promise<void> {
@@ -52,6 +53,7 @@ export async function deleteTrackFiles(db: SQLiteDatabase, tracks: Track[]): Pro
     }
   }
   if (deleted.length) {
+    notifyMediaChanged(tracks.filter((t) => deleted.includes(t.id)).map(fileUri));
     await queue.forgetTracks(deleted);
     await serial(() => deleteTrackRows(db, deleted));
     libraryEvents.emit('changed', undefined);
@@ -59,7 +61,7 @@ export async function deleteTrackFiles(db: SQLiteDatabase, tracks: Track[]): Pro
   return failed;
 }
 
-/** The iOS share sheet with the audio file itself, for AirDrop, Files or another app. */
+/** The share sheet with the audio file itself: AirDrop or Files on iOS, any app on Android. */
 export async function shareTrack(track: Track): Promise<void> {
-  await Share.share({ url: fileUri(track), title: track.title });
+  await shareFile(fileUri(track), { title: track.title });
 }

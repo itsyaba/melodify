@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type ReactElement } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import type { Track } from '@/db/types';
 import { useSelection } from '@/hooks/use-selection';
 import { queue, useCurrentTrack } from '@/player/queue-store';

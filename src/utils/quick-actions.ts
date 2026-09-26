@@ -1,4 +1,4 @@
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -8,10 +8,10 @@ import { searchEvents } from '@/utils/events';
 import type { NativeShortcut } from '../../modules/melodify-audio/src/MelodifyAudio.types';
 
 /**
- * Home screen quick actions: hold the app icon for Resume, Shuffle all, Favorites and Search.
- * Resume names the song it would play, so the list is refreshed whenever the app goes to the
- * background. Needs module 0.9.0, and a real install: under LiveContainer the icon belongs to
- * LiveContainer, whose own actions must not be replaced, so nothing is set there.
+ * Home screen quick actions (app shortcuts on Android): hold the app icon for Resume, Shuffle
+ * all, Favorites and Search. Resume names the song it would play, so the list is refreshed
+ * whenever the app goes to the background. Needs module 0.9.0 on iOS, and a real install: under
+ * LiveContainer the icon belongs to LiveContainer, whose own actions must not be replaced.
  */
 type ActionType = 'resume' | 'shuffle' | 'favorites' | 'search';
 
@@ -32,6 +32,7 @@ function native(): Native | null {
 
 /** A LiveContainer guest's Documents sits inside LiveContainer's own, under Data/Application. */
 export function isLiveContainerGuest(documentsUri = Paths.document.uri): boolean {
+  if (Platform.OS !== 'ios') return false;
   return /\/Documents\/Data\/Application\/[^/]+\/Documents\/?$/.test(decodeURIComponent(documentsUri));
 }
 

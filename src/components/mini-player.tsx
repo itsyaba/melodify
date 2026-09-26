@@ -14,17 +14,24 @@ const ART = 36;
  * which leaves room for the artwork, the title and one button and nothing else.
  */
 export function MiniPlayer() {
+  const placement = NativeTabs.BottomAccessory.usePlacement();
+  return <MiniPlayerBar compact={placement === 'inline'} />;
+}
+
+/**
+ * The mini player itself. Android docks it above its own tab bar (AndroidTabBar), outside any
+ * bottom accessory, where asking for the placement would throw.
+ */
+export function MiniPlayerBar({ compact = false }: { compact?: boolean }) {
   const styles = useStyles();
   const colors = useTheme();
   const router = useRouter();
   const { tracks, currentIndex, state, positionMs, durationMs, toggle, next } = useQueue();
-  const placement = NativeTabs.BottomAccessory.usePlacement();
   const track = tracks[currentIndex];
   if (!track) return null;
 
   const playing = state === 'playing';
   const progress = durationMs > 0 ? Math.max(0, Math.min(1, positionMs / durationMs)) : 0;
-  const compact = placement === 'inline';
 
   return (
     <Pressable

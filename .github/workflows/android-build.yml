@@ -1,0 +1,98 @@
+# Builds Melodify for Android on a Linux runner: a release APK, the JS bundled in, installable
+# straight onto a phone (adb install, or open it on the phone).
+#
+# It is signed with the key in the repository secrets (ANDROID_KEYSTORE_BASE64, and
+# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD), so every build installs over
+# the last one and keeps the library. Without them it falls back to the debug key, which installs
+# fine but is a different key on every runner: then uninstall before installing the next build.
+#
+# Trigger manually (workflow_dispatch) or on pushes that touch native code or config.
+
+name: Android build
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Build variant (Release has the JS inside; Debug is a dev client for Metro)
+        type: choice
+        options: [Release, Debug]
+        default: Release
+  push:
+    branches: [main]
+    paths:
+      - app.json
+      - app.config.*
+      - package.json
+      - package-lock.json
+      - modules/**
+      - .github/workflows/android-build.yml
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      VARIANT: ${{ inputs.variant || 'Release' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: signing with the debug key"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/melodify.jks"
+          {
+            echo "SIGNING_ARGS=-Pandroid.injected.signing.store.file=$RUNNER_TEMP/melodify.jks -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD -Pandroid.injected.signing.key.alias=$KEY_ALIAS -Pandroid.injected.signing.key.password=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      # arm64 for today's phones, armv7 for old ones, x86_64 for the emulator.
+      - name: Build
+        working-directory: android
+        run: |
+          ./gradlew "assemble$VARIANT" \
+            -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64 \
+            $SIGNING_ARGS \
+            --no-daemon --console=plain
+          VARIANT_DIR=$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')
+          APK=$(ls app/build/outputs/apk/$VARIANT_DIR/*.apk | head -1)
+          test -n "$APK" || { echo "::error::no APK produced"; exit 1; }
+          mkdir -p ../dist-android
+          cp "$APK" "../dist-android/Melodify-$VARIANT.apk"
+          ls -la ../dist-android
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Melodify-${{ env.VARIANT }}-android
+          path: dist-android/Melodify-${{ env.VARIANT }}.apk
+          retention-days: 14

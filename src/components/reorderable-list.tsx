@@ -21,7 +21,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { makeStyles, spacing, useTheme } from '@/theme';
 
 /**

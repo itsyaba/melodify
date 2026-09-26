@@ -6,29 +6,58 @@ import { Appearance, Platform, PlatformColor, StyleSheet, type ColorValue } from
  * one of them (through `Appearance.setColorScheme`, which sets the windows' interface style) and
  * swaps the few tokens that differ. A theme change re-renders every component that reads colors
  * through `useTheme` or `makeStyles`, so it applies at once, without a restart.
+ *
+ * Android has no such names, so each token carries the same color's light and dark values, and
+ * the palette is rebuilt when the system switches between them.
  */
 
 export type ThemeName = 'system' | 'light' | 'dark' | 'black';
 
-/** iOS system colors; each already has its own light and dark shade. Hex values are for web. */
+type AndroidAccent = { systemAccent?: { light: string; dark: string } | null };
+
+/** Android 12's wallpaper colors (Material You), from the module; null elsewhere and before 12. */
+const WALLPAPER: { light: string; dark: string } | null = (() => {
+  if (Platform.OS !== 'android') return null;
+  try {
+    const mod = require('../modules/melodify-audio/src/MelodifyAudioModule').default as AndroidAccent | undefined;
+    return mod?.systemAccent ?? null;
+  } catch {
+    return null;
+  }
+})();
+
+/**
+ * iOS system colors; each already has its own light and dark shade. `hex` and `dark` are the
+ * same colors for Android and web. `wallpaper` follows the wallpaper on Android 12 and later, and
+ * is only offered there.
+ */
 export const ACCENTS = {
-  pink: { ios: 'systemPink', hex: '#ff2d55', label: 'Pink' },
-  red: { ios: 'systemRed', hex: '#ff3b30', label: 'Red' },
-  orange: { ios: 'systemOrange', hex: '#ff9500', label: 'Orange' },
-  yellow: { ios: 'systemYellow', hex: '#ffcc00', label: 'Yellow' },
-  green: { ios: 'systemGreen', hex: '#34c759', label: 'Green' },
-  mint: { ios: 'systemMint', hex: '#00c7be', label: 'Mint' },
-  teal: { ios: 'systemTeal', hex: '#30b0c7', label: 'Teal' },
-  cyan: { ios: 'systemCyan', hex: '#32ade6', label: 'Cyan' },
-  blue: { ios: 'systemBlue', hex: '#007aff', label: 'Blue' },
-  indigo: { ios: 'systemIndigo', hex: '#5856d6', label: 'Indigo' },
-  purple: { ios: 'systemPurple', hex: '#af52de', label: 'Purple' },
-  brown: { ios: 'systemBrown', hex: '#a2845e', label: 'Brown' },
+  pink: { ios: 'systemPink', hex: '#ff2d55', dark: '#ff375f', label: 'Pink' },
+  red: { ios: 'systemRed', hex: '#ff3b30', dark: '#ff453a', label: 'Red' },
+  orange: { ios: 'systemOrange', hex: '#ff9500', dark: '#ff9f0a', label: 'Orange' },
+  yellow: { ios: 'systemYellow', hex: '#ffcc00', dark: '#ffd60a', label: 'Yellow' },
+  green: { ios: 'systemGreen', hex: '#34c759', dark: '#30d158', label: 'Green' },
+  mint: { ios: 'systemMint', hex: '#00c7be', dark: '#63e6e2', label: 'Mint' },
+  teal: { ios: 'systemTeal', hex: '#30b0c7', dark: '#40c8e0', label: 'Teal' },
+  cyan: { ios: 'systemCyan', hex: '#32ade6', dark: '#64d2ff', label: 'Cyan' },
+  blue: { ios: 'systemBlue', hex: '#007aff', dark: '#0a84ff', label: 'Blue' },
+  indigo: { ios: 'systemIndigo', hex: '#5856d6', dark: '#5e5ce6', label: 'Indigo' },
+  purple: { ios: 'systemPurple', hex: '#af52de', dark: '#bf5af2', label: 'Purple' },
+  brown: { ios: 'systemBrown', hex: '#a2845e', dark: '#ac8e68', label: 'Brown' },
+  wallpaper: { ios: 'systemBlue', hex: WALLPAPER?.light ?? '#6750a4', dark: WALLPAPER?.dark ?? '#d0bcff', label: 'Wallpaper' },
 } as const;
 export type AccentName = keyof typeof ACCENTS;
 
-function ios(name: string, fallback: string): ColorValue {
-  return Platform.OS === 'ios' ? PlatformColor(name) : fallback;
+/** The accents this phone can show: all of them but the wallpaper's, which needs Android 12. */
+export function availableAccents(): AccentName[] {
+  return (Object.keys(ACCENTS) as AccentName[]).filter((a) => a !== 'wallpaper' || WALLPAPER !== null);
+}
+
+/** Whether the palette being built is the dark one. Only Android and web read it. */
+let dark = false;
+
+function ios(name: string, light: string, darkValue?: string): ColorValue {
+  return Platform.OS === 'ios' ? PlatformColor(name) : dark && darkValue ? darkValue : light;
 }
 
 export interface Palette {
@@ -54,31 +83,31 @@ export interface Palette {
 
 function palette(theme: ThemeName, accent: AccentName): Palette {
   const base: Palette = {
-    background: ios('systemBackground', '#ffffff'),
-    groupedBackground: ios('systemGroupedBackground', '#f2f2f7'),
-    secondaryBackground: ios('secondarySystemBackground', '#f2f2f7'),
-    label: ios('label', '#000000'),
-    secondaryLabel: ios('secondaryLabel', '#3c3c4399'),
-    tertiaryLabel: ios('tertiaryLabel', '#3c3c434d'),
-    separator: ios('separator', '#3c3c4349'),
-    tint: ios(ACCENTS[accent].ios, ACCENTS[accent].hex),
-    fill: ios('systemFill', '#78788033'),
-    destructive: ios('systemRed', '#ff3b30'),
+    background: ios('systemBackground', '#ffffff', '#000000'),
+    groupedBackground: ios('systemGroupedBackground', '#f2f2f7', '#000000'),
+    secondaryBackground: ios('secondarySystemBackground', '#f2f2f7', '#1c1c1e'),
+    label: ios('label', '#000000', '#ffffff'),
+    secondaryLabel: ios('secondaryLabel', '#3c3c4399', '#ebebf599'),
+    tertiaryLabel: ios('tertiaryLabel', '#3c3c434d', '#ebebf54d'),
+    separator: ios('separator', '#3c3c4349', '#54545899'),
+    tint: ios(ACCENTS[accent].ios, ACCENTS[accent].hex, ACCENTS[accent].dark),
+    fill: ios('systemFill', '#78788033', '#7878805c'),
+    destructive: ios('systemRed', '#ff3b30', '#ff453a'),
     // A plain hex, not PlatformColor('white'): React Native only knows the semantic names in its own
     // table, and resolves any other (such as "white") to clear, so text in this color vanished.
     onTint: '#ffffff',
     shadow: 'rgba(0, 0, 0, 0.4)',
-    sheet: ios('secondarySystemGroupedBackground', '#ffffff'),
+    sheet: ios('secondarySystemGroupedBackground', '#ffffff', '#1c1c1e'),
     scrim: 'rgba(0, 0, 0, 0.55)',
   };
   if (theme === 'dark') {
     // Charcoal rather than black: every surface one step up the system's dark scale.
     return {
       ...base,
-      background: ios('secondarySystemBackground', '#1c1c1e'),
-      groupedBackground: ios('systemBackground', '#000000'),
-      secondaryBackground: ios('tertiarySystemBackground', '#2c2c2e'),
-      sheet: ios('tertiarySystemBackground', '#2c2c2e'),
+      background: ios('secondarySystemBackground', '#1c1c1e', '#1c1c1e'),
+      groupedBackground: ios('systemBackground', '#000000', '#000000'),
+      secondaryBackground: ios('tertiarySystemBackground', '#2c2c2e', '#2c2c2e'),
+      sheet: ios('tertiarySystemBackground', '#2c2c2e', '#2c2c2e'),
     };
   }
   if (theme === 'black') {
@@ -92,6 +121,13 @@ let current: { theme: ThemeName; accent: AccentName } = { theme: 'system', accen
 let version = 0;
 const subscribers = new Set<() => void>();
 
+/** Android and web: whether `theme` shows dark, which for System is the phone's setting. */
+function isDark(theme: ThemeName): boolean {
+  if (theme === 'dark' || theme === 'black') return true;
+  return theme === 'system' && Appearance.getColorScheme() === 'dark';
+}
+dark = Platform.OS !== 'ios' && isDark(current.theme);
+
 /**
  * The live palette. Read it through `useTheme()` in components so they re-render on a change;
  * reading it from module scope gets whatever was current at that moment.
@@ -103,13 +139,24 @@ let snapshot: Palette = { ...colors };
 export function applyTheme(theme: ThemeName, accent: AccentName): void {
   if (theme === current.theme && accent === current.accent && version > 0) return;
   current = { theme, accent };
-  if (Platform.OS === 'ios') {
-    Appearance.setColorScheme(theme === 'system' ? 'unspecified' : theme === 'light' ? 'light' : 'dark');
-  }
-  Object.assign(colors, palette(theme, accent));
+  // Before reading the system's scheme below: the override has to be gone for System to see it.
+  Appearance.setColorScheme(theme === 'system' ? 'unspecified' : theme === 'light' ? 'light' : 'dark');
+  rebuild();
+}
+
+function rebuild() {
+  if (Platform.OS !== 'ios') dark = isDark(current.theme);
+  Object.assign(colors, palette(current.theme, current.accent));
   snapshot = { ...colors };
   version += 1;
   subscribers.forEach((fn) => fn());
+}
+
+// iOS colors follow the system by themselves; Android's hex values are swapped by hand.
+if (Platform.OS !== 'ios') {
+  Appearance.addChangeListener(() => {
+    if (current.theme === 'system' && isDark('system') !== dark) rebuild();
+  });
 }
 
 export function currentTheme(): { theme: ThemeName; accent: AccentName } {
@@ -192,7 +239,7 @@ export const BROWSE_TILE_COLORS = [
 
 /** An accent's own colour, as its swatch shows it; the tint is this for the accent in use. */
 export function accentColor(accent: AccentName): ColorValue {
-  return ios(ACCENTS[accent].ios, ACCENTS[accent].hex);
+  return ios(ACCENTS[accent].ios, ACCENTS[accent].hex, ACCENTS[accent].dark);
 }
 
 /**

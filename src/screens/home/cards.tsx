@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { Artwork } from '@/components/artwork';
 import type { AlbumSummary, Track } from '@/db/types';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';

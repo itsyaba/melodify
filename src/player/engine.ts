@@ -1,7 +1,7 @@
 /**
  * The contract the UI and queue manager program against.
- * Implemented by the Swift `melodify-audio` module on iOS and by FakeEngine elsewhere. Every new
- * engine feature is added here first, then in FakeEngine, then in Swift.
+ * Implemented by the `melodify-audio` module (Swift on iOS, Kotlin on Android) and by FakeEngine
+ * elsewhere. Every new engine feature is added here first, then in FakeEngine, then natively.
  */
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 
@@ -12,6 +12,8 @@ export interface NowPlayingMeta {
   durationMs?: number | null;
   /** file:// URI of art, if any. Without one the lock screen shows the default cover. */
   artUri?: string | null;
+  /** Android: fills the notification's heart. iOS has no such button and ignores it. */
+  favorite?: boolean;
 }
 
 /** Per-track loudness correction, in dB. ReplayGain, already worked out by the queue. */
@@ -90,7 +92,13 @@ export type RemoteCommand =
   | { type: 'seek'; positionMs: number }
   | { type: 'skipForward'; intervalMs: number }
   | { type: 'skipBackward'; intervalMs: number }
-  | { type: 'like' };
+  | { type: 'like' }
+  /**
+   * Android: a headset's one button (or a Bluetooth play/pause) pressed this many times in a row,
+   * one to three. The queue maps the count to an action from Settings, as Musicolet does. iOS
+   * turns clicks into play/pause, next and previous itself, so it never sends this.
+   */
+  | { type: 'headset'; clicks: number };
 
 export interface LoadOptions {
   autoplay?: boolean;
@@ -118,6 +126,11 @@ export interface PlayerEngine {
   setRate(rate: number): Promise<void>;
   /** Pitch shift in semitones, -12 to 12, independent of speed. */
   setPitch(semitones: number): Promise<void>;
+  /**
+   * Leaves out silence: the quiet stretch before a hidden track, gaps in a recorded talk. Android
+   * (ExoPlayer's silence skipping); iOS has no such stage in its audio graph and ignores it.
+   */
+  setSkipSilence(enabled: boolean): Promise<void>;
   setVolume(volume: number): Promise<void>;
   updateNowPlaying(meta: Partial<NowPlayingMeta>): void;
   getState(): PlaybackState;

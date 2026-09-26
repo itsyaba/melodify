@@ -1,10 +1,10 @@
-import { File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { serial } from '@/db/serial';
 import type { Track } from '@/db/types';
 import { forgetLyrics } from '@/lyrics/load';
 import { patchTracks, refreshNowPlaying, withTracksReleased } from '@/player/queue-store';
 import { retagTracks } from '@/scan/scanner';
+import { musicFile, musicUri } from '@/storage';
 import { libraryEvents } from '@/utils/events';
 import { propertiesFor, type TagEdit } from './fields';
 
@@ -36,7 +36,7 @@ export function canEditTags(): boolean {
 }
 
 function uriOf(track: Track): string {
-  return Paths.join(Paths.document, track.path);
+  return musicUri(track.path);
 }
 
 export interface EditResult {
@@ -127,7 +127,7 @@ export async function saveLyrics(db: SQLiteDatabase, track: Track, text: string,
   }
   const relative = lrcPathFor(track);
   try {
-    const file = new File(Paths.document, ...relative.split('/'));
+    const file = musicFile(relative);
     if (body) {
       if (!file.exists) file.create({ intermediates: true });
       file.write(`${body}\n`);

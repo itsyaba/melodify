@@ -1,5 +1,5 @@
-import { AppState, Share } from 'react-native';
-import { Directory, File, Paths } from 'expo-file-system';
+import { AppState } from 'react-native';
+import { Directory, File } from 'expo-file-system';
 import { deserializeDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { createPlaylist, listPlaylists, listPlaylistTracks, setPlaylistTracks } from '@/db/playlists';
 import { serial } from '@/db/serial';
@@ -7,7 +7,9 @@ import { getSetting, setSetting } from '@/db/settings';
 import { forgetStoredChoices } from '@/hooks/use-stored-choice';
 import { detachQueues, reloadQueues } from '@/player/queue-store';
 import { getPrefs, loadPrefs } from '@/prefs';
+import { musicDirectory, skipsFolder } from '@/storage';
 import { libraryEvents } from '@/utils/events';
+import { shareFile as shareSheet } from '@/utils/share';
 import { collectBackupSource, collectMusicoletCarry, listLibraryForMatching, writeRestore, type RestoreCounts } from './db';
 import { jsCodec, nativeCodec, provesItself, type Codec, type NativeCodec } from './codec';
 import { buildBackup, parseBackup, type Backup, type BackupReason } from './format';
@@ -29,7 +31,7 @@ const PREFIX: Record<BackupReason, string> = { manual: 'melodify-', auto: 'auto-
 const INTERVAL_MS = { daily: 24 * 60 * 60_000, weekly: 7 * 24 * 60 * 60_000 } as const;
 
 function folder(relative: string): Directory {
-  const dir = new Directory(Paths.document, ...relative.split('/'));
+  const dir = musicDirectory(relative);
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   return dir;
 }
@@ -132,7 +134,7 @@ export async function writeBackup(db: SQLiteDatabase, reason: BackupReason, keep
 
 /** Newest first. */
 export function listBackups(): BackupFile[] {
-  const dir = new Directory(Paths.document, ...BACKUP_DIR.split('/'));
+  const dir = musicDirectory(BACKUP_DIR);
   if (!dir.exists) return [];
   return dir
     .list()
@@ -159,7 +161,7 @@ export function deleteBackup(uri: string): void {
 }
 
 export async function shareFile(uri: string): Promise<void> {
-  await Share.share({ url: uri });
+  await shareSheet(uri);
 }
 
 export interface LoadedBackup {
@@ -285,14 +287,14 @@ export async function exportAllPlaylists(db: SQLiteDatabase): Promise<number> {
 export interface PlaylistFile {
   uri: string;
   name: string;
-  /** Folder relative to Documents/, which relative entries are resolved against. */
+  /** Folder relative to the music folder, which relative entries are resolved against. */
   folder: string;
 }
 
 /** Every .m3u / .m3u8 in the music folder, outside dot-folders, by name. */
 export function findPlaylistFiles(): PlaylistFile[] {
   const found: PlaylistFile[] = [];
-  const stack: { dir: Directory; rel: string }[] = [{ dir: Paths.document, rel: '' }];
+  const stack: { dir: Directory; rel: string }[] = [{ dir: musicDirectory(''), rel: '' }];
   while (stack.length) {
     const { dir, rel } = stack.pop()!;
     let entries: (Directory | File)[];
@@ -303,7 +305,7 @@ export function findPlaylistFiles(): PlaylistFile[] {
     }
     for (const entry of entries) {
       if (entry instanceof Directory) {
-        if (!entry.name.startsWith('.')) stack.push({ dir: entry, rel: rel ? `${rel}/${entry.name}` : entry.name });
+        if (!skipsFolder(rel, entry.name)) stack.push({ dir: entry, rel: rel ? `${rel}/${entry.name}` : entry.name });
       } else if (/\.m3u8?$/i.test(entry.name)) {
         found.push({ uri: entry.uri, name: entry.name, folder: rel });
       }

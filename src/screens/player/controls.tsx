@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { artSource } from '@/components/artwork';
 import { IconButton } from '@/components/icon-button';
 import { makeStyles, spacing, type, useTheme } from '@/theme';

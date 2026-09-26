@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { artSize, makeStyles, radius, useTheme } from '@/theme';
 
 /** An SF Symbol in an artwork-sized tile, for rows that have no art: folders, "New playlist". */

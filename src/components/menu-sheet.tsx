@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { Artwork } from './artwork';
@@ -133,6 +133,8 @@ export function MenuHost() {
       transparent
       animationType="none"
       statusBarTranslucent
+      // Android: under the navigation bar too, which the rows' bottom inset then clears.
+      navigationBarTranslucent
       supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
       onShow={() => Animated.timing(progress, { toValue: 1, duration: OPEN_MS, useNativeDriver: true }).start()}
       onDismiss={finish}

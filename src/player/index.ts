@@ -13,13 +13,13 @@ export interface EngineInfo {
 const FAKE: EngineInfo = { kind: 'fake', implementation: 'fake-engine', version: '0' };
 
 function select(): { engine: PlayerEngine; info: EngineInfo } {
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { engine: new FakeEngine(), info: FAKE };
   }
   try {
-    // Required lazily and guarded on purpose. An IPA built before the module existed has nothing
-    // to link against, and a top-level import would take the whole app down on that build rather
-    // than falling back to a silent one that still browses the library.
+    // Required lazily and guarded on purpose. An IPA built before the module existed (or an APK
+    // before its Kotlin half) has nothing to link against, and a top-level import would take the
+    // whole app down on that build rather than falling back to a silent one that still browses.
     const native = require('./native-engine') as typeof import('./native-engine');
     return { engine: new native.NativeEngine(), info: { kind: 'native', ...native.nativeInfo() } };
   } catch (err) {

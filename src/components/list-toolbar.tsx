@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { IconButton } from './icon-button';
 import { showMenu } from './menus';

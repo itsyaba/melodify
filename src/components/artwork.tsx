@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, type ImageSourcePropType } from 'react-native';
-import { Paths } from 'expo-file-system';
+import { artFileUri } from '@/storage';
 import { makeStyles, radius } from '@/theme';
 
 /**
@@ -11,7 +11,7 @@ import { makeStyles, radius } from '@/theme';
 export const DEFAULT_ART: ImageSourcePropType = require('../../modules/melodify-audio/ios/Resources/default-art.jpg');
 
 interface Props {
-  /** Relative path inside Documents/ (folder art) or a cache key (Phase 1). */
+  /** Folder art, relative to the music folder, or extracted art in the cache (`.artcache/…`). */
   artKey: string | null;
   /** The width, and the height too unless `height` is given. */
   size: number;
@@ -22,7 +22,7 @@ interface Props {
 
 export function artUri(artKey: string | null): string | null {
   if (!artKey) return null;
-  return Paths.join(Paths.document, artKey);
+  return artFileUri(artKey);
 }
 
 /** The song's own art, or the default cover when it has none. */

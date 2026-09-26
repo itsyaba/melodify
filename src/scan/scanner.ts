@@ -1,15 +1,21 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { ART_EXTENSIONS, ART_FILENAMES, AUDIO_EXTENSIONS, LYRICS_EXTENSION } from '@/constants';
+import { ANDROID_AUDIO_EXTENSIONS, ART_EXTENSIONS, ART_FILENAMES, AUDIO_EXTENSIONS, LYRICS_EXTENSION } from '@/constants';
 import { BUSY_TIMEOUT } from '@/db';
 import { isExcluded } from '@/db/folders';
+import { getPrefs } from '@/prefs';
+import { isAndroid, musicDirectory, musicFile, musicRoot, skipsFolder } from '@/storage';
+import { storageAccess } from '@/utils/storage-access';
 import { libraryEvents, type ScanProgress } from '@/utils/events';
 import { mergeTags, type GuessedColumns } from './merge-tags';
 import { guessTags } from './parse-filename';
 import { canReadTags, readTags, TAG_BATCH, tagReaderVersion } from './read-tags';
 
+/** What this platform's player can decode. */
+const PLAYABLE = isAndroid ? ANDROID_AUDIO_EXTENSIONS : AUDIO_EXTENSIONS;
+
 interface FoundFile {
-  path: string; // relative to Documents/
+  path: string; // relative to the music folder
   folder: string;
   filename: string;
   ext: string;
@@ -35,7 +41,11 @@ function dirname(rel: string): string {
   return i === -1 ? '' : rel.slice(0, i);
 }
 
-function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => void): WalkResult {
+/**
+ * `nomedia`: skip folders holding a `.nomedia` file, as Android's own media scanner does. Apps
+ * put one beside ringtones, voice notes and cached audio that is not music.
+ */
+function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => void, nomedia = false): WalkResult {
   const result: WalkResult = { audio: [], folderArt: new Map(), lyrics: new Map() };
   const stack: Directory[] = [root];
   let seen = 0;
@@ -48,13 +58,17 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
     let entries: (Directory | File)[];
     try {
       entries = dir.list();
-    } catch {
+    } catch (err) {
+      // An unreadable music folder is not an empty one: going on would drop every song's row,
+      // and with it their play counts and places in playlists.
+      if (dir === root) throw new Error(`Cannot read the music folder: ${err instanceof Error ? err.message : String(err)}`);
       continue;
     }
+    if (nomedia && entries.some((e) => e instanceof File && e.name === '.nomedia')) continue;
 
     for (const entry of entries) {
       if (entry instanceof Directory) {
-        if (!entry.name.startsWith('.')) stack.push(entry);
+        if (!skipsFolder(dirRel, entry.name)) stack.push(entry);
         continue;
       }
       const ext = entry.extension.replace(/^\./, '').toLowerCase();
@@ -62,7 +76,7 @@ function walk(root: Directory, excluded: Set<string>, onSeen: (n: number) => voi
       const stemRel = rel.replace(/\.[^./]+$/, '');
       const stemName = entry.name.replace(/\.[^.]+$/, '').toLowerCase();
 
-      if (AUDIO_EXTENSIONS.has(ext)) {
+      if (PLAYABLE.has(ext)) {
         seen += 1;
         if (seen % 200 === 0) onSeen(seen);
         result.audio.push({
@@ -167,7 +181,8 @@ function exclusive<T>(job: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Incremental scan of Documents/: adds new files, updates changed ones (size or mtime),
+ * Incremental scan of the music folder (Documents/ on iOS, shared storage on Android): adds new
+ * files, updates changed ones (size or mtime),
  * removes rows whose file is gone, then reads real tags through the native module. New rows get
  * filename-based guesses first so the library is browsable while tags are still being read, and
  * rows still awaiting real tags have those guesses re-derived on each scan. On a build without
@@ -213,14 +228,20 @@ async function runScan(db: SQLiteDatabase, rereadAll = false): Promise<ScanProgr
   const run = await db.runAsync('INSERT INTO scan_runs (started_at) VALUES (?)', startedAt);
 
   try {
+    // Without access Android lists shared storage as empty, which would read as every song gone.
+    if (isAndroid && storageAccess() === 'none') {
+      throw new Error('Melodify has no access to the phone’s storage yet. Allow it on Import and scan.');
+    }
     const excludedRows = await db.getAllAsync<{ folder: string }>('SELECT folder FROM excluded_folders');
     const excluded = new Set(excludedRows.map((r) => r.folder));
     emit();
 
-    const found = walk(Paths.document, excluded, (n) => {
+    // The walk holds the JS thread; let "Looking through…" reach the screen first.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const found = walk(musicRoot, excluded, (n) => {
       progress.seen = n;
       emit();
-    });
+    }, isAndroid && getPrefs().respectNomedia);
 
     progress.phase = 'indexing';
     emit();
@@ -364,10 +385,10 @@ export function readPendingTags(db: SQLiteDatabase): Promise<void> {
   });
 }
 
-/** The cover image in `folder` (relative to Documents/), found the way a scan finds it. */
+/** The cover image in `folder` (relative to the music folder), found the way a scan finds it. */
 function findFolderArt(folder: string): string | null {
   try {
-    const dir = folder ? new Directory(Paths.document, ...folder.split('/')) : Paths.document;
+    const dir = musicDirectory(folder);
     for (const entry of dir.list()) {
       if (!(entry instanceof File)) continue;
       const ext = entry.extension.replace(/^\./, '').toLowerCase();
@@ -403,7 +424,7 @@ export async function retagTracks(db: SQLiteDatabase, tracks: { id: number; path
   };
   await tagPending(db, rows, folderArt, progress, () => undefined);
   for (const t of tracks) {
-    const file = new File(Paths.document, ...t.path.split('/'));
+    const file = musicFile(t.path);
     if (!file.exists) continue;
     await db.runAsync(
       'UPDATE tracks SET size = ?, mtime = ? WHERE id = ?',
