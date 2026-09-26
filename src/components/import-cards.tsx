@@ -87,7 +87,7 @@ export function AndroidAccessTiles({ disabled, onScan }: { disabled: boolean; on
         color={FOLDER_TILE}
         icon="folder.fill"
         title="Allow all files"
-        subtitle={accessIsASettingsPage() ? 'Everything works; turn it on and come back' : 'Everything works'}
+        subtitle="Everything works"
         disabled={disabled}
         onPress={() => void askThenScan('full')}
       />
@@ -95,7 +95,7 @@ export function AndroidAccessTiles({ disabled, onScan }: { disabled: boolean; on
         color={SONGS_TILE}
         icon="music.note"
         title={access === 'read' ? 'Music only: on' : 'Music only'}
-        subtitle="Songs play, nothing is changed"
+        subtitle="Songs play; no editing"
         disabled={disabled || access === 'read'}
         onPress={() => void askThenScan('read')}
       />

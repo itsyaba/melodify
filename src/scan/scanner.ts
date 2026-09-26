@@ -230,7 +230,7 @@ async function runScan(db: SQLiteDatabase, rereadAll = false): Promise<ScanProgr
   try {
     // Without access Android lists shared storage as empty, which would read as every song gone.
     if (isAndroid && storageAccess() === 'none') {
-      throw new Error('Melodify has no access to the phone’s storage yet. Allow it on Import and scan.');
+      throw new Error('Melodify cannot read the phone’s storage yet. Allow it under Add music on Settings › Scan music.');
     }
     const excludedRows = await db.getAllAsync<{ folder: string }>('SELECT folder FROM excluded_folders');
     const excluded = new Set(excludedRows.map((r) => r.folder));

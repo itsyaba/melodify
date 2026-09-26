@@ -28,8 +28,8 @@ internal object MelodifyStorage {
   fun root(): String = Environment.getExternalStorageDirectory().absolutePath
 
   /**
-   * "full": everything can be read and written. "read": audio (and, from Android 13, images) can be
-   * read, which is enough to play but not for `.lrc` files, tag editing or deleting. "none".
+   * "full": everything can be read and written. "read": audio can be read, which is enough to play
+   * but not for folder covers, `.lrc` files, tag editing or deleting. "none".
    */
   fun access(context: Context): String {
     fun granted(permission: String) = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
@@ -53,10 +53,13 @@ internal object MelodifyStorage {
     }
   }
 
-  /** The runtime permissions to ask for where All files access does not exist or was refused. */
+  /**
+   * The runtime permissions to ask for where All files access does not exist or was refused. Audio
+   * alone from Android 13: asking for photos too, for folder covers, is more than a music player
+   * should want; embedded artwork needs nothing more, and All files access brings the covers.
+   */
   fun runtimePermissions(): Array<String> = when {
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-      arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_IMAGES)
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
   }

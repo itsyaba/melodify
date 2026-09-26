@@ -70,7 +70,7 @@ declare class MelodifyAudioModule
   /** Android 12's wallpaper accent, light and dark; null before Android 12. */
   readonly systemAccent?: { light: string; dark: string } | null;
   readonly sdkVersion?: number;
-  /** "full": read and write everything; "read": audio and images only; "none". */
+  /** "full": read and write everything; "read": audio only; "none". */
   storageAccess?(): NativeStorageAccess;
   /** "full" opens the All files access page; "read" asks for the media permissions. */
   requestStorageAccess?(kind: 'full' | 'read'): Promise<NativeStorageAccess>;

@@ -50,7 +50,7 @@ const HEADSET_LABELS: Record<HeadsetAction, string> = {
 const CLICKS = ['One click', 'Two clicks', 'Three clicks'];
 const ACCESS_LABELS: Record<StorageAccess, string> = {
   full: 'All files: scan, lyrics files, tag editing and backups',
-  read: 'Music only: songs play, but lyrics files, tag editing, deleting and backups need all files',
+  read: 'Music only: songs play, but folder covers, lyrics files, tag editing and backups need all files',
   none: 'None yet: Melodify cannot see your music',
 };
 const android = Platform.OS === 'android';
