@@ -38,3 +38,16 @@ export function formatDate(ms: number | null | undefined): string {
   if (!ms) return '–';
   return new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Home's heading: the weekday and the part of the day. Until 5 a.m. it is still the night before,
+ * so one o'clock on a Sunday morning is Saturday night.
+ */
+export function dayPart(date: Date): { day: string; part: string } {
+  const hour = date.getHours();
+  if (hour < 5) return { day: WEEKDAYS[(date.getDay() + 6) % 7], part: 'Night' };
+  const part = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 21 ? 'Evening' : 'Night';
+  return { day: WEEKDAYS[date.getDay()], part };
+}

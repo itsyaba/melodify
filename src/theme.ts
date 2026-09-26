@@ -165,15 +165,12 @@ export const type = {
 export const artSize = { row: 48, cover: 60, card: 160, player: 320 } as const;
 
 /**
- * The Search tab's big field, Spotify's white with near-black text in every theme. In a light
- * theme it sits on white, so it carries a hairline `separator` edge and a soft `shadow` there.
+ * The record that slides out of a cover's sleeve on Home's list cards: black vinyl with faint
+ * grooves in every theme, its centre label in the accent.
  */
-export const SEARCH_FIELD = { background: '#ffffff', ink: '#121212' } as const;
+export const VINYL = { disc: '#121212', groove: 'rgba(255, 255, 255, 0.08)', sheen: 'rgba(255, 255, 255, 0.05)' } as const;
 
-/**
- * The Search tab's Browse all tiles: Spotify's bright fills under white text (`onTint`), the same
- * in every theme. A tile picks its colour by its name, so a genre keeps the same one.
- */
+/** Bright fills under white text (`onTint`), the same in every theme: Import and scan's two tiles. */
 export const BROWSE_TILE_COLORS = [
   '#dc148c',
   '#8400e7',

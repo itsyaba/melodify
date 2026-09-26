@@ -302,6 +302,15 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       lyrics too: Search LRCLIB under them and Lyrics from LRCLIB… in every song's menu list
       LRCLIB's matches (the song's length and synced first, then the nearest lengths); the pick
       replaces the `.lrc`, which Undo writes back, or sits beside embedded lyrics, which stay
+- [ ] Home redesign (2026-09-26), so it no longer copies Spotify's search page: the weekday over
+      the time of day ("SATURDAY / Evening") with a search pill and a round gear beside it, and a
+      soft accent wash behind the top. Your lists: Favorites, Recently added, Most played,
+      Recently played and Bookmarks as wide cards, a blurb and a count and length on the left, the
+      cover on the right with a black record half out of the sleeve, its label in the accent.
+      Albums: big covers with a round play button, under chips for Rediscover and the ten biggest
+      genres (hold a genre for its menu; the arrow opens it). Recently played: the last five
+      songs as rounded rows with a play button (Recently added until something is played). An
+      empty library gets an Import music button instead. JS only, no new build needed
 
 ## Definition of done per phase
 

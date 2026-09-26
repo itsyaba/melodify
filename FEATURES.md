@@ -60,7 +60,7 @@ to double-check against the current Musicolet release.
 | Custom tabs | Choose which tabs show and in what order. Home, Queue, Folders, Library and Search by default; Home and Library always stay, and Settings is a gear on Home | JS | wip |
 | Multi-select | Long-press to select many items, then batch action | JS | wip |
 | Find in list | Filter the open library list as you type (Musicolet's "Search in this list"): every word must match the title, artist, album or name, accents ignored | JS | wip |
-| Search | Search tracks, albums, artists, folders, playlists in a Musicolet-style Search tab: results grouped by kind under accent headers with counts, a few each until Show all, play or shuffle every song found; every word must match, accents ignored; recent searches. Home (Spotify's browse page: Discover albums not played for a month, Browse all tiles for the auto playlists and every genre) opens it from its field | JS | wip |
+| Search | Search tracks, albums, artists, folders, playlists in a Musicolet-style Search tab: results grouped by kind under accent headers with counts, a few each until Show all, play or shuffle every song found; every word must match, accents ignored; recent searches. Home's search pill opens it. Home itself: the weekday and time of day, the auto playlists and Bookmarks as cards with a record sliding out of each cover, albums with a play button on the cover under Rediscover (not played for a month) and genre chips, and the last five songs played | JS | wip |
 | Track details | Full tag dump, file path, bitrate, sample rate, size | JS | wip |
 | Album art from folder | Use `cover.jpg` / `folder.jpg` when embedded art is missing | JS | wip |
 | Disc / track numbers | Show and sort by disc and track number | JS | wip |

@@ -25,7 +25,7 @@ const BAR = 44;
 const OVERSCROLL = 600;
 /** How far down the page the wash fades out. */
 const FADE = 380;
-/** Browse-tile fills, so the two import tiles look like Home's. */
+/** The two import tiles' fills. */
 const FOLDER_TILE = BROWSE_TILE_COLORS[1];
 const SONGS_TILE = BROWSE_TILE_COLORS[2];
 

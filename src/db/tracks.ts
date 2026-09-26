@@ -272,34 +272,56 @@ export type AutoPlaylist = 'favorites' | 'recently_added' | 'most_played' | 'rec
 /** Long enough to be useful, short enough that a big library's list opens at once. */
 const AUTO_LIMIT = 300;
 
-export function listAutoPlaylist(db: SQLiteDatabase, kind: AutoPlaylist): Promise<Track[]> {
-  const where = {
-    favorites: 'favorite = 1',
-    recently_added: '1',
-    most_played: 'play_count > 0',
-    recently_played: 'last_played_at IS NOT NULL',
-  }[kind];
-  const order = {
-    favorites: 'title COLLATE NOCASE',
-    recently_added: 'added_at DESC, path',
-    most_played: 'play_count DESC, last_played_at DESC',
-    recently_played: 'last_played_at DESC',
-  }[kind];
-  const limit = kind === 'favorites' ? '' : `LIMIT ${AUTO_LIMIT}`;
-  return db.getAllAsync<Track>(`SELECT * FROM tracks WHERE ${visible()} AND ${where} ORDER BY ${order} ${limit}`);
+const AUTO_WHERE: Record<AutoPlaylist, string> = {
+  favorites: 'favorite = 1',
+  recently_added: '1',
+  most_played: 'play_count > 0',
+  recently_played: 'last_played_at IS NOT NULL',
+};
+
+const AUTO_ORDER: Record<AutoPlaylist, string> = {
+  favorites: 'title COLLATE NOCASE',
+  recently_added: 'added_at DESC, path',
+  most_played: 'play_count DESC, last_played_at DESC',
+  recently_played: 'last_played_at DESC',
+};
+
+/** Favorites are the only built-in list with no cap; -1 is SQLite's "no limit". */
+const autoLimit = (kind: AutoPlaylist) => (kind === 'favorites' ? -1 : AUTO_LIMIT);
+
+/** The list, or only its first `limit` songs (Home's recently played rows). */
+export function listAutoPlaylist(db: SQLiteDatabase, kind: AutoPlaylist, limit = autoLimit(kind)): Promise<Track[]> {
+  return db.getAllAsync<Track>(
+    `SELECT * FROM tracks WHERE ${visible()} AND ${AUTO_WHERE[kind]} ORDER BY ${AUTO_ORDER[kind]} LIMIT ?`,
+    limit,
+  );
 }
 
-/** One cover for each built-in playlist, from the song that would top it; null while it is empty. */
-export async function autoPlaylistArt(db: SQLiteDatabase): Promise<Record<AutoPlaylist, string | null>> {
-  const first = (where: string, order: string) =>
-    `(SELECT art_key FROM tracks WHERE ${visible()} AND art_key IS NOT NULL AND ${where} ORDER BY ${order} LIMIT 1)`;
-  const row = await db.getFirstAsync<Record<AutoPlaylist, string | null>>(
-    `SELECT ${first('favorite = 1', 'title COLLATE NOCASE')} AS favorites,
-            ${first('1', 'added_at DESC')} AS recently_added,
-            ${first('play_count > 0', 'play_count DESC')} AS most_played,
-            ${first('last_played_at IS NOT NULL', 'last_played_at DESC')} AS recently_played`,
+export interface AutoPlaylistSummary {
+  /** From the song that tops the list; null while it is empty or none of its songs has art. */
+  art_key: string | null;
+  /** Songs the list opens with, so capped as the list is. */
+  count: number;
+  duration_ms: number;
+}
+
+/** A cover, a count and a length for each built-in playlist, for Home's cards. */
+export async function autoPlaylistSummaries(db: SQLiteDatabase): Promise<Record<AutoPlaylist, AutoPlaylistSummary>> {
+  const kinds = Object.keys(AUTO_WHERE) as AutoPlaylist[];
+  const rows = await Promise.all(
+    kinds.map((kind) => {
+      const where = `${visible()} AND ${AUTO_WHERE[kind]}`;
+      return db.getFirstAsync<AutoPlaylistSummary>(
+        `SELECT (SELECT art_key FROM tracks WHERE ${where} AND art_key IS NOT NULL ORDER BY ${AUTO_ORDER[kind]} LIMIT 1) AS art_key,
+                COUNT(*) AS count, COALESCE(SUM(duration_ms), 0) AS duration_ms
+         FROM (SELECT duration_ms FROM tracks WHERE ${where} ORDER BY ${AUTO_ORDER[kind]} LIMIT ?)`,
+        autoLimit(kind),
+      );
+    }),
   );
-  return row ?? { favorites: null, recently_added: null, most_played: null, recently_played: null };
+  return Object.fromEntries(
+    kinds.map((kind, i) => [kind, rows[i] ?? { art_key: null, count: 0, duration_ms: 0 }]),
+  ) as Record<AutoPlaylist, AutoPlaylistSummary>;
 }
 
 export function listHiddenTracks(db: SQLiteDatabase): Promise<Track[]> {

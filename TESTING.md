@@ -287,20 +287,10 @@ since the tabs themselves changed.
 - [ ] **Tab bar:** Home, Queue, Folders, Library in the bar, and the round Search button on its own.
       No Settings tab. The app opens on Home. If Settings › Tabs had been changed before, that order
       stays, with Home added in front.
-- [ ] **Home:** "Good morning / afternoon / evening" by the time of day, a gear on the right, and
-      the big white field ("What do you want to listen to?", dark text, white in light themes too
-      with a thin edge and soft shadow). Scroll down: the greeting goes, the field stays pinned
-      under the status bar.
+- [ ] **Home** itself was redone on 2026-09-26: see section 17.
 - [ ] **Gear** opens Settings inside Home, with a back button; Import and scan, Backup and restore
       and the rest open from there and come back. Settings › Tabs and views says Home and Library
       always stay.
-- [ ] **Discover something new** (Home): tall album covers with the album and artist on them,
-      albums not played for a month, in a new order each time. Tap opens the album inside Home;
-      hold for its menu. Missing when every album was played lately.
-- [ ] **Browse all** (Home): coloured tiles two a row: Favorites, Recently added, Most played,
-      Recently played, Bookmarks, then each genre, biggest first, each with a tilted cover (or an
-      icon while it is empty), white names showing. Each opens its list inside Home.
-- [ ] **Home's field** switches to the Search tab with the keyboard up.
 - [ ] **Search tab** (Musicolet style): a grey field at the top. Tapping the Search button, or
       tapping it again while on it, puts the cursor there. Nothing typed: RECENT SEARCHES with
       CLEAR, each with ✕; tap one to search it again. None yet: "Search your library".
@@ -455,6 +445,47 @@ with Select and ⋯ on the same row, opaque from the status bar down.
       release the row glides into the gap, then the queue reorders without a flash back to the
       old order. A playlist's Reorder and remove slides the same way, though there the row can
       still blink back for a moment while the new order saves.
+
+## 17. Home, redone so it is not Spotify's
+
+JS only: no new IPA needed. Try it in a dark theme and in Light, and with a second accent.
+
+- [ ] **Header:** the weekday in small grey capitals over the part of the day in big bold type
+      ("SATURDAY / Evening"; Morning from 5, Afternoon from 12, Evening from 17, Night from 21).
+      After midnight it still says the night before (1 a.m. on Sunday is SATURDAY / Night). To the
+      right a grey Search pill and a round gear. A faint wash of the accent sits behind the top,
+      the status bar included, with no seam under the clock; scrolling, the page goes under an
+      opaque strip there, never behind the clock.
+- [ ] **Search pill** switches to the Search tab with the keyboard up. **Gear** opens Settings
+      inside Home, with a back button.
+- [ ] **Your lists:** wide cards for Favorites, Recently added, Most played, Recently played and
+      Bookmarks that scroll sideways and stop with a card at the left edge. Each has its name, a
+      line about it, and "12 songs · 48 min" at the foot (Bookmarks counts bookmarks; an empty
+      list says Nothing yet). On the right the list's top cover with a black record half out
+      from behind it, grooves faint and the centre label in the accent; an empty list shows its
+      icon on an accent square instead. Tap opens the list inside Home; hold an auto playlist for
+      Play, Shuffle and the queue items.
+- [ ] **Counts stay current:** play a song past half way, go back to Home: Recently played and Most
+      played have it (Home reads them again whenever it comes back into view).
+- [ ] **Albums:** chips under the heading, Rediscover first (albums with art not played for a
+      month, in a new order at each launch or library change) and then the ten genres with the most songs. The
+      chosen chip is filled. Big covers two and a bit across, each with a round dark play button
+      in its bottom-left corner, the album and artist underneath. Tap a cover to open the album;
+      tap the play button to play it from the first song without leaving Home; hold for its menu.
+      Switching chips starts the row back at its first album and never shows the last genre's
+      albums under the new chip. On a genre, the › by the heading opens that genre; on
+      Rediscover there is no ›. Hold a genre chip for Play, Shuffle and the rest on the whole
+      genre. With every album played lately and no genres, the whole Albums shelf is gone.
+- [ ] **Recently played:** the last five songs, each on its own rounded card: cover, title and
+      artist, a round play button. Tap plays the whole recently played list from that song. The
+      song playing now has its title in the accent and a waveform in its button. Hold for the
+      song's menu. The › opens the full list. Before anything was ever played the shelf is
+      Recently added instead.
+- [ ] **Empty library** (or everything hidden): only the header and "No music yet" with an Import
+      music button, which opens Import and scan.
+- [ ] **Still native:** tapping Home in the tab bar again scrolls back to the top, the tab bar
+      shrinks as you scroll down, and a tap on the status bar scrolls up too.
+- [ ] **Import and scan** still shows its two coloured import tiles as before.
 
 ## What to send back
 
