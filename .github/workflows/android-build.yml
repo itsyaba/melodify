@@ -6,7 +6,10 @@
 # the last one and keeps the library. Without them it falls back to the debug key, which installs
 # fine but is a different key on every runner: then uninstall before installing the next build.
 #
-# Trigger manually (workflow_dispatch) or on pushes that touch native code or config.
+# Trigger manually (workflow_dispatch) or on pushes that change the app. Unlike the iOS dev client,
+# which loads JS from Metro, a release APK carries the JS inside, so JS changes build too. Pushes
+# build for arm64 only, which every current phone is, to spare the Actions minutes of a private
+# repository; a manual run can build every ABI (old 32-bit phones and the x86_64 emulator).
 
 name: Android build
 
@@ -18,6 +21,11 @@ on:
         type: choice
         options: [Release, Debug]
         default: Release
+      abis:
+        description: Architectures
+        type: choice
+        options: [arm64-v8a, 'arm64-v8a,armeabi-v7a,x86_64']
+        default: 'arm64-v8a,armeabi-v7a,x86_64'
   push:
     branches: [main]
     paths:
@@ -26,6 +34,8 @@ on:
       - package.json
       - package-lock.json
       - modules/**
+      - src/**
+      - assets/**
       - .github/workflows/android-build.yml
 
 concurrency:
@@ -38,6 +48,7 @@ jobs:
     timeout-minutes: 90
     env:
       VARIANT: ${{ inputs.variant || 'Release' }}
+      ABIS: ${{ inputs.abis || 'arm64-v8a' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,7 +91,7 @@ jobs:
         working-directory: android
         run: |
           ./gradlew "assemble$VARIANT" \
-            -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64 \
+            -PreactNativeArchitectures="$ABIS" \
             $SIGNING_ARGS \
             --no-daemon --console=plain
           VARIANT_DIR=$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')

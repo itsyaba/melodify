@@ -1,16 +1,19 @@
 # Melodify
 
-An offline-first music player for iPhone, inspired by [Musicolet](https://krosbits.in/musicolet/) on Android.
-Built with Expo / React Native, sideloaded with a free Apple account. No accounts, no streaming, no ads: it plays the files you put on the phone.
+An offline-first music player for iPhone and Android, inspired by [Musicolet](https://krosbits.in/musicolet/).
+Built with Expo / React Native: sideloaded with a free Apple account on iOS, installed as an APK on Android.
+No accounts, no streaming, no ads: it plays the files you put on the phone.
 
-See [FEATURES.md](./FEATURES.md) for the full Musicolet feature list and where each one stands on iOS,
-and [ROADMAP.md](./ROADMAP.md) for the phased plan. Scope is the whole list.
+See [FEATURES.md](./FEATURES.md) for the full Musicolet feature list and where each one stands on iOS
+and Android, and [ROADMAP.md](./ROADMAP.md) for the phased plan. Scope is the whole list.
 
 ## Why this exists
 
 Musicolet has no iOS version and none of the App Store alternatives offer its combination of
 multiple queues, folder browsing, bookmarks and an offline-only design. This project rebuilds
 that feature set for iPhone, one feature at a time, starting with the ones that are easy in JS.
+The same app runs on Android too (since 2026-09-26): one JS program, with the audio module written
+twice, once per platform, and the features each platform allows (see *Android* below).
 
 ## Stack
 
@@ -18,17 +21,18 @@ that feature set for iPhone, one feature at a time, starting with the ones that 
 | --- | --- | --- |
 | Framework | Expo SDK 57, React Native 0.86, TypeScript | New Architecture enabled |
 | Navigation | expo-router | file-based routes |
-| Playback | `modules/melodify-audio` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, later EQ / gapless / crossfade |
+| Playback, iOS | `modules/melodify-audio/ios` (Swift Expo Module, AVAudioEngine) | background audio, lock screen, remote commands, EQ, gapless, crossfade |
+| Playback, Android | `modules/melodify-audio/android` (Kotlin Expo Module, Media3 ExoPlayer) | the same contract: two ExoPlayer decks, a media notification through a MediaSessionService, EQ as an audio processor |
 | Library index | expo-sqlite | tracks, albums, artists, folders, play counts, bookmarks, queues |
-| File access | expo-file-system | reads the app's own `Documents/` folder |
-| Tag reading | AVAsset metadata inside `melodify-audio` | read during a scan, and at launch for anything a scan left unread; filename-based guesses stand in until then, and on builds without the reader |
-| Tag writing | TagLib 2.1.1, vendored into `melodify-audio` | behind a small C API; used under the MPL 1.1 (see `modules/melodify-audio/ios/Vendor/`) |
+| File access | expo-file-system | iOS: the app's own `Documents/` folder. Android: the phone's shared storage (`/storage/emulated/0`), with All files access |
+| Tag reading | iOS: AVAsset metadata. Android: TagLib, built with the NDK | read during a scan, and at launch for anything a scan left unread; filename-based guesses stand in until then, and on builds without the reader |
+| Tag writing | TagLib 2.1.1, vendored into `melodify-audio` | behind a small C API shared by both platforms; used under the MPL 1.1 (see `modules/melodify-audio/ios/Vendor/`) |
 
 Expo Go is not used. The audio engine is a native module, so development happens in a custom dev client.
 The UI, queue and database layers program against `src/player/engine.ts`. `src/player/index.ts` picks the
-Swift module on iOS and falls back to a timer-driven fake engine everywhere else, including on an IPA
-built before the module existed: the library still browses, it just stays silent. Settings names which
-engine the running build ended up with.
+native module on iOS and Android and falls back to a timer-driven fake engine everywhere else, including on
+a build made before the module existed: the library still browses, it just stays silent. Settings names which
+engine the running build ended up with (`native-swift` or `native-kotlin`).
 
 ## How music gets onto the phone
 
@@ -79,15 +83,70 @@ scanner relies on to keep rescans incremental. Unmount before scanning.
 
 The app scans `Documents/` recursively and indexes what it finds. Folder structure is preserved for folder browsing.
 
+## Android
+
+The same app, built for Android from the same JS. What differs, and why:
+
+**The music is where it already is.** On Android Melodify reads the phone's shared storage
+(`/storage/emulated/0`) directly, as Musicolet does, so there is no import step. On first launch the
+welcome pages (and Settings › Scan music) ask for **All files access**, which lets it scan every
+folder, save `.lrc` lyrics beside songs, edit tags, delete files and keep backups in
+`Melodify/Backups`. *Music only* (the media permission) is the fallback: songs play, but lyrics
+files, tag editing, deleting and backups need All files access. The scan skips `Android/`, hidden
+folders, and folders with a `.nomedia` file (Settings can switch that off). Library paths are
+relative to the storage root, so they are exactly Musicolet's: a Musicolet backup restores with
+every song matched by path, and a Melodify backup restores in Musicolet.
+
+To copy music on: connect the phone over USB, choose *File transfer*, copy into `Music/` (or
+anywhere), then Scan now. From Linux: `adb push ~/Music /sdcard/`.
+
+**Android-only features.**
+
+- Headset and Bluetooth button clicks: one, two and three presses each mapped to play/pause, next,
+  previous, skip forward or back, or nothing (Settings › Playback), Musicolet's defaults to start.
+  iOS decides what those clicks mean itself.
+- The media notification with a favorite heart beside previous, play and next; it also drives the
+  lock screen, Bluetooth, cars and watches.
+- A home screen widget (4×1): cover, title, artist, previous, play/pause, next.
+- Skip silence (Settings › Playback).
+- Ogg Vorbis and Opus playback, which iOS cannot decode.
+- The accent can follow the wallpaper (Material You, Android 12 and later).
+- Launcher shortcuts (hold the icon): Resume, Shuffle all, Favorites, Search, as the iOS quick actions.
+- The system share sheet for songs, backups and playlists, and the system's media index kept in step
+  when files are deleted or retagged.
+
+**iOS-only features.** The Files-app import (Android needs none), the LiveContainer notes, and USB
+through ifuse.
+
+**Building.** `.github/workflows/android-build.yml` builds a release APK on a Linux runner for every
+push that changes the app, JS included (the APK carries its JS), for arm64 phones; run it by hand
+(Actions › Android build › Run workflow) for every ABI, 32-bit phones and the emulator too. It is signed
+with the key in the repository secrets, so each APK installs over the last one and keeps the
+library; the key itself is kept outside the repository (`~/.android/melodify-release.jks`, with its
+passwords beside it). Locally, with the Android SDK and NDK:
+
+```sh
+npx expo prebuild --platform android --no-install
+cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64   # emulator, dev client
+cd android && ./gradlew assembleRelease                                     # standalone APK
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+A debug build is a dev client like the iOS one: `npm start`, then open it and it loads from Metro
+(`adb reverse tcp:8081 tcp:8081` over USB). A release build has the JS inside and needs nothing else.
+
 ## Supported formats
 
-Decoding goes through Core Audio (`AVAudioFile` inside `melodify-audio`), so the supported formats
-are the ones iOS decodes natively:
+On iOS decoding goes through Core Audio (`AVAudioFile` inside `melodify-audio`), so the supported
+formats are the ones iOS decodes natively:
 
 - MP3, AAC / M4A, ALAC, FLAC, WAV, AIFF
 
-Ogg Vorbis and Opus are **not** supported. They would need a custom decoder in native code.
+Ogg Vorbis and Opus are **not** supported on iOS. They would need a custom decoder in native code.
 Check your library before syncing.
+
+On Android ExoPlayer uses the phone's own decoders: MP3, AAC / M4A, FLAC, WAV, **Ogg Vorbis, Opus**,
+Matroska audio and AMR. AIFF and CAF are not read there.
 
 ## Development workflow (no Mac)
 
@@ -126,6 +185,7 @@ npm test                          # unit tests (Node's built-in runner, no extra
 node --import ./scripts/test-hooks.mjs scripts/bench-library.ts 10000
                                   # times the library queries on a synthetic 10k-song library
 npx expo export --platform ios    # full Metro bundle to Hermes bytecode
+npx expo export --platform android  # the same for Android
 ```
 
 ## Project layout
@@ -154,9 +214,14 @@ src/
                 useTheme / makeStyles
   prefs.ts      user preferences, one JSON object in the settings table
 modules/
-  melodify-audio/  Swift Expo Module: AVAudioEngine playback (two decks for gapless and crossfade,
-                   EQ, speed and pitch), AVAsset tag reading, TagLib tag writing (Vendor/, TagWriter/)
-.github/workflows/ios-build.yml   unsigned IPA build
+  melodify-audio/  one Expo Module, two implementations of the same functions and events:
+    ios/           Swift: AVAudioEngine playback (two decks for gapless and crossfade, EQ, speed and
+                   pitch), AVAsset tag reading, TagLib tag writing (Vendor/, TagWriter/)
+    android/       Kotlin: Media3 ExoPlayer playback (two decks, EQ as an audio processor), the media
+                   session and notification, the widget, launcher shortcuts, shared-storage access;
+                   TagLib from ios/Vendor built with the NDK (CMakeLists.txt) for reading and writing
+.github/workflows/ios-build.yml       unsigned IPA build
+.github/workflows/android-build.yml   signed release APK
 assets/         icons, splash
 ```
 

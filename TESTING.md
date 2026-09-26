@@ -522,6 +522,61 @@ so open them from **Settings › Help › Welcome tour**. To see a real first la
       not come back. *Welcome tour* in Settings fades them in again, back on page 1, and closing
       them returns to Settings.
 
+## 19. Android (new, 2026-09-26)
+
+The whole app on Android. Everything below was written for it; the notes in *italics* say what the
+Android 16 emulator already showed (a phone still has to confirm it: the emulator has no headset,
+no Bluetooth and only a test library).
+
+Install: GitHub › Actions › "Android build", newest green run, artifact `Melodify-Release-android`.
+Unzip, then open `Melodify-Release.apk` on the phone (allow installing from the browser or Files when
+asked), or `adb install -r Melodify-Release.apk`. Later builds install over it and keep the library.
+
+- [ ] **Right engine.** Settings › Audio engine reads `melodify-audio 0.11.0 (native-kotlin)`.
+      *Emulator: yes.*
+- [ ] **Welcome pages ask for access, not an import.** Add your music shows *Allow all files* and
+      *Music only*. Allow all files opens Android's All files access page: turn it on, come back,
+      and a scan starts by itself. Back on the first page closes the pages; on the others it steps
+      back one. *Emulator: the page opened, and coming back started the scan.*
+- [ ] **The scan finds the music where it is**, in every folder, but not in `Android/`, hidden
+      folders, or folders with a `.nomedia` file (Settings › Library › Skip folders with a .nomedia
+      file switches that off). The Folders tab starts at the storage root: Music, Download…
+      *Emulator: 10 of 12 test files, the `.nomedia` and `Android/` ones left out.*
+- [ ] **Without access a scan is refused**, with a message, instead of emptying the library.
+- [ ] **Tags, lengths and artwork** read by TagLib, Ogg, Opus and FLAC included; a song named with
+      emoji or Amharic plays and shows its tags. *Emulator: yes, embedded covers included.*
+- [ ] **Playback in the background.** Start a song, go home, lock the phone: it keeps playing, and
+      the notification shows the cover, title, artist, previous, play/pause, next and a heart.
+      The heart fills for a favorite and toggles it; the app's heart follows. *Emulator: the
+      notification and its buttons work; the heart set the favorite, a few seconds late there.*
+- [ ] **Lock screen and Bluetooth** (car, earbuds, watch) show the song and drive the queue.
+- [ ] **Headset clicks.** One click plays or pauses, two go to the next song, three to the previous
+      (after a short pause while it waits for more clicks). Settings › Playback › Headset and
+      Bluetooth button changes each. *Emulator, with the headset-hook key: one, two and three work.*
+- [ ] **Unplug pauses**, a call pauses and the end of the call resumes, another app's music pauses
+      for good. With Resume when headphones reconnect on, plugging back in resumes what an unplug
+      paused.
+- [ ] **Gapless**: the Gapless Album test files (see §0) run on with no click; **crossfade** overlaps
+      the end with the next song's start; the **equalizer**, bass boost, speed and pitch audibly
+      work; **ReplayGain** evens out loud and quiet songs; **Skip silence** leaves out gaps.
+      *Emulator: the equalizer and 1.25× ran without a hitch, but it has no speaker to listen with.*
+- [ ] **Tag editor, artwork from the photo picker, lyrics editor, Delete file** (needs All files
+      access). Other apps see the new tags (the system's media index is told). *Emulator: a new
+      title was written into a FLAC and ffprobe read it back.*
+- [ ] **Share file** opens Android's share sheet with the song (and a backup, a playlist).
+- [ ] **Backups** go to `Melodify/Backups` in the phone's storage (*emulator: an automatic one was
+      written as a Musicolet zip, so the Kotlin codec passed its checks*). A Musicolet backup from the same
+      phone restores with every song found by path; a Melodify backup restores in Musicolet.
+- [ ] **Home screen widget**: hold the home screen › Widgets › Melodify. It shows the song and
+      its cover; previous, play/pause and next work. With the app closed it shows "Tap to open".
+      *Emulator: added, showed the song and cover; pause and next worked.*
+- [ ] **Launcher shortcuts**: hold the icon for Resume, Shuffle all, Favorites and Search.
+      *Emulator: all four registered; Search opened the Search tab.*
+- [ ] **Wallpaper accent** (Android 12+): Settings › Accent color › Wallpaper follows it.
+- [ ] **Look**: the tab bar with the mini player above it, Material icons, dark mode and the black
+      theme, status bar icons readable in both, sheets and prompts (rename a playlist) that close
+      with back. *Emulator: all of it, dark mode switching live with the system.*
+
 ## What to send back
 
 For anything that fails: the item's name, what you did, what happened instead, and any toast or

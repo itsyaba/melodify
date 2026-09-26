@@ -312,8 +312,37 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       songs as rounded rows with a play button (Recently added until something is played). An
       empty library gets an Import music button instead. JS only, no new build needed
 
+### Phase 9. Android (2026-09-26)
+
+The same app on Android, from the same JS. Written and passing typecheck, tests and both bundle
+exports; built locally and exercised on an Android 16 emulator (see TESTING.md › Android for what was
+tried there and what still wants a real phone). CI builds a signed release APK
+(`.github/workflows/android-build.yml`).
+
+- [ ] Kotlin half of `melodify-audio` (module 0.11.0), the same functions and events as the Swift one
+      (written: Media3 ExoPlayer, two decks. Gapless within one deck's playlist, where ExoPlayer trims
+      MP3 and AAC encoder padding; a next song needing a different ReplayGain raise waits on the other
+      deck instead. Crossfade across the two with equal-power ramps. The equalizer, pre-amp, bass
+      boost and ReplayGain raise are one audio processor per deck, the same RBJ filters AVAudioUnitEQ
+      runs; a ReplayGain cut is the deck's volume. Speed and pitch through ExoPlayer's Sonic.
+      Audio focus and becoming-noisy stand in for AVAudioSession's interruptions and route changes)
+- [ ] Media notification, lock screen, Bluetooth (a MediaSessionService around a stand-in player
+      whose commands go to JS as `remote` events, as MPRemoteCommandCenter's do on iOS)
+- [ ] Tags through TagLib, compiled from `ios/Vendor` with the NDK, for reading as well as writing;
+      MediaMetadataRetriever for what TagLib cannot open
+- [ ] Shared storage as the music folder, All files access or Music only, `.nomedia` and `Android/`
+      skipped, a scan refused rather than emptying the library when there is no access
+- [ ] JS tabs with the mini player docked above a Material 3 bar (NativeTabs has no bottom accessory
+      on Android); Material icons for every SF Symbol; a text prompt dialog (no Alert.prompt);
+      real dark colors (no semantic colors); back closes sheets and steps through the welcome pages
+- [ ] Android-only: headset clicks mapped in Settings, the notification's heart, a home screen
+      widget, skip silence, Ogg and Opus, the wallpaper accent, launcher shortcuts
+- [ ] Signed release APK from CI, the key in the repository secrets
+
 ## Definition of done per phase
 
 1. Every feature row for the phase is `done` in FEATURES.md.
 2. Type check and unit tests pass.
 3. A CI build was installed on the phone and the features were exercised by hand with the real library.
+   For Android that is a phone as well: the emulator catches layout and logic, not Bluetooth,
+   headsets or a real library's size.
