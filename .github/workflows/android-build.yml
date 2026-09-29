@@ -75,7 +75,10 @@ jobs:
         working-directory: android
         run: |
           sed -i '/^org.gradle.jvmargs=/d' gradle.properties
-          echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError' >> gradle.properties
+          # A newline first: prebuild's file ends without one, and a line appended straight on
+          # joins its last (expo.inlineModules.watchedDirectories=[]), which autolinking then fails
+          # to parse ("Process 'command 'node'' finished with non-zero exit value 1").
+          printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError\n' >> gradle.properties
           # Release builds run lint vital over every module first: the pass that ran out of memory.
           # It only checks, and nothing it does goes into the APK. Switched off in the DSL rather
           # than with -x, which makes Gradle create every module's tasks up front, and one of
