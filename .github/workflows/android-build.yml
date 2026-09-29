@@ -71,11 +71,16 @@ jobs:
       # Prebuild's 512 MB of metaspace ran out once expo-updates added three modules: Gradle
       # threw OutOfMemoryError: Metaspace in the release lint pass and then hung until the timeout.
       # The runner has 16 GB.
-      - name: Gradle memory
+      - name: Gradle memory, no release lint
         working-directory: android
         run: |
           sed -i '/^org.gradle.jvmargs=/d' gradle.properties
           echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError' >> gradle.properties
+          # Release builds run lint vital over every module first: the pass that ran out of memory.
+          # It only checks, and nothing it does goes into the APK. Switched off in the DSL rather
+          # than with -x, which makes Gradle create every module's tasks up front, and one of
+          # those runs node and fails.
+          printf '\nandroid { lint { checkReleaseBuilds false } }\n' >> app/build.gradle
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -99,13 +104,8 @@ jobs:
       - name: Build
         working-directory: android
         run: |
-          # Lint vital (per module, release only) is the pass that ran out of memory, and it only
-          # checks: nothing it does goes into the APK. -x skips it in every module.
-          LINT_SKIP=""
-          [ "$VARIANT" = Release ] && LINT_SKIP="-x lintVitalRelease -x lintVitalAnalyzeRelease"
           ./gradlew "assemble$VARIANT" \
             -PreactNativeArchitectures="$ABIS" \
-            $LINT_SKIP \
             $SIGNING_ARGS \
             --no-daemon --console=plain
           VARIANT_DIR=$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')
