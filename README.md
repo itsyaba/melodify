@@ -173,14 +173,15 @@ build: bump `version`, build, and install it; updates published after that go to
 
 This project is developed on Linux. There is no Xcode and no simulator, so the loop is:
 
-1. **Build a dev client in CI.** A GitHub Actions macOS runner (or EAS Build) runs `expo prebuild` and
-   `xcodebuild` with code signing disabled, then zips `Payload/` into an unsigned `.ipa`.
+1. **Build in CI.** A GitHub Actions macOS runner runs `expo prebuild` and `xcodebuild` with code
+   signing disabled, then zips `Payload/` into an unsigned `.ipa`. Pushes build Release, with the JS
+   inside and EAS Update after that; run the workflow by hand with Debug for a dev client.
 2. **Sign and install.** Background audio and file sharing are plain Info.plist keys, not paid
    entitlements, so a free Apple account is enough. The current route is LiveContainer, which is
    itself signed with the free account and runs the unsigned IPA as a guest; it already declares
    the `audio` background mode and `UIFileSharingEnabled`, which guests inherit. SideStore also
    works and gives a real app install.
-3. **Iterate on JS over WiFi.** Run `npm start`, open the dev client, and Metro hot-reloads.
+3. **Iterate on JS over WiFi** (Debug build). Run `npm start`, open the dev client, and Metro hot-reloads.
    Only steps 1 and 2 repeat when a new native module is added.
    Under LiveContainer the Local Network permission belongs to **LiveContainer**, not Melodify, so
    enable it there and force-quit the host before the dev client can reach Metro.

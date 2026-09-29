@@ -1,7 +1,8 @@
-# Builds an unsigned iOS .ipa of the Melodify dev client on a macOS runner.
-# Download the artifact, then sign and install it with SideStore.
+# Builds an unsigned iOS .ipa of Melodify on a macOS runner. Download the artifact, then sign and
+# install it with SideStore.
 #
-# Trigger manually (workflow_dispatch) or on pushes that touch native config.
+# Release by default: the JS is bundled in and later JS arrives by EAS Update, so pushes only build
+# when native config changes. A manual run can pick Debug, the dev client that loads JS from Metro.
 
 name: iOS unsigned build
 
@@ -11,8 +12,8 @@ on:
       configuration:
         description: Xcode configuration
         type: choice
-        options: [Debug, Release]
-        default: Debug
+        options: [Release, Debug]
+        default: Release
   push:
     branches: [main]
     paths:
@@ -35,7 +36,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 90
     env:
-      CONFIGURATION: ${{ inputs.configuration || 'Debug' }}
+      CONFIGURATION: ${{ inputs.configuration || 'Release' }}
       SCHEME: Melodify
     steps:
       - uses: actions/checkout@v4
