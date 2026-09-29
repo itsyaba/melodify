@@ -107,7 +107,7 @@ jobs:
           ./gradlew "assemble$VARIANT" \
             -PreactNativeArchitectures="$ABIS" \
             $SIGNING_ARGS \
-            --no-daemon --console=plain
+            --no-daemon --console=plain --stacktrace
           VARIANT_DIR=$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')
           APK=$(ls app/build/outputs/apk/$VARIANT_DIR/*.apk | head -1)
           test -n "$APK" || { echo "::error::no APK produced"; exit 1; }
