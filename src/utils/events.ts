@@ -19,6 +19,24 @@ export const libraryEvents = new Emitter<{ changed: void; scanProgress: ScanProg
 /** `focus`: put the cursor in the Search tab's field (its tab was tapped, or Home's field was). */
 export const searchEvents = new Emitter<{ focus: void }>();
 
+/**
+ * A Library view asked for from elsewhere (Home's All songs). Held until the Library tab takes it,
+ * as the tab may not have been opened yet; `show` tells it when it already has.
+ */
+export const libraryViewRequest = {
+  pending: null as string | null,
+  events: new Emitter<{ show: void }>(),
+  ask(view: string) {
+    this.pending = view;
+    this.events.emit('show', undefined);
+  },
+  take(): string | null {
+    const view = this.pending;
+    this.pending = null;
+    return view;
+  },
+};
+
 export interface ScanProgress {
   phase: 'walking' | 'indexing' | 'tagging' | 'done' | 'error';
   seen: number;

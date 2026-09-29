@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -43,7 +43,7 @@ import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
 import { QuickCards, type QuickCard } from '@/screens/library/quick-cards';
 import { queue } from '@/player/queue-store';
 import { spacing, useTheme } from '@/theme';
-import { libraryEvents } from '@/utils/events';
+import { libraryEvents, libraryViewRequest } from '@/utils/events';
 import { findIn } from '@/utils/find';
 import { formatCount, formatDuration } from '@/utils/format';
 
@@ -134,6 +134,16 @@ export function LibraryScreen() {
   const [stored, setView] = useStoredChoice<LibraryView>('library.view', shown[0]?.key ?? 'songs', shown);
   const view = shown.some((v) => v.key === stored) ? stored : (shown[0]?.key ?? 'songs');
   const group = GROUP_VIEWS[view];
+  // Home's All songs: on the first visit, and whenever it is tapped again while Library is open.
+  useEffect(() => {
+    const take = () => {
+      const asked = libraryViewRequest.take();
+      if (asked && shown.some((v) => v.key === asked)) setView(asked as LibraryView);
+    };
+    take();
+    return libraryViewRequest.events.on('show', take);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
   return (
     <TabScreen title="Library" below={<Chips options={shown} value={view} onChange={setView} tinted />}>
       {view === 'songs' && <Songs />}

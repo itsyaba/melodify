@@ -2,6 +2,10 @@
   "expo": {
     "name": "Melodify",
     "slug": "melodify",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "version": "0.1.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -57,6 +61,24 @@
       "expo-router",
       "expo-sqlite",
       "expo-dev-client"
-    ]
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      },
+      "url": "https://u.expo.dev/6cace815-fbbf-44a5-9c8c-e9b07d082b72"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6cace815-fbbf-44a5-9c8c-e9b07d082b72"
+      }
+    },
+    "owner": "itsyaba"
   }
 }

@@ -34,6 +34,10 @@ export default function SharedLayout({ segment }: { segment: string }) {
       <Stack.Screen name="auto/[kind]" options={{ headerLargeTitleEnabled: false }} />
       <Stack.Screen name="bookmarks" options={{ headerLargeTitleEnabled: false, title: 'Bookmarks' }} />
       <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
+      <Stack.Screen name="settings/library" options={{ title: 'Library', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="settings/appearance" options={{ title: 'Appearance', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="settings/playback" options={{ title: 'Playback', headerLargeTitleEnabled: false }} />
+      <Stack.Screen name="settings/about" options={{ title: 'About', headerLargeTitleEnabled: false }} />
       {/* Draws its own Spotify-style header over the accent wash. */}
       <Stack.Screen name="settings/scan" options={{ title: 'Import and scan', headerShown: false }} />
       <Stack.Screen name="settings/hidden" options={{ title: 'Hidden songs', headerLargeTitleEnabled: false }} />

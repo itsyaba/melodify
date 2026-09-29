@@ -6,9 +6,9 @@ import { Outfit_600SemiBold } from '@expo-google-fonts/outfit/600SemiBold';
 import { showOnboarding } from './state';
 
 /**
- * Outfit, the welcome pages' typeface, bundled so it works offline (SIL Open Font License). It is
- * loaded before the pages show, so they never flash the system font first; if loading fails they
- * use the system font at the same weights.
+ * Outfit, the welcome pages' typeface and Home's headings', bundled so it works offline (SIL Open
+ * Font License). It is loaded at launch, before the first screen shows, so nothing flashes the
+ * system font first; if loading fails the system font stands in at the same weights.
  */
 
 const FACES = { regular: 'Outfit_400Regular', medium: 'Outfit_500Medium', semibold: 'Outfit_600SemiBold' } as const;

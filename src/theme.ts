@@ -212,10 +212,48 @@ export const type = {
 export const artSize = { row: 48, cover: 60, card: 160, player: 320 } as const;
 
 /**
- * The record that slides out of a cover's sleeve on Home's list cards: black vinyl with faint
- * grooves in every theme, its centre label in the accent.
+ * Home's now-playing card: white text and controls over the song's own cover, blurred and
+ * darkened, so they read the same whatever the art and the theme.
  */
-export const VINYL = { disc: '#121212', groove: 'rgba(255, 255, 255, 0.08)', sheen: 'rgba(255, 255, 255, 0.05)' } as const;
+export const HERO = {
+  shade: 'rgba(0, 0, 0, 0.45)',
+  ink: '#ffffff',
+  muted: 'rgba(255, 255, 255, 0.72)',
+  track: 'rgba(255, 255, 255, 0.24)',
+  button: '#ffffff',
+  buttonInk: '#000000',
+} as const;
+
+/**
+ * Home's Favorites tile: a heart on a pink-to-violet sweep, the same in every theme and accent,
+ * so the list you build by hand stands apart from the ones the library fills in.
+ */
+export const FAVORITES_FILL = ['#ff2d6f', '#8e2de2'] as const;
+
+/**
+ * The icon tiles on the Settings root, one color per page, the same in every theme and accent so
+ * each page keeps its place by color, as in the system's own Settings.
+ */
+export const SETTINGS_TILES = {
+  library: ACCENTS.blue.hex,
+  appearance: ACCENTS.purple.hex,
+  playback: ACCENTS.pink.hex,
+  sound: ACCENTS.orange.hex,
+  backup: ACCENTS.green.hex,
+  tour: ACCENTS.yellow.hex,
+  about: '#8e8e93',
+} as const;
+
+/** White at a lower strength, for the second line on a tint-colored fill. */
+export const ON_TINT_MUTED = 'rgba(255, 255, 255, 0.78)';
+/** A faint white disc or pill on a tint-colored fill. */
+export const ON_TINT_FAINT = 'rgba(255, 255, 255, 0.2)';
+
+/**
+ * Light from above on an accent fill: lighter at the top-left corner, darker at the foot, so a
+ * chosen card reads as lit rather than flat. Laid over the tint, so it suits every accent.
+ */
+export const SHEEN = { light: 'rgba(255, 255, 255, 0.24)', clear: 'rgba(255, 255, 255, 0)', shade: 'rgba(0, 0, 0, 0.2)' } as const;
 
 /** Bright fills under white text (`onTint`), the same in every theme: Import and scan's two tiles. */
 export const BROWSE_TILE_COLORS = [

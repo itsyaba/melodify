@@ -15,13 +15,15 @@ interface Props {
   active?: boolean;
   /** Replaces the duration, e.g. with a selection check or a drag handle. */
   trailing?: ReactNode;
+  /** In the duration's place, keeping the ⋯ button: a song's play count in Most played. */
+  badge?: ReactNode;
   onPress?: (track: Track) => void;
   onLongPress?: (track: Track) => void;
   /** A ⋯ button after the duration, opening the same menu a long press does. */
   onMore?: (track: Track) => void;
 }
 
-export function TrackRow({ track, showNumber, active, trailing, onPress, onLongPress, onMore }: Props) {
+export function TrackRow({ track, showNumber, active, trailing, badge, onPress, onLongPress, onMore }: Props) {
   const styles = useStyles();
   const colors = useTheme();
   const density = useDensity();
@@ -49,7 +51,7 @@ export function TrackRow({ track, showNumber, active, trailing, onPress, onLongP
         <Text numberOfLines={1} style={[type.body, { color: active ? colors.tint : colors.label }]}>{track.title}</Text>
         <Text numberOfLines={1} style={[type.footnote, { color: colors.secondaryLabel }]}>{subtitle}</Text>
       </View>
-      {trailing ?? (
+      {trailing ?? badge ?? (
         <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(track.duration_ms)}</Text>
       )}
       {onMore && trailing === undefined ? (

@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getPrefs } from '@/prefs';
+import { listMostPlayed as listPlayedSince, summarizeMostPlayed, type MostPlayed, type PlaySummary } from './plays';
+import { ADDED_ORDER, addedPeriodCovers, countAddedPeriods, listAddedSince, type AddedPeriod } from './added';
 import type { AlbumSummary, FolderEntry, GroupSummary, Track } from './types';
 
 export type TrackSort = 'title' | 'artist' | 'album' | 'added' | 'played' | 'plays' | 'duration' | 'year' | 'filename';
@@ -8,7 +10,7 @@ const sortSql: Record<TrackSort, string> = {
   title: 'title COLLATE NOCASE ASC',
   artist: 'artist COLLATE NOCASE ASC, album COLLATE NOCASE ASC, disc_no, track_no',
   album: 'album COLLATE NOCASE ASC, disc_no, track_no',
-  added: 'added_at DESC, path',
+  added: ADDED_ORDER,
   // Never-played tracks last, not first as a plain DESC on a nullable column would put them.
   played: 'last_played_at IS NULL, last_played_at DESC',
   plays: 'play_count DESC, title COLLATE NOCASE',
@@ -281,7 +283,7 @@ const AUTO_WHERE: Record<AutoPlaylist, string> = {
 
 const AUTO_ORDER: Record<AutoPlaylist, string> = {
   favorites: 'title COLLATE NOCASE',
-  recently_added: 'added_at DESC, path',
+  recently_added: ADDED_ORDER,
   most_played: 'play_count DESC, last_played_at DESC',
   recently_played: 'last_played_at DESC',
 };
@@ -324,6 +326,30 @@ export async function autoPlaylistSummaries(db: SQLiteDatabase): Promise<Record<
   ) as Record<AutoPlaylist, AutoPlaylistSummary>;
 }
 
+/** Recently added over a span of days, or every song for null; see `db/added.ts`. */
+export function listRecentlyAdded(db: SQLiteDatabase, days: number | null): Promise<Track[]> {
+  return listAddedSince(db, visible(), days);
+}
+
+/** How many songs Recently added holds over each of its spans, and the newest covers in each. */
+export async function summarizeRecentlyAdded(
+  db: SQLiteDatabase,
+): Promise<{ counts: Record<AddedPeriod, number>; covers: Record<AddedPeriod, string[]> }> {
+  const now = Date.now();
+  const [counts, covers] = await Promise.all([countAddedPeriods(db, visible(), now), addedPeriodCovers(db, visible(), now)]);
+  return { counts, covers };
+}
+
+/** Most played over a span of days, or all time for null, with each song's plays; see `db/plays.ts`. */
+export function listMostPlayed(db: SQLiteDatabase, days: number | null): Promise<MostPlayed> {
+  return listPlayedSince(db, visible(), days);
+}
+
+/** How many songs were played over each of Most played's spans, and the top covers in each. */
+export function summarizePlays(db: SQLiteDatabase): Promise<PlaySummary> {
+  return summarizeMostPlayed(db, visible());
+}
+
 export function listHiddenTracks(db: SQLiteDatabase): Promise<Track[]> {
   return db.getAllAsync<Track>('SELECT * FROM tracks WHERE hidden = 1 ORDER BY title COLLATE NOCASE');
 }
@@ -342,6 +368,7 @@ export async function setHidden(db: SQLiteDatabase, ids: number[], hidden: boole
 
 export async function recordPlay(db: SQLiteDatabase, id: number, at: number): Promise<void> {
   await db.runAsync('UPDATE tracks SET play_count = play_count + 1, last_played_at = ? WHERE id = ?', at, id);
+  await db.runAsync('INSERT INTO plays (track_id, played_at) VALUES (?, ?)', id, at);
 }
 
 /** A song passed over with next before it counted as played. */

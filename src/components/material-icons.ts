@@ -84,6 +84,10 @@ const TABLE: Record<string, string> = {
   'lightbulb.fill': 'lightbulb',
   'hand.raised.fill': 'back-hand',
   'info.circle': 'info-outline',
+  'info.circle.fill': 'info',
+  'paintbrush.fill': 'brush',
+  'externaldrive.fill': 'sd-storage',
+  'sparkles': 'auto-awesome',
   'wifi.slash': 'wifi-off',
 
   // Actions and navigation.

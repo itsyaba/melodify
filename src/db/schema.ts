@@ -132,4 +132,29 @@ export const migrations: string[] = [
     md5 TEXT NOT NULL                   -- of the decrypted contents, for the manifest
   );
   `,
+
+  // v4: each counted play with its time, so Most played can cover the last week, month, six months
+  // or year. The tracks' own play_count stays the all-time total: plays before this table, and
+  // those a Musicolet restore brings back, have no date.
+  `
+  CREATE TABLE plays (
+    track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    played_at INTEGER NOT NULL          -- ms since epoch
+  );
+  CREATE INDEX idx_plays_time ON plays(played_at, track_id);
+  CREATE INDEX idx_plays_track ON plays(track_id);
+  `,
+
+  // v5: .mp4 is no longer scanned (it is nearly always a video), so the rows earlier scans made
+  // for them go. Migrations run on a connection without foreign keys, so the rows that point at
+  // them are deleted by hand rather than by ON DELETE CASCADE.
+  `
+  CREATE TEMP TABLE gone AS SELECT id FROM tracks WHERE lower(ext) = 'mp4';
+  DELETE FROM queue_tracks WHERE track_id IN (SELECT id FROM gone);
+  DELETE FROM playlist_tracks WHERE track_id IN (SELECT id FROM gone);
+  DELETE FROM bookmarks WHERE track_id IN (SELECT id FROM gone);
+  DELETE FROM plays WHERE track_id IN (SELECT id FROM gone);
+  DELETE FROM tracks WHERE id IN (SELECT id FROM gone);
+  DROP TABLE gone;
+  `,
 ];

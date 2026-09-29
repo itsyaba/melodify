@@ -32,6 +32,8 @@ interface Props {
   batchExtra?: (indexes: number[]) => MenuItem[];
   /** The screen's own actions, shown as an ellipsis button in the header. */
   onMenu?: () => void;
+  /** Shown in a row in place of the song's length, e.g. its play count. */
+  badge?: (index: number) => ReactElement | null;
 }
 
 /**
@@ -39,7 +41,7 @@ interface Props {
  * (in the header, or from the menu) switches to multi-select with batch actions. The header
  * buttons belong to this list, so a screen hands its own through `onMenu`.
  */
-export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, menuExtra, batchExtra, onMenu }: Props) {
+export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, menuExtra, batchExtra, onMenu, badge }: Props) {
   const colors = useTheme();
   const selection = useSelection(tracks);
   const actions = useTrackActions();
@@ -80,6 +82,10 @@ export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, 
       data={rows}
       keyExtractor={(r) => (r.kind === 'leading' ? `l:${r.row.key}` : `t:${r.track.id}:${r.index}`)}
       extraData={extraData}
+      // Every mounted row re-renders when the playing song changes (its highlight moves), so this
+      // keeps five screens either side rather than FlatList's ten: a shuffle of a long library
+      // re-renders a hundred rows, not a few hundred.
+      windowSize={11}
       renderItem={({ item }) => {
         if (item.kind === 'leading') return item.row.element;
         const { track, index } = item;
@@ -89,6 +95,7 @@ export function TrackList({ tracks, header, leading, empty, showNumber, onPlay, 
             track={track}
             showNumber={showNumber}
             active={current?.id === track.id}
+            badge={badge?.(index)}
             trailing={
               selection.active ? (
                 <View style={styles.check}>

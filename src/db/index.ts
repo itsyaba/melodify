@@ -9,7 +9,10 @@ import { migrations } from './schema';
 export const BUSY_TIMEOUT = 'PRAGMA busy_timeout = 5000';
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync(`PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; ${BUSY_TIMEOUT};`);
+  // The timeout first: switching to WAL needs the file to itself, and a connection still closing
+  // (the app's own, when the provider remounts) would otherwise fail it at once, "database is
+  // locked", and leave the queue holding the closed one.
+  await db.execAsync(`${BUSY_TIMEOUT}; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;`);
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
   while (version < migrations.length) {

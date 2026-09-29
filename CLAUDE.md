@@ -18,9 +18,13 @@ Read README.md (workflow), FEATURES.md (scope, status per feature), ROADMAP.md (
 - Schema changes are appended migrations in `src/db/schema.ts`; never edit a shipped one.
 - Every color goes through `src/theme.ts` tokens, read in components with `useTheme()` or a
   `makeStyles` hook so theme changes apply live. Never capture `colors` in a plain StyleSheet.
-- No network calls, analytics, or online lookups. The app is offline by design. The one exception is
-  `src/lyrics/online.ts` (LRCLIB), which runs only when the user taps Search online on a song with
-  no lyrics. Ask before adding any other.
+- No network calls, analytics, or online lookups. The app is offline by design, with two exceptions.
+  `src/lyrics/online.ts` (LRCLIB) runs only when the user taps Search online on a song with no
+  lyrics. And expo-updates: Release builds ask Expo's servers for an update at launch, in
+  the background, and never wait on it. Ask before adding any other.
+- Updates only reach builds of the same `version` in app.json (`runtimeVersion` policy `appVersion`).
+  A change to native code (`modules/`, a new native package, an app.json setting that prebuild reads)
+  needs a new build, so bump `version` with it; otherwise the update lands on a build that lacks it.
 - Keep FEATURES.md status columns current when a feature lands.
 
 ## Verify before committing

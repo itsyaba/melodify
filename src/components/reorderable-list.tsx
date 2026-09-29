@@ -30,8 +30,10 @@ import { makeStyles, spacing, useTheme } from '@/theme';
  *
  * Rows must all be the same height (they are: one track row each), which lets the drop target be
  * worked out from the finger position alone. The dragged row is drawn as a floating copy over
- * the list while the original stays mounted, invisible, holding the gesture: FlatList keeps ten
- * screens of rows either side rendered, so the original survives any realistic autoscroll. The
+ * the list while the original stays mounted, invisible, holding the gesture: during a drag the
+ * list keeps ten screens of rows either side rendered, so the original survives any realistic
+ * autoscroll. At rest it keeps three, so a long queue replaced at once (a shuffle of the whole
+ * library) mounts a few dozen rows rather than a couple of hundred. The
  * rows it passes slide out of its way, and on release the copy settles into the gap they left
  * before the list reorders.
  */
@@ -66,6 +68,9 @@ const MAX_SCROLL_STEP = 14;
 /** How long a row takes to slide out of the lifted row's way, and the lifted row to settle. */
 const SLIDE_MS = 150;
 const SLIDE_EASING = Easing.out(Easing.cubic);
+/** Screens of rows kept rendered, counting the one in view: FlatList's default while dragging. */
+const DRAG_WINDOW = 21;
+const REST_WINDOW = 7;
 
 export function ReorderableList<T>({
   data,
@@ -278,6 +283,7 @@ export function ReorderableList<T>({
         data={data}
         keyExtractor={keyExtractor}
         extraData={listExtra}
+        windowSize={drag ? DRAG_WINDOW : REST_WINDOW}
         scrollEnabled={scrollEnabled}
         onScroll={onScroll}
         scrollEventThrottle={16}

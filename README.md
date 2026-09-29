@@ -150,6 +150,25 @@ Check your library before syncing.
 On Android ExoPlayer uses the phone's own decoders: MP3, AAC / M4A, FLAC, WAV, **Ogg Vorbis, Opus**,
 Matroska audio and AMR. AIFF and CAF are not read there.
 
+`.mp4` files are skipped on both: that extension is nearly always a video. Audio in the same
+container is named `.m4a` (or `.m4b` for audiobooks), and those are read.
+
+## Over-the-air updates
+
+Release builds (the signed APK, and an IPA built with configuration Release) carry expo-updates. At
+each launch they ask Expo's servers, in the background, for a newer update on the `production`
+channel; one that arrives runs from the next launch. Offline, the app starts as usual. Settings >
+About says which update is running. Debug builds ignore updates and load from the dev server.
+
+To ship a JavaScript change without a build:
+
+```sh
+npm run update -- --message "What changed"
+```
+
+An update only reaches builds of the same `version` in app.json. A change to native code needs a new
+build: bump `version`, build, and install it; updates published after that go to the new build only.
+
 ## Development workflow (no Mac)
 
 This project is developed on Linux. There is no Xcode and no simulator, so the loop is:

@@ -26,7 +26,8 @@ export function useStoredChoice<T extends string>(key: string, fallback: T, allo
     if (cache) return;
     let cancelled = false;
     void getSetting(db, 'choices').then((stored) => {
-      cache = stored ?? {};
+      // A choice made while this was read wins over the stored one, and keeps the others stored.
+      cache = { ...(stored ?? {}), ...(cache ?? {}) };
       const saved = cache[key];
       if (!cancelled && valid(saved)) setValue(saved);
     });

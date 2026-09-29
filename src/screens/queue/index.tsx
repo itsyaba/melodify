@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from '@/components/symbol';
 import { Artwork } from '@/components/artwork';
@@ -49,7 +49,22 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   useEffect(() => setViewedId(activeId), [activeId]);
   const viewed: QueueInfo = queues.find((q) => q.id === viewedId) ?? queues.find((q) => q.id === activeId) ?? queues[0];
   const isActive = viewed.id === activeId;
-  const tracks = viewed.tracks;
+  // The Queue tab stays mounted behind the others: while it is out of sight it keeps the list it
+  // last drew, so shuffling a big library from elsewhere does not rebuild thousands of rows here.
+  const focused = useIsFocused();
+  const drawn = useRef(viewed.tracks);
+  if (focused) drawn.current = viewed.tracks;
+  const tracks = focused ? viewed.tracks : drawn.current;
+  // Keyed by song and by which repeat of it this is, not by position, so a move or a removal only
+  // re-renders the rows it touched.
+  const keys = useMemo(() => {
+    const seen = new Map<number, number>();
+    return tracks.map((t) => {
+      const n = seen.get(t.id) ?? 0;
+      seen.set(t.id, n + 1);
+      return `${t.id}:${n}`;
+    });
+  }, [tracks]);
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
 
   const selection = useSelection(tracks);
@@ -246,7 +261,7 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   const list = (
     <ReorderableList
       data={tracks}
-      keyExtractor={(t, i) => `${t.id}:${i}`}
+      keyExtractor={(_t, i) => keys[i]}
       extraData={extraData}
       header={header}
       empty={

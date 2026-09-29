@@ -1,18 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, FlatList, Platform, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { Animated, FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';
-import { IconButton } from '@/components/icon-button';
 import { toast } from '@/components/toast';
 import { albumHref, groupHref, useTrackActions } from '@/components/track-actions';
 import { listBookmarks } from '@/db/bookmarks';
 import {
   autoPlaylistSummaries,
-  countTracks,
+  libraryOverview,
   listAlbums,
   listAlbumTracks,
   listAutoPlaylist,
@@ -25,30 +24,23 @@ import type { AlbumSummary, Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { queue, useCurrentTrack } from '@/player/queue-store';
 import { AUTO_PLAYLISTS } from '@/screens/library/auto-playlist';
-import { ACCENTS, currentTheme, makeStyles, radius, spacing, type, useTheme } from '@/theme';
-import { searchEvents } from '@/utils/events';
+import { face } from '@/screens/onboarding/fonts';
+import { FAVORITES_FILL, makeStyles, spacing, type, useTheme } from '@/theme';
+import { libraryViewRequest, searchEvents } from '@/utils/events';
 import { dayPart, formatCount, formatTotalTime } from '@/utils/format';
-import { AlbumPlayCard, SongCard } from './cards';
-import { LIST_CARD_HEIGHT, ListCard } from './list-card';
+import { AlbumCard, AllSongsCard, ArtistCircle, ListTile, RecentRow } from './cards';
+import { NowPlayingCard } from './now-playing';
 
-const BLURBS: Record<AutoPlaylist, string> = {
-  favorites: 'Every song you gave a heart',
-  recently_added: 'The newest in your library',
-  most_played: 'The songs you keep coming back to',
-  recently_played: 'What you had on lately',
-};
+/** The lists on Home's tiles. Recently played has its own rows further down. */
+const TILE_LISTS: readonly AutoPlaylist[] = ['favorites', 'most_played', 'recently_added'];
 
 /** The chip for albums not played for a month. No genre is named with a NUL. */
 const REDISCOVER = '\u0000rediscover';
 const GENRE_CHIPS = 10;
-/** Albums in a genre's strip; its arrow opens the genre for the rest. */
+/** Albums in a genre's strip; See all opens the genre for the rest. */
 const STRIP = 24;
+const ARTISTS = 12;
 const SONG_ROWS = 5;
-
-/** How far the wash reaches above the page, so pulling it down never shows its edge. */
-const OVERSCROLL = 600;
-/** How far down the page the wash fades out. */
-const FADE = 420;
 
 /** What changes as you listen: read again each time Home comes back into view. */
 async function loadListening(db: SQLiteDatabase) {
@@ -67,44 +59,53 @@ async function loadListening(db: SQLiteDatabase) {
 
 /** What only a scan or a tag edit changes, so Rediscover keeps its order while you browse. */
 async function loadBrowse(db: SQLiteDatabase) {
-  const [songs, discover, genres] = await Promise.all([
-    countTracks(db),
+  const [overview, discover, genres, artists] = await Promise.all([
+    libraryOverview(db),
     listDiscoverAlbums(db, 12),
     listGroups(db, 'genre', 'tracks'),
+    listGroups(db, 'artist', 'tracks'),
   ]);
-  return { songs, discover, genres: genres.slice(0, GENRE_CHIPS) };
+  return { overview, discover, genres: genres.slice(0, GENRE_CHIPS), artists: artists.slice(0, ARTISTS) };
 }
 
 interface ListItem {
   key: string;
   title: string;
-  blurb: string;
   meta: string;
   art: string | null;
   icon: SFSymbol;
+  gradient?: readonly [string, string];
   href: Href;
   onLongPress?: () => void;
 }
 
 function Section({ title, onMore, moreLabel }: { title: string; onMore?: () => void; moreLabel?: string }) {
   const styles = useStyles();
-  const colors = useTheme();
   return (
     <View style={styles.section}>
-      <Text numberOfLines={1} style={[type.title, styles.sectionTitle]} accessibilityRole="header">{title}</Text>
+      <Text numberOfLines={1} style={[styles.sectionTitle, face('semibold')]} accessibilityRole="header">{title}</Text>
       {onMore ? (
-        <IconButton name="chevron.right" size={18} color={colors.secondaryLabel} onPress={onMore} accessibilityLabel={moreLabel ?? `All of ${title}`} />
+        <Pressable
+          onPress={onMore}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={moreLabel ?? `All of ${title}`}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text style={[type.subhead, styles.more]}>See all</Text>
+        </Pressable>
       ) : null}
     </View>
   );
 }
 
 /**
- * The Home tab: the weekday and time of day with a search pill and the settings gear beside it,
- * then three shelves. Your lists (the ones the library keeps by itself, and Bookmarks) as wide
- * cards with a record sliding out from behind each cover; albums as big covers with a play button,
- * filtered by chips (Rediscover, for albums not played for a month, then the biggest genres); and
- * the last few songs played as rounded rows. A soft wash of the accent sits behind the top.
+ * The Home tab. Fixed at the top: the weekday and time of day over what the library holds, the
+ * settings gear, and a search field. Under them, scrolling: the song on now over its own blurred
+ * cover, with play, pause and next; All songs as a wide card in the accent, then Favorites, the
+ * lists the library keeps by itself and Bookmarks as tiles two to a row;
+ * albums with a play button on the cover, filtered by chips (Rediscover, for albums not played for
+ * a month, then the biggest genres); the artists with the most songs; and the last few songs played.
  */
 export function HomeScreen() {
   const styles = useStyles();
@@ -112,7 +113,6 @@ export function HomeScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
   const actions = useTrackActions();
   const current = useCurrentTrack();
   const { width } = useWindowDimensions();
@@ -141,28 +141,29 @@ export function HomeScreen() {
   // The last genre's albums stay loaded while the next one's are read; they are not shown under it.
   const albums = active === REDISCOVER ? browse?.discover : genre?.name === active ? genre.albums : undefined;
 
-  const listWidth = Math.min(340, width - spacing.lg * 2 - spacing.xxl);
-  const albumSize = Math.min(180, Math.floor((width - spacing.lg - spacing.md * 2) / 2.4));
+  const tileWidth = Math.floor((width - spacing.lg * 2 - spacing.sm) / 2);
+  const albumSize = Math.min(168, Math.floor((width - spacing.lg - spacing.md * 2) / 2.35));
+  const artistSize = Math.min(96, Math.floor((width - spacing.lg - spacing.md * 3) / 3.6));
 
   const lists: ListItem[] = [
-    ...AUTO_PLAYLISTS.map((p) => {
-      const s = listening?.lists[p.kind];
+    ...TILE_LISTS.map((kind) => {
+      const p = AUTO_PLAYLISTS.find((a) => a.kind === kind)!;
+      const s = listening?.lists[kind];
       return {
-        key: p.kind,
+        key: kind,
         title: p.title,
-        blurb: BLURBS[p.kind],
         // Blank until read, rather than a moment of "Nothing yet".
-        meta: !s ? ' ' : s.count ? `${formatCount(s.count, 'song')} · ${formatTotalTime(s.duration_ms)}` : 'Nothing yet',
+        meta: !s ? ' ' : s.count ? formatCount(s.count, 'song') : 'Nothing yet',
         art: s?.art_key ?? null,
         icon: p.icon,
-        href: { pathname: '/auto/[kind]', params: { kind: p.kind } } as const,
-        onLongPress: () => actions.collectionMenu(p.title, (d) => listAutoPlaylist(d, p.kind), [], { artKey: s?.art_key }),
+        gradient: kind === 'favorites' ? FAVORITES_FILL : undefined,
+        href: { pathname: '/auto/[kind]', params: { kind } } as const,
+        onLongPress: () => actions.collectionMenu(p.title, (d) => listAutoPlaylist(d, kind), [], { artKey: s?.art_key }),
       };
     }),
     {
       key: 'bookmarks',
       title: 'Bookmarks',
-      blurb: 'Moments you saved inside songs',
       meta: !listening ? ' ' : listening.bookmarks.count ? formatCount(listening.bookmarks.count, 'bookmark') : 'Nothing yet',
       art: listening?.bookmarks.art ?? null,
       icon: 'bookmark.fill',
@@ -174,6 +175,10 @@ export function HomeScreen() {
     router.navigate('/(tabs)/(search)/search');
     // Heard when the Search tab is already up; a first visit focuses its field on mount instead.
     searchEvents.emit('focus', undefined);
+  };
+  const openAllSongs = () => {
+    libraryViewRequest.ask('songs');
+    router.navigate('/(tabs)/(library)/library');
   };
   const openAlbum = (a: AlbumSummary) => router.push(albumHref(a.album, a.album_artist));
   const albumMenu = (a: AlbumSummary) =>
@@ -193,35 +198,17 @@ export function HomeScreen() {
     });
 
   const { day, part } = dayPart(new Date());
-  // The accent at the same strength in the status bar strip and at the top of the wash, so the
-  // two meet unseen, as on Import and scan.
-  const wash = `${ACCENTS[currentTheme().accent].hex}${scheme === 'dark' ? '47' : '29'}`;
-  const gradient = useMemo(
-    () => ({
-      experimental_backgroundImage: [
-        {
-          type: 'linear-gradient' as const,
-          direction: 'to bottom',
-          colorStops: [
-            { color: wash, positions: ['0%'] },
-            { color: wash, positions: [`${Math.round((OVERSCROLL / (OVERSCROLL + FADE)) * 100)}%`] },
-            { color: `${wash.slice(0, 7)}00`, positions: ['100%'] },
-          ],
-        },
-      ],
-    }),
-    [wash],
-  );
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const washOpacity = scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: 'clamp' });
-
+  const greeting = `${day} ${part.toLowerCase()}`;
+  const overview = browse?.overview;
   const recent = listening?.recent;
-  const empty = browse?.songs === 0;
+  const empty = overview?.songs === 0;
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const hairline = scrollY.interpolate({ inputRange: [0, 12], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
-    // The strip under the clock comes after the page in the tree and is laid out above it by
-    // column-reverse, as in TabScreen: iOS finds a tab's scroll view down its chain of first
-    // children (tapping the tab again scrolls it to the top, and the tab bar shrinks as it scrolls).
+    // The header and the strip under the clock come after the page in the tree and are laid out
+    // above it by column-reverse, as in TabScreen: iOS finds a tab's scroll view down its chain of
+    // first children (tapping the tab again scrolls it to the top, and the tab bar shrinks as it scrolls).
     <View style={styles.root}>
       <Animated.ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -229,32 +216,6 @@ export function HomeScreen() {
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
-        <View pointerEvents="none" style={[styles.wash, gradient]} />
-
-        <View style={styles.header}>
-          <View style={styles.heading} accessible accessibilityRole="header" accessibilityLabel={`${day} ${part.toLowerCase()}`}>
-            <Text numberOfLines={1} style={[type.footnote, styles.day]}>{day.toUpperCase()}</Text>
-            <Text numberOfLines={1} style={[type.largeTitle, styles.part]}>{part}</Text>
-          </View>
-          <Pressable
-            onPress={openSearch}
-            accessibilityRole="search"
-            accessibilityLabel="Search"
-            style={({ pressed }) => [styles.searchPill, pressed && styles.pressed]}
-          >
-            <SymbolView name="magnifyingglass" size={16} weight="semibold" tintColor={colors.secondaryLabel} />
-            <Text style={[type.subhead, styles.searchText]}>Search</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
-          >
-            <SymbolView name="gearshape.fill" size={19} tintColor={colors.label} />
-          </Pressable>
-        </View>
-
         {empty ? (
           <EmptyState
             title="No music yet"
@@ -267,30 +228,29 @@ export function HomeScreen() {
           />
         ) : (
           <>
-            <Section title="Your lists" />
-            <FlatList
-              horizontal
-              data={lists}
-              keyExtractor={(l) => l.key}
-              scrollsToTop={false}
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={listWidth + spacing.md}
-              decelerationRate="fast"
-              style={styles.listStrip}
-              contentContainerStyle={styles.strip}
-              renderItem={({ item }) => (
-                <ListCard
+            <NowPlayingCard />
+
+            {overview ? (
+              <View style={styles.allSongs}>
+                <AllSongsCard meta={`${formatCount(overview.songs, 'song')}, ${formatTotalTime(overview.durationMs)}`} onPress={openAllSongs} />
+              </View>
+            ) : null}
+
+            <View style={styles.tiles}>
+              {lists.map((item) => (
+                <ListTile
+                  key={item.key}
                   title={item.title}
-                  blurb={item.blurb}
                   meta={item.meta}
                   artKey={item.art}
                   icon={item.icon}
-                  width={listWidth}
+                  gradient={item.gradient}
+                  width={tileWidth}
                   onPress={() => router.push(item.href)}
                   onLongPress={item.onLongPress}
                 />
-              )}
-            />
+              ))}
+            </View>
 
             {chips.length ? (
               <>
@@ -303,6 +263,7 @@ export function HomeScreen() {
                   options={chips}
                   value={active ?? REDISCOVER}
                   onChange={setPicked}
+                  tinted
                   onLongPress={(g) => {
                     if (g !== REDISCOVER) actions.collectionMenu(g, (d) => listGroupTracks(d, 'genre', g));
                   }}
@@ -315,15 +276,37 @@ export function HomeScreen() {
                   keyExtractor={(a) => `${a.album_artist ?? ''}::${a.album}`}
                   scrollsToTop={false}
                   showsHorizontalScrollIndicator={false}
-                  style={{ minHeight: albumSize + 56 }}
+                  style={{ minHeight: albumSize + 52 }}
                   contentContainerStyle={[styles.strip, styles.albumStrip]}
                   renderItem={({ item }) => (
-                    <AlbumPlayCard
+                    <AlbumCard
                       album={item}
                       size={albumSize}
                       onPress={() => openAlbum(item)}
                       onLongPress={() => albumMenu(item)}
                       onPlay={() => playAlbum(item)}
+                    />
+                  )}
+                />
+              </>
+            ) : null}
+
+            {browse?.artists.length ? (
+              <>
+                <Section title="Artists" />
+                <FlatList
+                  horizontal
+                  data={browse.artists}
+                  keyExtractor={(a) => a.name}
+                  scrollsToTop={false}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.strip}
+                  renderItem={({ item }) => (
+                    <ArtistCircle
+                      artist={item}
+                      size={artistSize}
+                      onPress={() => router.push(groupHref('artist', item.name))}
+                      onLongPress={() => actions.collectionMenu(item.name, (d) => listGroupTracks(d, 'artist', item.name), [], { artKey: item.art_key })}
                     />
                   )}
                 />
@@ -336,79 +319,124 @@ export function HomeScreen() {
                   title={recent.kind === 'recently_played' ? 'Recently played' : 'Recently added'}
                   onMore={() => router.push({ pathname: '/auto/[kind]', params: { kind: recent.kind } })}
                 />
-                <View style={styles.songs}>
-                  {recent.tracks.map((t) => (
-                    <SongCard
-                      key={t.id}
-                      track={t}
-                      current={current?.id === t.id}
-                      onPress={() => playRecent(recent.kind, t)}
-                      onLongPress={() => actions.trackMenu(t)}
-                    />
-                  ))}
-                </View>
+                {recent.tracks.map((t) => (
+                  <RecentRow
+                    key={t.id}
+                    track={t}
+                    current={current?.id === t.id}
+                    onPress={() => playRecent(recent.kind, t)}
+                    onLongPress={() => actions.trackMenu(t)}
+                  />
+                ))}
               </>
             ) : null}
           </>
         )}
       </Animated.ScrollView>
-      <View style={[styles.statusBar, { height: insets.top }]}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: wash, opacity: washOpacity }]} />
+      <View style={styles.bar}>
+        <View style={styles.header}>
+          <View style={styles.heading} accessible accessibilityRole="header" accessibilityLabel={greeting}>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.greeting, face('semibold')]}>{greeting}</Text>
+            <Text numberOfLines={1} style={[type.footnote, styles.stats]}>
+              {/* A space until read, so the line does not jump in. */}
+              {overview && overview.songs ? `${formatCount(overview.albums, 'album')}, ${formatCount(overview.artists, 'artist')}` : ' '}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            style={({ pressed }) => [styles.round, pressed && styles.pressed]}
+          >
+            <SymbolView name="gearshape.fill" size={19} tintColor={colors.label} />
+          </Pressable>
+        </View>
+        {!empty ? (
+          <Pressable
+            onPress={openSearch}
+            accessibilityRole="search"
+            accessibilityLabel="Search"
+            style={({ pressed }) => [styles.search, pressed && styles.pressed]}
+          >
+            <SymbolView name="magnifyingglass" size={17} weight="semibold" tintColor={colors.secondaryLabel} />
+            <Text numberOfLines={1} style={[type.body, styles.searchText]}>Songs, albums, artists</Text>
+          </Pressable>
+        ) : null}
+        {/* A hairline under the header once the page has scrolled under it. */}
+        <Animated.View pointerEvents="none" style={[styles.hairline, { opacity: hairline }]} />
       </View>
+      <View style={[styles.statusBar, { height: insets.top }]} />
     </View>
   );
 }
 
-const PILL = 40;
+const ROUND = 40;
+const FIELD = 42;
 
 const useStyles = makeStyles((colors) => ({
   root: { flex: 1, flexDirection: 'column-reverse', backgroundColor: colors.background },
-  // Opaque, so the page scrolls under it rather than under the clock; the wash tints it at rest.
+  // Opaque, so the page scrolls under it rather than under the clock.
   statusBar: { backgroundColor: colors.background, zIndex: 1 },
-  content: { paddingBottom: spacing.xxl },
-  wash: { position: 'absolute', left: 0, right: 0, top: -OVERSCROLL, height: OVERSCROLL + FADE },
+  bar: { backgroundColor: colors.background, paddingBottom: spacing.md, zIndex: 1 },
+  hairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.separator,
+  },
+  content: { paddingTop: spacing.sm, paddingBottom: spacing.xxl },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
-  heading: { flex: 1 },
-  day: { color: colors.secondaryLabel, fontWeight: '700', letterSpacing: 1.2 },
-  part: { color: colors.label, fontWeight: '800', letterSpacing: -0.5 },
-  searchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: PILL,
-    paddingHorizontal: spacing.md + 2,
-    borderRadius: radius.full,
-    backgroundColor: colors.fill,
-  },
-  searchText: { color: colors.secondaryLabel, fontWeight: '500' },
-  roundButton: {
-    width: PILL,
-    height: PILL,
-    borderRadius: PILL / 2,
+  heading: { flex: 1, gap: 1 },
+  greeting: { fontSize: 28, lineHeight: 34, letterSpacing: -0.5, color: colors.label },
+  stats: { color: colors.secondaryLabel },
+  round: {
+    width: ROUND,
+    height: ROUND,
+    borderRadius: ROUND / 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.fill,
   },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    height: FIELD,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.fill,
+  },
+  searchText: { flex: 1, color: colors.secondaryLabel },
+  allSongs: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  tiles: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   section: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: spacing.lg,
-    paddingRight: spacing.sm,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-    minHeight: 44 + spacing.xl,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl + spacing.xs,
+    paddingBottom: spacing.md,
   },
-  sectionTitle: { flex: 1, color: colors.label, fontWeight: '700' },
-  listStrip: { height: LIST_CARD_HEIGHT },
+  sectionTitle: { flex: 1, fontSize: 22, lineHeight: 27, letterSpacing: -0.3, color: colors.label },
+  more: { color: colors.tint, fontWeight: '600' },
   strip: { gap: spacing.md, paddingHorizontal: spacing.lg },
-  albumStrip: { paddingTop: spacing.xs },
-  songs: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  albumStrip: { paddingTop: spacing.md },
   pressed: { opacity: 0.6 },
 }));

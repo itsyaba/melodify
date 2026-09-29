@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "android": "expo start --android",
     "web": "expo start --web",
+    "update": "eas update --channel production --environment production --platform all",
     "typecheck": "tsc --noEmit",
     "test": "node --import ./scripts/test-hooks.mjs --test \"src/**/*.test.ts\""
   },
@@ -28,6 +29,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-updates": "~57.0.23",
     "fflate": "^0.8.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
