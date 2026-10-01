@@ -5,8 +5,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "node --import ./scripts/test-hooks.mjs --test \"src/**/*.test.ts\""
@@ -33,7 +33,8 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "react-native-web": "^0.21.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

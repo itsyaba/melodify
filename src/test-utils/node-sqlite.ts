@@ -1,4 +1,8 @@
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
+import { writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { migrations } from '@/db/schema';
 
@@ -122,21 +126,25 @@ export function insertTrack(
 /** `SqliteFiles` over Node's SQLite, as the app's is over expo-sqlite. */
 export const nodeSqliteFiles = {
   async rows(file: Uint8Array, sql: string) {
-    const db = new DatabaseSync(':memory:');
+    const tmp = join(tmpdir(), `sqlite-read-${randomUUID()}.db`);
+    writeFileSync(tmp, file);
+    const db = new DatabaseSync(tmp);
     try {
-      db.deserialize(file);
       return db.prepare(sql).all().map((row) => ({ ...row })) as Record<string, string | number | null>[];
     } finally {
       db.close();
+      rmSync(tmp, { force: true });
     }
   },
   async build(statements: { sql: string; params?: (string | number | null)[] }[]) {
-    const db = new DatabaseSync(':memory:');
+    const tmp = join(tmpdir(), `sqlite-build-${randomUUID()}.db`);
+    const db = new DatabaseSync(tmp);
     try {
       for (const s of statements) db.prepare(s.sql).run(...(s.params ?? []));
-      return db.serialize();
-    } finally {
       db.close();
+      return new Uint8Array(readFileSync(tmp));
+    } finally {
+      rmSync(tmp, { force: true });
     }
   },
 };
