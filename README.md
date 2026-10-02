@@ -190,6 +190,52 @@ This project is developed on Linux. There is no Xcode and no simulator, so the l
 Free accounts allow 3 sideloaded apps at a time. As a LiveContainer guest Melodify does not count
 against that limit; LiveContainer itself does.
 
+## TestFlight
+
+With a paid Apple Developer account, `.github/workflows/ios-testflight.yml` (run it by hand from the
+Actions tab) builds a signed Release and uploads it to TestFlight. Melodify then installs from the
+TestFlight app like any other app: no weekly refresh, no 3-app limit. A build expires 90 days after
+upload; JS-only changes still arrive between builds through EAS Update. The build number is the
+workflow's run number, the version is app.json's `version`.
+
+One-time setup, all without a Mac:
+
+1. **App ID and app record.** In the developer portal, register the explicit App ID
+   `dev.yeab.melodify` (no capabilities needed). In App Store Connect, create an app with that
+   bundle ID.
+2. **Distribution certificate.** Make the key and request on Linux, upload the request under
+   Certificates › + › Apple Distribution, download `distribution.cer`, then bundle both into a .p12:
+   ```sh
+   mkdir -p ~/.ios-signing && cd ~/.ios-signing
+   openssl req -new -newkey rsa:2048 -nodes -keyout dist.key -out dist.csr -subj "/CN=Melodify Distribution"
+   # upload dist.csr, download distribution.cer here, then:
+   openssl x509 -inform DER -in distribution.cer -out dist.pem
+   openssl pkcs12 -export -inkey dist.key -in dist.pem -out dist.p12 \
+     -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1   # the encryption macOS's keychain reads
+   ```
+   Keep `~/.ios-signing` safe. Unlike the Android key, a lost one can be revoked and replaced, but
+   then the profile has to be made again too.
+3. **Provisioning profile.** Profiles › + › App Store Connect, App ID `dev.yeab.melodify`, the
+   certificate from step 2. Download it.
+4. **API key.** App Store Connect › Users and Access › Integrations › Team Keys, role App Manager.
+   Note the key ID and the issuer ID, and download `AuthKey_<id>.p8` (only offered once).
+5. **Secrets.**
+   ```sh
+   gh secret set IOS_DIST_CERT_P12_BASE64 < <(base64 -w0 dist.p12)
+   gh secret set IOS_DIST_CERT_PASSWORD           # the password given to openssl pkcs12
+   gh secret set IOS_PROFILE_BASE64 < <(base64 -w0 Melodify_App_Store.mobileprovision)
+   gh secret set ASC_KEY_ID                       # e.g. 2X9R4HXF34
+   gh secret set ASC_ISSUER_ID                    # a UUID
+   gh secret set ASC_KEY_P8_BASE64 < <(base64 -w0 AuthKey_<id>.p8)
+   ```
+6. **Testers.** After the first upload finishes processing, add yourself under TestFlight › Internal
+   Testing and accept the invite in the TestFlight app. Each build asks the export compliance question
+   in App Store Connect before it can be installed.
+
+Moving from LiveContainer: make a backup in Settings › Backup and restore, copy it out of
+LiveContainer's folder with Files, install from TestFlight, copy the music into On My iPhone ›
+Melodify, scan, and restore the backup. The two installs keep separate data.
+
 ## Getting started
 
 ```sh
@@ -243,6 +289,7 @@ modules/
                    session and notification, the widget, launcher shortcuts, shared-storage access;
                    TagLib from ios/Vendor built with the NDK (CMakeLists.txt) for reading and writing
 .github/workflows/ios-build.yml       unsigned IPA build
+.github/workflows/ios-testflight.yml  signed Release, uploaded to TestFlight (run by hand)
 .github/workflows/android-build.yml   signed release APK
 assets/         icons, splash
 ```

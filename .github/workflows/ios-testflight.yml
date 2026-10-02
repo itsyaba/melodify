@@ -1,0 +1,196 @@
+# Builds a signed Release of Melodify and uploads it to TestFlight. Run it by hand from the Actions tab.
+#
+# Secrets (see README › TestFlight for making them without a Mac):
+#   IOS_DIST_CERT_P12_BASE64   Apple Distribution certificate with its key, as a base64 .p12
+#   IOS_DIST_CERT_PASSWORD     the .p12's password
+#   IOS_PROFILE_BASE64         App Store provisioning profile for dev.yeab.melodify, base64
+#   ASC_KEY_ID                 App Store Connect API key ID
+#   ASC_ISSUER_ID              App Store Connect issuer ID
+#   ASC_KEY_P8_BASE64          the API key's AuthKey_<id>.p8, base64
+#
+# The build number is the run number, so every upload is new to App Store Connect; the version is
+# app.json's `version`. JS-only changes still reach the installed build through EAS Update.
+
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    # Same runner as ios-build.yml: Expo SDK 57 needs Xcode 27's Swift.
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      SCHEME: Melodify
+      BUNDLE_ID: dev.yeab.melodify
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          test -n "$XCODE" || { echo "::error::no Xcode 27 on this runner"; exit 1; }
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Install certificate, profile and API key
+        env:
+          P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          for v in P12_BASE64 P12_PASSWORD PROFILE_BASE64 ASC_KEY_ID ASC_KEY_P8_BASE64; do
+            test -n "${!v}" || { echo "::error::secret for $v is not set"; exit 1; }
+          done
+
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/dist.p12"
+
+          PROFILE="$RUNNER_TEMP/app.mobileprovision"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILE"
+          security cms -D -i "$PROFILE" > "$RUNNER_TEMP/profile.plist"
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/profile.plist")
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" \
+                     "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$PROFILE" "$dir/$UUID.mobileprovision"
+          done
+
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+
+          echo "PROFILE_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "TEAM_ID=$TEAM" >> "$GITHUB_ENV"
+          echo "Profile \"$NAME\" ($UUID), team $TEAM"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Prebuild iOS project
+        run: npx expo prebuild --platform ios --no-install --clean
+
+      - name: Set build number
+        run: |
+          BUILD="${{ github.run_number }}.${{ github.run_attempt }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "ios/$SCHEME/Info.plist"
+          echo "Version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' ios/$SCHEME/Info.plist) ($BUILD)"
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'package-lock.json') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Install pods
+        working-directory: ios
+        run: pod install
+
+      # Signing goes on the app target only: the same settings on the pod targets would fail the
+      # build, and their resource bundles must not be signed at all.
+      - name: Configure signing
+        working-directory: ios
+        run: |
+          ruby -rxcodeproj -e '
+            app = Xcodeproj::Project.open("#{ENV["SCHEME"]}.xcodeproj")
+            app.targets.find { |t| t.name == ENV["SCHEME"] }.build_configurations.each do |c|
+              next unless c.name == "Release"
+              s = c.build_settings
+              s["CODE_SIGN_STYLE"] = "Manual"
+              s["DEVELOPMENT_TEAM"] = ENV["TEAM_ID"]
+              s["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+              s["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+              s["PROVISIONING_PROFILE_SPECIFIER"] = ENV["PROFILE_NAME"]
+            end
+            app.save
+            pods = Xcodeproj::Project.open("Pods/Pods.xcodeproj")
+            pods.targets.select { |t| t.respond_to?(:product_type) && t.product_type == "com.apple.product-type.bundle" }.each do |t|
+              t.build_configurations.each { |c| c.build_settings["CODE_SIGNING_ALLOWED"] = "NO" }
+            end
+            pods.save
+          '
+
+      - name: Archive
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -workspace "$SCHEME.xcworkspace" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/$SCHEME.xcarchive" \
+            2>&1 | tee xcodebuild.log | grep -E --line-buffered \
+              '^(=== |\*\* |error:|.*error: |The following build commands failed)' || true
+          if ! grep -q '\*\* ARCHIVE SUCCEEDED \*\*' xcodebuild.log; then
+            echo "::error::archive failed. Last 200 lines of the raw log follow."
+            tail -200 xcodebuild.log
+            exit 1
+          fi
+
+      - name: Upload to TestFlight
+        working-directory: ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict><key>$BUNDLE_ID</key><string>$PROFILE_NAME</string></dict>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/$SCHEME.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Upload raw xcodebuild log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log-testflight
+          path: ios/xcodebuild.log
+          retention-days: 7
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
