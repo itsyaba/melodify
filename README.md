@@ -51,17 +51,19 @@ and cannot pick folders.
 `app.json` sets `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace`, so the app's
 `Documents/` folder is writable over USB. Where that folder lives depends on how the app was installed.
 
-**As a normal app** (SideStore, or any route that registers the bundle id with installd), it also
-appears in the Files app under "On My iPhone / Melodify":
+**As a normal app** (SideStore, the current setup, or any route that registers the bundle id with
+installd), it also appears in the Files app under "On My iPhone / Melodify". SideStore with a free
+account appends your team ID to the bundle id; `ideviceinstaller list --user | grep -i melodify`
+prints the one installed:
 
 ```sh
 mkdir -p ~/mnt/melodify
-ifuse --documents dev.yeab.melodify ~/mnt/melodify
+ifuse --documents dev.yeab.melodify.<TEAMID> ~/mnt/melodify
 rsync -rt --no-perms --no-owner --no-group --info=progress2 ~/Music/ ~/mnt/melodify/
 fusermount -u ~/mnt/melodify
 ```
 
-**As a LiveContainer guest** (the current setup). A guest runs inside LiveContainer's process and is
+**As a LiveContainer guest** (the earlier setup). A guest runs inside LiveContainer's process and is
 never registered with installd, so house arrest cannot find it by bundle id —
 `ifuse --documents dev.yeab.melodify` fails with `ApplicationLookupFailed`. Mount LiveContainer
 instead; each guest owns a real container underneath it:
@@ -177,18 +179,34 @@ This project is developed on Linux. There is no Xcode and no simulator, so the l
    signing disabled, then zips `Payload/` into an unsigned `.ipa`. Pushes build Release, with the JS
    inside and EAS Update after that; run the workflow by hand with Debug for a dev client.
 2. **Sign and install.** Background audio and file sharing are plain Info.plist keys, not paid
-   entitlements, so a free Apple account is enough. The current route is LiveContainer, which is
-   itself signed with the free account and runs the unsigned IPA as a guest; it already declares
-   the `audio` background mode and `UIFileSharingEnabled`, which guests inherit. SideStore also
-   works and gives a real app install.
+   entitlements, so a free Apple account is enough. The route is SideStore: it signs the unsigned
+   IPA with the free account on the phone and installs it as a real app (see *Installing with
+   SideStore* below). LiveContainer, the earlier route, runs the same IPA as a guest inside itself.
 3. **Iterate on JS over WiFi** (Debug build). Run `npm start`, open the dev client, and Metro hot-reloads.
    Only steps 1 and 2 repeat when a new native module is added.
    Under LiveContainer the Local Network permission belongs to **LiveContainer**, not Melodify, so
    enable it there and force-quit the host before the dev client can reach Metro.
 4. **Refresh every 7 days.** Free-account signatures expire weekly.
 
-Free accounts allow 3 sideloaded apps at a time. As a LiveContainer guest Melodify does not count
-against that limit; LiveContainer itself does.
+Free accounts allow 3 sideloaded apps at a time, SideStore included. As a LiveContainer guest
+Melodify would not count against that limit; LiveContainer itself does.
+
+### Installing with SideStore
+
+Once, from Linux (needs the phone on USB; iOS 16 or later also needs Developer Mode):
+
+1. `sudo pacman -S usbmuxd` (or your distro's package), then plug in the phone and tap Trust.
+2. Run [iloader](https://github.com/nab138/iloader) (the AppImage), sign in with the Apple ID, pick
+   the phone, *Install SideStore (Stable)*.
+3. On the phone: Settings › General › VPN & Device Management › trust the Apple ID; Settings ›
+   Privacy & Security › Developer Mode on (it restarts). Install **LocalDevVPN** from the App Store
+   and connect it. Open SideStore, sign in with the same Apple ID, and in My Apps tap SideStore's
+   *7 DAYS* to refresh it once.
+
+Then for each build: download `Melodify-Release-unsigned` from the latest *iOS unsigned build* run
+(Safari on the phone works; Files unzips it), and in SideStore › My Apps tap **+** and pick the
+`.ipa`. Installing a newer IPA over it keeps the app's data. Every week, with LocalDevVPN
+connected, tap the day counter in My Apps (or let a Shortcuts automation run *Refresh All*).
 
 ## TestFlight
 
