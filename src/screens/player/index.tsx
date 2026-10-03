@@ -24,6 +24,7 @@ import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { setKeepAwake } from '@/utils/device';
 import { formatDuration } from '@/utils/format';
 import { AboutCard, BookmarksCard, LyricsCard, UpNextCard } from './cards';
+import { LyricLine } from './lyric-line';
 import { Backdrop, FavoriteButton, ModeButton, PlayButton, PlayerHeader, StatusPills, type Pill } from './controls';
 import { abMark, abMenu, bookmarkHere, bookmarksMenu, queueMenu, sleepLabel, sleepMenu } from './menus';
 import { SHORTCUTS } from './shortcuts';
@@ -301,6 +302,9 @@ export function PlayerScreen() {
     </SwipeArt>
   );
   const lyrics = <LyricsView track={track} positionMs={positionMs} onSeek={seek} />;
+  // Not while the whole lyrics are up: they already show the line.
+  const lyricLine =
+    prefs.lyricLine && !showLyrics ? <LyricLine track={track} positionMs={positionMs} onPress={toggleLyrics} /> : null;
 
   const header = (
     <PlayerHeader
@@ -456,7 +460,10 @@ export function PlayerScreen() {
               <View style={{ flex: 1 }}>{titleRow}</View>
             </View>
           ) : (
-            titleRow
+            <>
+              {lyricLine}
+              {titleRow}
+            </>
           )}
           {controls}
         </ScrollView>
@@ -476,6 +483,7 @@ export function PlayerScreen() {
             {showLyrics ? null : <Artwork artKey={track.art_key} size={COMPACT_ART} rounded="md" />}
             <View style={{ flex: 1 }}>{titleRow}</View>
           </View>
+          {lyricLine}
           <View style={styles.upNext}>
             {showLyrics ? (
               lyrics
@@ -508,6 +516,7 @@ export function PlayerScreen() {
           <View style={[styles.artArea, layout === 'edge' && styles.edgeArt]} onLayout={measureArt}>
             {showLyrics ? lyrics : size > 0 ? artwork(size, layout === 'edge' ? 'none' : 'md') : null}
           </View>
+          {lyricLine}
           {titleRow}
           {controls}
         </View>

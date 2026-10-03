@@ -9,6 +9,7 @@ import { TrackList } from '@/components/track-list';
 import { listAlbums, listAlbumTracks, listGroupTracks, type GroupKind } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { spacing } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
@@ -21,7 +22,7 @@ export function GroupScreen({ kind, value }: { kind: GroupKind; value: string })
   const actions = useTrackActions();
   const { data } = useLibraryQuery((db) => listGroupTracks(db, kind, value), [kind, value]);
   const { data: albums } = useLibraryQuery((db) => listAlbums(db, 'year', { kind, value }), [kind, value]);
-  const tracks = data ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort('group.songs', data ?? NO_TRACKS, { label: 'Album', same: 'album' });
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
 
   const header = (
@@ -45,6 +46,7 @@ export function GroupScreen({ kind, value }: { kind: GroupKind; value: string })
       {tracks.length ? (
         <ListToolbar
           summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`}
+          sort={sort}
           onShuffle={() => void queue.playShuffled(tracks)}
           onPlay={() => void queue.replace(tracks, 0)}
         />

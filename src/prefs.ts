@@ -22,6 +22,8 @@ export interface Prefs {
   playerLayout: PlayerLayout;
   /** The artwork, blurred, behind the whole player. */
   blurBackground: boolean;
+  /** The synced lyric being sung, on a line under the artwork, as Spotify shows it. */
+  lyricLine: boolean;
   density: Density;
   /** Stop the screen from locking while the player is open. */
   keepAwake: boolean;
@@ -121,6 +123,7 @@ export const DEFAULT_PREFS: Prefs = {
   accent: 'pink',
   playerLayout: 'standard',
   blurBackground: true,
+  lyricLine: true,
   density: 'comfortable',
   keepAwake: false,
   orientation: 'portrait',

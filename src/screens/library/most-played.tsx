@@ -10,6 +10,7 @@ import { PLAY_PERIODS, type MostPlayed, type PlayPeriod } from '@/db/plays';
 import { listMostPlayed, summarizePlays } from '@/db/tracks';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { useStoredChoice } from '@/hooks/use-stored-choice';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { makeStyles, radius, spacing, type } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
@@ -24,8 +25,8 @@ const NOTHING: MostPlayed = { tracks: [], plays: [] };
 export function MostPlayedScreen() {
   const styles = useStyles();
   const actions = useTrackActions();
-  const [period, setPeriod] = useStoredChoice<PlayPeriod>('played.period', 'month', PLAY_PERIODS);
-  const span = PLAY_PERIODS.find((p) => p.key === period) ?? PLAY_PERIODS[1];
+  const [period, setPeriod] = useStoredChoice<PlayPeriod>('played.period', 'all', PLAY_PERIODS);
+  const span = PLAY_PERIODS.find((p) => p.key === period) ?? PLAY_PERIODS[4];
 
   const { data: summary, refresh: refreshSummary } = useLibraryQuery(summarizePlays, []);
   const { data, refresh } = useLibraryQuery((db) => listMostPlayed(db, span.days), [span.days]);
@@ -36,7 +37,10 @@ export function MostPlayedScreen() {
       refreshSummary();
     }, [refresh, refreshSummary]),
   );
-  const { tracks, plays } = data ?? NOTHING;
+  const ranked = data ?? NOTHING;
+  // The span's own ranking first; another order carries each song's count along with it.
+  const { tracks, order, sort } = useTrackSort('played.songs', ranked.tracks, { label: 'Plays', same: 'plays' });
+  const plays = useMemo(() => order.map((i) => ranked.plays[i]), [order, ranked.plays]);
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   const title = span.days === null ? 'Most played' : `Most played, ${span.label.toLowerCase()}`;
   const options = PLAY_PERIODS.map((p) => ({
@@ -58,9 +62,15 @@ export function MostPlayedScreen() {
         header={
           <View>
             <PeriodCards options={options} value={span.key} onChange={setPeriod} />
+            {span.days !== null ? (
+              <Text style={[type.caption, styles.historyNote]}>
+                Plays restored from Musicolet are dated from its week, month and year counts. Older ones count in All time.
+              </Text>
+            ) : null}
             {tracks.length ? (
               <ListToolbar
                 summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`}
+                sort={sort}
                 onShuffle={() => void queue.playShuffled(tracks)}
                 onPlay={() => void queue.replace(tracks, 0)}
               />
@@ -74,7 +84,7 @@ export function MostPlayedScreen() {
             ) : (
               <EmptyState
                 title={`Nothing played in the ${span.label.toLowerCase()}`}
-                body="Pick a longer span. Plays from before this update only count toward All time."
+                body="Choose All time to see restored play counts, or pick a longer span."
               />
             )
           ) : null
@@ -87,6 +97,7 @@ export function MostPlayedScreen() {
 
 const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.background },
+  historyNote: { color: colors.secondaryLabel, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,

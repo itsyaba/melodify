@@ -210,7 +210,7 @@ export async function planRestore(db: SQLiteDatabase, backup: Backup, rules: Pat
  */
 export async function restoreBackup(
   db: SQLiteDatabase,
-  { backup, carry }: LoadedBackup,
+  { backup, carry, from }: LoadedBackup,
   match: MatchResult,
   rules: PathRule[],
   sourceUri?: string,
@@ -220,7 +220,7 @@ export async function restoreBackup(
   // Nothing from the old queues may be saved over the restored ones, before or after the write.
   await detachQueues();
   try {
-    return await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules], carry));
+    return await serial(() => writeRestore(db, backup, match.ids, [...rules, ...match.rules], carry, from));
   } finally {
     await loadPrefs(db);
     forgetStoredChoices();

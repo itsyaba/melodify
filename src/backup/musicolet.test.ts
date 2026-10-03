@@ -8,7 +8,9 @@ import { BackupError, buildBackup } from './format.ts';
 import { writeJavaStringList } from './java-list.ts';
 import { matchTracks } from './match.ts';
 import { md5Hex } from './md5.ts';
-import { androidToPath, pathToAndroid, readBackupZip, SONGS_TABLE, writeBackupZip, type SongRow } from './musicolet.ts';
+import { getSetting, setSetting } from '../db/settings.ts';
+import { listMostPlayed, summarizeMostPlayed } from '../db/plays.ts';
+import { androidToPath, datePlays, pathToAndroid, readBackupZip, SONGS_TABLE, writeBackupZip, type SongRow } from './musicolet.ts';
 
 const bf = new Blowfish(strToU8('JSTMUSIC_2'));
 const json = (v: unknown) => strToU8(JSON.stringify(v));
@@ -47,6 +49,7 @@ const ONE = mc('Music/Band', 'One.mp3', 11);
 const TWO = mc('Music/Band', 'Two.mp3', 12);
 const AWAY = mc('Download', 'Away.m4a', 13);
 const OLD = 'file:///storage/emulated/0/Music/Old%20Song%20(1).mp3';
+const DAY = 86_400_000;
 
 async function sampleBackup(opts: { tamper?: string } = {}) {
   const row = (uri: string, logPath: string, extra: SongRow): SongRow => ({
@@ -99,6 +102,21 @@ test('a path Musicolet never had is written as the file in main storage, as its 
   assert.equal(androidToPath(made.uri), 'Music/New Recording 12, Jan/ሮፍናን (0).m4a');
 });
 
+test("Musicolet's week, month and year counts become plays dated inside those spans", () => {
+  const until = 1000 * DAY;
+  const ago = (at: number[]) => at.map((t) => (until - t) / DAY);
+  // Played 3 times this week (last 2 days ago), 5 this month, 9 this year, 20 in all.
+  const at = datePlays({ COL_NUM_PLAYED: 20, COL_NUM_PLAYED_W: 3, COL_NUM_PLAYED_M: 5, COL_NUM_PLAYED_Y: 9, COL_LAST_PLAYED: until - 2 * DAY }, until);
+  assert.equal(at.length, 9);
+  assert.equal(ago(at).filter((d) => d >= 2 && d <= 7).length, 3);
+  assert.equal(ago(at).filter((d) => d > 7 && d <= 30).length, 2);
+  assert.equal(ago(at).filter((d) => d > 30 && d <= 365).length, 4);
+  // A week counter ahead of a month that just began still counts toward the month; never past the total.
+  assert.equal(ago(datePlays({ COL_NUM_PLAYED: 4, COL_NUM_PLAYED_W: 3, COL_NUM_PLAYED_M: 1 }, until)).filter((d) => d <= 30).length, 3);
+  assert.equal(datePlays({ COL_NUM_PLAYED: 2, COL_NUM_PLAYED_Y: 9 }, until).length, 2);
+  assert.deepEqual(datePlays({ COL_NUM_PLAYED: 5, COL_NUM_PLAYED_W: 1 }, 0), []);
+});
+
 test('reads a Musicolet backup: songs, favorites, playlists in order, queues in play order, settings', async () => {
   const { backup, from, carry } = await readBackupZip(await sampleBackup(), nodeSqliteFiles);
   assert.equal(from, 'musicolet');
@@ -106,7 +124,7 @@ test('reads a Musicolet backup: songs, favorites, playlists in order, queues in 
   const byPath = new Map(backup.tracks.map((t, i) => [t.path, { ...t, i }]));
   assert.deepEqual(
     { ...byPath.get('Music/Band/One.mp3') },
-    { path: 'Music/Band/One.mp3', title: 'One', artist: 'Band', album: 'Album', durationMs: 200_000, playCount: 7, lastPlayedAt: 5000, resumeMs: 42_000, addedAt: 1_700_000_000_000, android: ONE, i: 0 },
+    { path: 'Music/Band/One.mp3', title: 'One', artist: 'Band', album: 'Album', durationMs: 200_000, playCount: 7, lastPlayedAt: 5000, resumeMs: 42_000, addedAt: 1_700_000_000_000, android: ONE, playedAt: [1_789_582_308_699 - 3.5 * DAY], i: 0 },
   );
   // "<unknown>" is no artist; a favorite the songs table lacks comes in with the list's tags.
   assert.equal(byPath.get('Music/Band/Two.mp3')!.artist, undefined);
@@ -233,7 +251,18 @@ test("restoring a Musicolet backup keeps Musicolet's own data, and the next back
   insertTrack(db, 'Band/Two.mp3', { title: 'Two', duration_ms: 200_000 });
   const match = matchTracks(loaded.backup.tracks, await listLibraryForMatching(db));
   assert.equal(match.remapped, 2);
-  await writeRestore(db, loaded.backup, match.ids, match.rules, loaded.carry);
+  await setSetting(db, 'choices', { 'played.period': 'month', 'sort.songs': 'artist' });
+  await writeRestore(db, loaded.backup, match.ids, match.rules, loaded.carry, loaded.from);
+  assert.deepEqual(await getSetting(db, 'choices'), { 'played.period': 'all', 'sort.songs': 'artist' });
+  const ranking = await listMostPlayed(db, '1', null);
+  assert.deepEqual(ranking.tracks.map((t) => t.title), ['One', 'Two']);
+  assert.deepEqual(ranking.plays, [7, 2]);
+  assert.equal((await summarizeMostPlayed(db, '1')).counts.all, 2);
+  // Each song's play this week is dated inside the week before the backup; the rest only count in All time.
+  const week = await listMostPlayed(db, '1', 7, loaded.backup.createdAt);
+  assert.deepEqual(week.tracks.map((t) => t.title), ['One', 'Two']);
+  assert.deepEqual(week.plays, [1, 1]);
+  assert.equal((await summarizeMostPlayed(db, '1', loaded.backup.createdAt)).counts.week, 2);
 
   const kept = db.raw.prepare('SELECT uri, path FROM musicolet_songs ORDER BY uri').all().map((r) => ({ ...r }));
   assert.deepEqual(kept, [

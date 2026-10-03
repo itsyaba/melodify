@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getSetting, setSetting } from '@/db/settings';
+import { Emitter } from '@/utils/events';
 
 /** Loaded once per launch and shared, so every list after the first opens already sorted. */
 let cache: Record<string, string> | null = null;
+const invalidation = new Emitter<{ changed: void }>();
 
-/** Drops the shared copy, so the next list reads the stored choices again (after a restore). */
+/** Reloads stored choices after a restore, including lists still mounted in another tab. */
 export function forgetStoredChoices(): void {
   cache = null;
+  invalidation.emit('changed', undefined);
 }
 
 /**
@@ -16,6 +19,8 @@ export function forgetStoredChoices(): void {
  */
 export function useStoredChoice<T extends string>(key: string, fallback: T, allowed: readonly { key: T }[]): [T, (next: T) => void] {
   const db = useSQLiteContext();
+  const [revision, setRevision] = useState(0);
+  useEffect(() => invalidation.on('changed', () => setRevision((r) => r + 1)), []);
   const valid = (v: string | undefined): v is T => allowed.some((o) => o.key === v);
   const [value, setValue] = useState<T>(() => {
     const cached = cache?.[key];
@@ -23,19 +28,19 @@ export function useStoredChoice<T extends string>(key: string, fallback: T, allo
   });
 
   useEffect(() => {
-    if (cache) return;
     let cancelled = false;
-    void getSetting(db, 'choices').then((stored) => {
+    void (cache ? Promise.resolve(cache) : getSetting(db, 'choices')).then((stored) => {
+      if (cancelled) return;
       // A choice made while this was read wins over the stored one, and keeps the others stored.
       cache = { ...(stored ?? {}), ...(cache ?? {}) };
       const saved = cache[key];
-      if (!cancelled && valid(saved)) setValue(saved);
+      setValue(valid(saved) ? saved : fallback);
     });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, key]);
+  }, [db, key, revision]);
 
   const update = (next: T) => {
     setValue(next);

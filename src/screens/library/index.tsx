@@ -46,6 +46,7 @@ import { spacing, useTheme } from '@/theme';
 import { libraryEvents, libraryViewRequest } from '@/utils/events';
 import { findIn } from '@/utils/find';
 import { formatCount, formatDuration } from '@/utils/format';
+import { SONG_SORTS } from '@/utils/sort-tracks';
 
 const VIEWS = [
   { key: 'songs', label: 'Songs' },
@@ -67,17 +68,6 @@ const GROUP_VIEWS: Partial<Record<LibraryView, { kind: GroupKind; singular: stri
   years: { kind: 'year', singular: 'year', plural: 'years' },
 };
 
-const SONG_SORTS: readonly SortOption<TrackSort>[] = [
-  { key: 'title', label: 'Title' },
-  { key: 'artist', label: 'Artist' },
-  { key: 'album', label: 'Album' },
-  { key: 'added', label: 'Recently added' },
-  { key: 'played', label: 'Recently played' },
-  { key: 'plays', label: 'Most played' },
-  { key: 'year', label: 'Year' },
-  { key: 'duration', label: 'Duration' },
-  { key: 'filename', label: 'File path' },
-];
 const ALBUM_SORTS: readonly SortOption<AlbumSort>[] = [
   { key: 'name', label: 'Name' },
   { key: 'artist', label: 'Artist' },

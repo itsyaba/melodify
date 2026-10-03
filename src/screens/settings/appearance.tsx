@@ -82,6 +82,11 @@ export function AppearanceSettingsScreen() {
           value={prefs.blurBackground}
           onChange={(v) => setPref('blurBackground', v)}
         />
+        <ToggleRow
+          title="Current lyric under the artwork"
+          value={prefs.lyricLine}
+          onChange={(v) => setPref('lyricLine', v)}
+        />
         <ListRow
           title="Shortcuts"
           subtitle={prefs.playerShortcuts.length ? prefs.playerShortcuts.map((k) => SHORTCUTS[k].label).join(', ') : 'None, all in the menu'}

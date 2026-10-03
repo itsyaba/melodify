@@ -4,6 +4,7 @@ import { insertTrack, openTestDb } from '../test-utils/node-sqlite.ts';
 import { collectBackupSource, listLibraryForMatching, writeRestore } from './db.ts';
 import { buildBackup, parseBackup } from './format.ts';
 import { matchTracks } from './match.ts';
+import { getSetting, setSetting } from '../db/settings.ts';
 
 type Db = ReturnType<typeof openTestDb>;
 
@@ -28,6 +29,17 @@ async function backupOf(db: Db) {
   // Through JSON and back, as a real restore reads it from a file.
   return parseBackup(JSON.stringify(buildBackup(await collectBackupSource(db), 'manual', 1234)));
 }
+
+test('a Melodify restore preserves the backed-up Most played period', async () => {
+  const db = openTestDb();
+  seed(db);
+  await setSetting(db, 'choices', { 'played.period': 'week' });
+  const backup = await backupOf(db);
+  await setSetting(db, 'choices', { 'played.period': 'all' });
+  const match = matchTracks(backup.tracks, await listLibraryForMatching(db));
+  await writeRestore(db, backup, match.ids, match.rules);
+  assert.deepEqual(await getSetting(db, 'choices'), { 'played.period': 'week' });
+});
 
 test('a backup restores onto a library that moved one folder down', async () => {
   const before = openTestDb();

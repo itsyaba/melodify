@@ -11,10 +11,12 @@ interface Props<T extends string | number> {
   action?: { label: string; onPress: () => void; accessibilityLabel: string };
   /** The chosen pill in the accent color, as Spotify's library filters are, rather than the label's. */
   tinted?: boolean;
+  /** Taller, fully round pills with larger text, as Home's filters are. */
+  large?: boolean;
 }
 
 /** Horizontally scrolling pills: the library views, the queue tabs. */
-export function Chips<T extends string | number>({ options, value, onChange, onLongPress, action, tinted }: Props<T>) {
+export function Chips<T extends string | number>({ options, value, onChange, onLongPress, action, tinted, large }: Props<T>) {
   const styles = useStyles();
   const colors = useTheme();
   return (
@@ -35,11 +37,11 @@ export function Chips<T extends string | number>({ options, value, onChange, onL
             onLongPress={onLongPress ? () => onLongPress(o.key) : undefined}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            style={({ pressed }) => [styles.chip, active && (tinted ? styles.activeTinted : styles.active), pressed && styles.pressed]}
+            style={({ pressed }) => [styles.chip, large && styles.large, active && (tinted ? styles.activeTinted : styles.active), pressed && styles.pressed]}
           >
             <Text
               style={[
-                type.subhead,
+                large ? styles.largeText : type.subhead,
                 { color: active ? (tinted ? colors.onTint : colors.background) : colors.label, fontWeight: active ? '600' : '400' },
               ]}
             >
@@ -70,6 +72,8 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.lg,
     backgroundColor: colors.fill,
   },
+  large: { paddingHorizontal: spacing.lg + 2, paddingVertical: 10, borderRadius: radius.full },
+  largeText: { fontSize: 16 },
   active: { backgroundColor: colors.label },
   activeTinted: { backgroundColor: colors.tint },
   pressed: { opacity: 0.6 },

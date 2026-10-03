@@ -412,6 +412,12 @@ Files sees (or into the music folder over USB). Note roughly how long each step 
       counts (Library › sort by most played); the 20 queues, each on its current song at its
       position; Queue L playing (was the active one). Compare Queue L's order and current song with
       Musicolet's: if they differ, the shuffle order was read the wrong way round.
+- [ ] **Restored Most played:** select Last month before restoring a Musicolet backup, then
+      reopen Most played. All time is selected, with the restored songs ranked by total plays
+      and their counts beside them. Check this with the screen already mounted in another tab.
+      An installation that restored a backup before this fix switches to All time once on upgrade,
+      without another restore. Later period choices remain remembered. Last week, Last month and
+      Last year list the songs Musicolet counted in its week, month and year, with those counts. Restoring a Melodify backup keeps its saved period.
 - [ ] **Search** shows Musicolet's recent searches. Melodify's own settings (theme, tabs) did not
       change.
 - [ ] **Automatic backups** on 0.10.0 are `.zip` too; on an older build they stay `.json`.

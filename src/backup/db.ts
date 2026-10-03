@@ -100,6 +100,7 @@ export async function writeRestore(
   ids: (number | null)[],
   rules: PathRule[],
   carry?: MusicoletCarry,
+  from: 'melodify' | 'musicolet' = 'melodify',
 ): Promise<RestoreCounts> {
   const counts: RestoreCounts = { songs: 0, playlists: 0, playlistSongsMissing: 0, queues: 0, bookmarks: 0 };
   const idOf = (index: number) => ids[index] ?? null;
@@ -142,6 +143,25 @@ export async function writeRestore(
       JSON.stringify(updates),
     );
     counts.songs = updates.length;
+
+    // Musicolet's counts replace the restored songs' dated plays too, so each span adds up to them.
+    if (from === 'musicolet') {
+      await db.runAsync(
+        'DELETE FROM plays WHERE track_id IN (SELECT j.value FROM json_each(?) j)',
+        JSON.stringify(updates.map((u) => u.id)),
+      );
+    }
+    const plays = backup.tracks.flatMap((t, i) => {
+      const id = idOf(i);
+      return id === null || !t.playedAt ? [] : t.playedAt.map((at) => [id, at]);
+    });
+    if (plays.length) {
+      await db.runAsync(
+        `INSERT INTO plays (track_id, played_at)
+         SELECT j.value ->> 0, j.value ->> 1 FROM json_each(?) j`,
+        JSON.stringify(plays),
+      );
+    }
 
     for (const p of backup.playlists) {
       const result = await db.runAsync(
@@ -204,7 +224,13 @@ export async function writeRestore(
 
     const { prefs, choices, recentSearches } = backup.settings;
     if (prefs) await setSetting(db, 'prefs', prefs as Settings['prefs']);
-    if (choices) await setSetting(db, 'choices', choices);
+    if (from === 'musicolet') {
+      // Its total counts have no individual play dates. Open the ranking that includes them,
+      // while keeping the other UI choices this app already had.
+      await setSetting(db, 'choices', { ...(await getSetting(db, 'choices')), 'played.period': 'all' });
+    } else if (choices) {
+      await setSetting(db, 'choices', choices);
+    }
     if (recentSearches) await setSetting(db, 'recentSearches', recentSearches);
     await setSetting(db, 'activeQueueId', activeId);
 

@@ -157,4 +157,14 @@ export const migrations: string[] = [
   DELETE FROM tracks WHERE id IN (SELECT id FROM gone);
   DROP TABLE gone;
   `,
+
+  // v6: previously restored Musicolet totals were hidden by the default Last month view.
+  // Switch existing imports to All time once; later period selections remain remembered.
+  `
+  INSERT INTO settings (key, value)
+  SELECT 'choices', json_set(COALESCE((SELECT value FROM settings WHERE key = 'choices'), '{}'),
+                            '$."played.period"', 'all')
+  WHERE EXISTS (SELECT 1 FROM musicolet_songs m JOIN tracks t ON t.path = m.path WHERE t.play_count > 0)
+  ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+  `,
 ];

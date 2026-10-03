@@ -15,10 +15,12 @@ import { excludeFolder } from '@/db/folders';
 import { listFolder, listFolderTracksRecursive } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { makeStyles } from '@/theme';
 import { libraryEvents } from '@/utils/events';
 import { formatCount } from '@/utils/format';
+import { sortOrder } from '@/utils/sort-tracks';
 
 const NO_TRACKS: Track[] = [];
 
@@ -33,7 +35,7 @@ export function FoldersScreen({ path }: { path: string }) {
   const db = useSQLiteContext();
   const actions = useTrackActions();
   const { data } = useLibraryQuery((d) => listFolder(d, path), [path]);
-  const tracks = data?.tracks ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort('folder.songs', data?.tracks ?? NO_TRACKS, { label: 'Track number' });
   const folders = data?.folders;
   const below = useMemo(
     () => (folders ?? []).reduce((sum, f) => sum + f.track_count, 0) + tracks.length,
@@ -80,7 +82,8 @@ export function FoldersScreen({ path }: { path: string }) {
   );
 
   const playAll = async (shuffle: boolean) => {
-    const all = await listFolderTracksRecursive(db, path);
+    const found = await listFolderTracksRecursive(db, path);
+    const all = sort.value === 'default' ? found : sortOrder(found, sort.value).map((i) => found[i]);
     if (shuffle) await queue.playShuffled(all);
     else await queue.replace(all, 0);
   };
@@ -96,7 +99,7 @@ export function FoldersScreen({ path }: { path: string }) {
       leading={leading}
       header={
         below > 0 ? (
-          <ListToolbar summary={summary} onShuffle={() => void playAll(true)} onPlay={() => void playAll(false)} />
+          <ListToolbar summary={summary} sort={tracks.length > 1 ? sort : undefined} onShuffle={() => void playAll(true)} onPlay={() => void playAll(false)} />
         ) : null
       }
       onMenu={

@@ -11,8 +11,8 @@ export interface SortOption<T extends string> {
 }
 
 interface Props<T extends string> {
-  /** "128 songs · 7:42:10" */
-  summary: string;
+  /** "128 songs · 7:42:10". Left out, with no play buttons, for a header that shows its own. */
+  summary?: string;
   sort?: { options: readonly SortOption<T>[]; value: T; onChange: (value: T) => void };
   /** Find in this list: a magnifier that opens a field, which filters as you type. */
   find?: { query: string; onChange: (query: string) => void; placeholder: string };
@@ -110,20 +110,22 @@ export function ListToolbar<T extends string>({ summary, sort, find, onPlay, onS
   return (
     <View>
       {top}
-      <View style={[styles.row, onPlay && styles.summaryRow]}>
-        <Text numberOfLines={1} style={[type.footnote, styles.summary]}>{summary}</Text>
-        {onShuffle ? <IconButton name="shuffle" size={20} onPress={onShuffle} accessibilityLabel="Shuffle all" /> : null}
-        {onPlay ? (
-          <Pressable
-            onPress={onPlay}
-            accessibilityRole="button"
-            accessibilityLabel="Play all"
-            style={({ pressed }) => [styles.play, pressed && styles.pressed]}
-          >
-            <SymbolView name="play.fill" size={18} tintColor={colors.onTint} />
-          </Pressable>
-        ) : null}
-      </View>
+      {summary !== undefined || onPlay || onShuffle ? (
+        <View style={[styles.row, onPlay && styles.summaryRow]}>
+          <Text numberOfLines={1} style={[type.footnote, styles.summary]}>{summary}</Text>
+          {onShuffle ? <IconButton name="shuffle" size={20} onPress={onShuffle} accessibilityLabel="Shuffle all" /> : null}
+          {onPlay ? (
+            <Pressable
+              onPress={onPlay}
+              accessibilityRole="button"
+              accessibilityLabel="Play all"
+              style={({ pressed }) => [styles.play, pressed && styles.pressed]}
+            >
+              <SymbolView name="play.fill" size={18} tintColor={colors.onTint} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

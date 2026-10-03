@@ -11,6 +11,7 @@ import { listRecentlyAdded, summarizeRecentlyAdded } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
 import { useStoredChoice } from '@/hooks/use-stored-choice';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { makeStyles } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
@@ -37,7 +38,7 @@ export function RecentlyAddedScreen() {
       refreshSummary();
     }, [refresh, refreshSummary]),
   );
-  const tracks = data ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort('recent.songs', data ?? NO_TRACKS, { label: 'Recently added', same: 'added' });
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   const title = span.days === null ? 'Recently added' : `Added in the last ${span.label}`;
   const options = ADDED_PERIODS.map((p) => ({
@@ -57,6 +58,7 @@ export function RecentlyAddedScreen() {
             {tracks.length ? (
               <ListToolbar
                 summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`}
+                sort={sort}
                 onShuffle={() => void queue.playShuffled(tracks)}
                 onPlay={() => void queue.replace(tracks, 0)}
               />

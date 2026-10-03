@@ -71,6 +71,21 @@ export async function libraryOverview(db: SQLiteDatabase): Promise<LibraryOvervi
 }
 
 /**
+ * A few covers that stand for the whole library, for the All songs card: the albums played most,
+ * then the newest, one cover each. A library never played still gets its latest covers.
+ */
+export async function libraryCovers(db: SQLiteDatabase, limit: number): Promise<string[]> {
+  const rows = await db.getAllAsync<{ art_key: string }>(
+    `SELECT art_key FROM tracks WHERE ${visible()} AND art_key IS NOT NULL
+     GROUP BY art_key
+     ORDER BY SUM(play_count) DESC, MAX(added_at) DESC
+     LIMIT ?`,
+    limit,
+  );
+  return rows.map((r) => r.art_key);
+}
+
+/**
  * The grouped views. Album artist falls back to the track artist, the same way albums are
  * grouped, so an untagged compilation still lands somewhere sensible.
  */

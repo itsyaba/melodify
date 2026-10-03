@@ -3,11 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Artwork } from '@/components/artwork';
 import { IconButton } from '@/components/icon-button';
+import { ListToolbar } from '@/components/list-toolbar';
 import { groupHref, tagsHref, useTrackActions } from '@/components/track-actions';
 import { TrackList } from '@/components/track-list';
 import { listAlbumTracks } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { canEditTags } from '@/tags';
 import { artSize, spacing, type, useTheme } from '@/theme';
@@ -20,7 +22,7 @@ export function AlbumScreen({ album, albumArtist }: { album: string; albumArtist
   const router = useRouter();
   const actions = useTrackActions();
   const { data } = useLibraryQuery((db) => listAlbumTracks(db, album, albumArtist), [album, albumArtist]);
-  const tracks = data ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort('album.songs', data ?? NO_TRACKS, { label: 'Track number' });
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   const year = tracks.find((t) => t.year)?.year;
 
@@ -48,12 +50,18 @@ export function AlbumScreen({ album, albumArtist }: { album: string; albumArtist
       ) : null}
     </View>
   );
+  const withSort = tracks.length > 1 ? (
+    <View>
+      {header}
+      <ListToolbar sort={sort} />
+    </View>
+  ) : header;
 
   return (
     <TrackList
       tracks={tracks}
-      header={header}
-      showNumber
+      header={withSort}
+      showNumber={sort.value === 'default'}
       onMenu={() =>
         actions.collectionMenu(album, (db) => listAlbumTracks(db, album, albumArtist), [
           { label: 'Edit album tags…', hidden: !canEditTags() || tracks.length === 0, onPress: () => router.push(tagsHref(tracks)) },

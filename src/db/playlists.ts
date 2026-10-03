@@ -43,6 +43,38 @@ export function listPlaylists(
   );
 }
 
+export interface PlaylistCard {
+  id: number;
+  name: string;
+  track_count: number;
+  art_key: string | null;
+  /** The artists with the most songs in it, most first; one more than shown, to say "and more". */
+  artists: string[];
+}
+
+/** The artists a card names, and one more to know there are others. */
+const CARD_ARTISTS = 4;
+
+/** Playlists for Home, the one changed last first, each with its cover and leading artists. */
+export async function listPlaylistCards(db: SQLiteDatabase, limit: number): Promise<PlaylistCard[]> {
+  const rows = await db.getAllAsync<Omit<PlaylistCard, 'artists'> & { artists: string | null }>(
+    `SELECT p.id, p.name,
+            (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) AS track_count,
+            (SELECT t.art_key FROM playlist_tracks pt JOIN tracks t ON t.id = pt.track_id
+             WHERE pt.playlist_id = p.id AND t.art_key IS NOT NULL ORDER BY pt.position LIMIT 1) AS art_key,
+            (SELECT json_group_array(artist) FROM (
+               SELECT t.artist FROM playlist_tracks pt JOIN tracks t ON t.id = pt.track_id
+               WHERE pt.playlist_id = p.id AND t.artist IS NOT NULL AND t.artist != ''
+               GROUP BY t.artist COLLATE NOCASE
+               ORDER BY COUNT(*) DESC, MIN(pt.position) LIMIT ${CARD_ARTISTS})) AS artists
+     FROM playlists p
+     ORDER BY p.updated_at DESC, p.id DESC
+     LIMIT ?`,
+    limit,
+  );
+  return rows.map((r) => ({ ...r, artists: r.artists ? (JSON.parse(r.artists) as string[]) : [] }));
+}
+
 export function getPlaylist(db: SQLiteDatabase, id: number): Promise<{ id: number; name: string } | null> {
   return db.getFirstAsync<{ id: number; name: string }>('SELECT id, name FROM playlists WHERE id = ?', id);
 }

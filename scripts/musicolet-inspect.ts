@@ -53,7 +53,7 @@ for (const t of backup.tracks) {
 }
 const match = await time('match', async () => matchTracks(backup.tracks, await listLibraryForMatching(db)));
 console.log(`  matched ${match.exact} by path, ${match.remapped} moved, ${match.byTags} by tags, ${match.missing} missing`);
-const counts = await time('restore', () => writeRestore(db, backup, match.ids, match.rules, carry));
+const counts = await time('restore', () => writeRestore(db, backup, match.ids, match.rules, carry, from));
 console.log(`  restored ${counts.songs} songs, ${counts.playlists} playlists, ${counts.queues} queues`);
 
 const source = await collectBackupSource(db);

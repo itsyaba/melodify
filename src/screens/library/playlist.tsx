@@ -6,6 +6,7 @@ import { exportPlaylist, shareFile } from '@/backup';
 import { Artwork } from '@/components/artwork';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
+import { ListToolbar } from '@/components/list-toolbar';
 import { confirm, promptText } from '@/components/menus';
 import { ReorderableList } from '@/components/reorderable-list';
 import { toast } from '@/components/toast';
@@ -15,6 +16,7 @@ import { TrackRow } from '@/components/track-row';
 import { deletePlaylist, getPlaylist, listPlaylistTracks, renamePlaylist, setPlaylistTracks } from '@/db/playlists';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { moveTrack, removeTracks } from '@/player/queue-ops';
 import { queue } from '@/player/queue-store';
 import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
@@ -32,6 +34,9 @@ export function PlaylistScreen({ id }: { id: number }) {
   const { data: playlist } = useLibraryQuery((d) => getPlaylist(d, id), [id]);
   const { data } = useLibraryQuery((d) => listPlaylistTracks(d, id), [id]);
   const tracks = data ?? NO_TRACKS;
+  // Sorting only changes how the list is shown; edits work on the playlist's own order.
+  const sorted = useTrackSort('playlist.songs', tracks, { label: 'Playlist order' });
+  const own = (indexes: number[]) => indexes.map((i) => sorted.order[i]).sort((a, b) => a - b);
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   const [editing, setEditing] = useState(false);
   const stopEditing = useCallback(() => setEditing(false), []);
@@ -97,7 +102,7 @@ export function PlaylistScreen({ id }: { id: number }) {
       </Text>
       {tracks.length && !editing ? (
         <View style={styles.buttons}>
-          <IconButton name="play.fill" color={colors.tint} onPress={() => void queue.replace(tracks, 0)} accessibilityLabel="Play playlist" />
+          <IconButton name="play.fill" color={colors.tint} onPress={() => void queue.replace(sorted.tracks, 0)} accessibilityLabel="Play playlist" />
           <IconButton name="shuffle" color={colors.tint} onPress={() => void queue.playShuffled(tracks)} accessibilityLabel="Shuffle playlist" />
         </View>
       ) : null}
@@ -121,13 +126,22 @@ export function PlaylistScreen({ id }: { id: number }) {
         />
       ) : (
         <TrackList
-          tracks={tracks}
-          header={header}
+          tracks={sorted.tracks}
+          header={
+            tracks.length > 1 ? (
+              <View>
+                {header}
+                <ListToolbar sort={sorted.sort} />
+              </View>
+            ) : (
+              header
+            )
+          }
           empty={empty}
           onMenu={menu}
-          menuExtra={(index) => [{ label: 'Remove from playlist', destructive: true, onPress: () => void removeAt([index]) }]}
+          menuExtra={(index) => [{ label: 'Remove from playlist', destructive: true, onPress: () => void removeAt(own([index])) }]}
           batchExtra={(indexes) => [
-            { label: 'Remove from playlist', destructive: true, onPress: () => void removeAt(indexes) },
+            { label: 'Remove from playlist', destructive: true, onPress: () => void removeAt(own(indexes)) },
           ]}
         />
       )}

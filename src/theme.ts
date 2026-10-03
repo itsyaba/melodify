@@ -303,3 +303,43 @@ export const ONBOARDING = {
   clear: 'rgba(6, 10, 12, 0)',
   highlight: 'rgba(255, 255, 255, 0.28)',
 } as const;
+
+/** How one of Home's big cards is painted: its fill, the text on it, and its round play button. */
+export interface CardLook {
+  fill: ColorValue;
+  /** A diagonal sweep over the fill, in place of the flat color. */
+  gradient?: readonly [string, string];
+  ink: ColorValue;
+  muted: ColorValue;
+  button: ColorValue;
+  buttonInk: ColorValue;
+}
+
+/**
+ * Home's big cards for the lists the library keeps by itself: soft pastels with dark ink, the same
+ * in every theme and accent, so each list keeps its color as Favorites keeps its sweep.
+ */
+export const HOME_CARDS = {
+  lilac: { fill: '#c9a3f2', ink: '#1c0f2c', muted: 'rgba(28, 15, 44, 0.7)', button: '#3c1a5e', buttonInk: '#ffffff' },
+  lime: { fill: '#d2e86b', ink: '#171c04', muted: 'rgba(23, 28, 4, 0.68)', button: '#2a320a', buttonInk: '#ffffff' },
+  peach: { fill: '#f7b896', ink: '#2b1207', muted: 'rgba(43, 18, 7, 0.68)', button: '#5b2611', buttonInk: '#ffffff' },
+} as const satisfies Record<string, CardLook>;
+
+/**
+ * The name bands on Home's playlist covers, Spotify's mix labels: bright fills with near-black
+ * ink, the same in every theme. A playlist keeps its color by its id.
+ */
+export const PLAYLIST_BANDS = [
+  { fill: '#e6f23f', ink: '#121212' },
+  { fill: '#aaa6f4', ink: '#121212' },
+  { fill: '#f6d43a', ink: '#121212' },
+  { fill: '#f5a3c7', ink: '#121212' },
+  { fill: '#7fe0c2', ink: '#121212' },
+  { fill: '#ffa166', ink: '#121212' },
+  { fill: '#8fc9ff', ink: '#121212' },
+] as const;
+/** The little round mark in a playlist cover's top corner, over any cover. */
+export const PLAYLIST_BADGE = { fill: 'rgba(0, 0, 0, 0.55)', ink: '#ffffff' } as const;
+
+/** Home's soft lights behind the greeting, beside the accent's own. */
+export const HOME_GLOWS = ['#8e2de2', '#3a6df0'] as const;

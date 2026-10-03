@@ -6,9 +6,10 @@ import { EmptyState } from '@/components/empty-state';
 import { ListToolbar } from '@/components/list-toolbar';
 import { useTrackActions } from '@/components/track-actions';
 import { TrackList } from '@/components/track-list';
-import { listAutoPlaylist, type AutoPlaylist } from '@/db/tracks';
+import { listAutoPlaylist, type AutoPlaylist, type TrackSort } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { queue } from '@/player/queue-store';
 import { makeStyles } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
@@ -22,6 +23,14 @@ export const AUTO_PLAYLISTS: readonly { kind: AutoPlaylist; title: string; icon:
 
 const NO_TRACKS: Track[] = [];
 
+/** Each list's own order, offered first; Favorites has none but by title. */
+const NATURAL: Record<AutoPlaylist, { label: string; same: TrackSort } | undefined> = {
+  favorites: undefined,
+  recently_added: { label: 'Recently added', same: 'added' },
+  most_played: { label: 'Most played', same: 'plays' },
+  recently_played: { label: 'Recently played', same: 'played' },
+};
+
 /**
  * A playlist the library fills in by itself. Plays are counted without telling the lists, so as
  * not to reload every screen once a song, and this one refreshes whenever it comes into view.
@@ -32,7 +41,7 @@ export function AutoPlaylistScreen({ kind }: { kind: AutoPlaylist }) {
   const meta = AUTO_PLAYLISTS.find((p) => p.kind === kind)!;
   const { data, refresh } = useLibraryQuery((db) => listAutoPlaylist(db, kind), [kind]);
   useFocusEffect(useCallback(() => refresh(), [refresh]));
-  const tracks = data ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort(kind, data ?? NO_TRACKS, NATURAL[kind]);
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
   return (
     <View style={styles.root}>
@@ -42,6 +51,7 @@ export function AutoPlaylistScreen({ kind }: { kind: AutoPlaylist }) {
           tracks.length ? (
             <ListToolbar
               summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`}
+              sort={sort}
               onShuffle={() => void queue.playShuffled(tracks)}
               onPlay={() => void queue.replace(tracks, 0)}
             />

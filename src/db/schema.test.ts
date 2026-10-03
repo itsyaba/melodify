@@ -29,3 +29,28 @@ test('v5 removes the videos earlier scans added, and everything that pointed at 
     assert.deepEqual(ids(`SELECT track_id AS id FROM ${table}`), [song], table);
   }
 });
+
+test('v6 shows already restored Musicolet totals without losing other UI choices', () => {
+  for (const choices of [null, { 'played.period': 'month', 'sort.songs': 'artist' }]) {
+    const db = openTestDb({ migrate: false });
+    migrations.slice(0, 5).forEach((sql) => db.raw.exec(sql));
+    insertTrack(db, 'song.mp3', { play_count: 42 });
+    db.raw.prepare('INSERT INTO musicolet_songs VALUES (?, ?, ?)').run('uri', 'song.mp3', '{}');
+    if (choices) db.raw.prepare('INSERT INTO settings VALUES (?, ?)').run('choices', JSON.stringify(choices));
+    db.raw.exec(migrations[5]);
+    const row = db.raw.prepare("SELECT value FROM settings WHERE key = 'choices'").get() as { value: string };
+    assert.deepEqual(JSON.parse(row.value), { ...choices, 'played.period': 'all' });
+    db.raw.close();
+  }
+});
+
+test('v6 keeps the selected period when no Musicolet totals were restored', () => {
+  const db = openTestDb({ migrate: false });
+  migrations.slice(0, 5).forEach((sql) => db.raw.exec(sql));
+  insertTrack(db, 'song.mp3', { play_count: 42 });
+  const choices = JSON.stringify({ 'played.period': 'week' });
+  db.raw.prepare('INSERT INTO settings VALUES (?, ?)').run('choices', choices);
+  db.raw.exec(migrations[5]);
+  assert.equal(db.raw.prepare("SELECT value FROM settings WHERE key = 'choices'").get()?.value, choices);
+  db.raw.close();
+});

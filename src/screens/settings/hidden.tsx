@@ -1,11 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { EmptyState } from '@/components/empty-state';
+import { ListToolbar } from '@/components/list-toolbar';
 import { toast } from '@/components/toast';
 import { TrackList } from '@/components/track-list';
 import { listHiddenTracks } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { useLibraryQuery } from '@/hooks/use-library-query';
+import { useTrackSort } from '@/hooks/use-track-sort';
 import { setTracksHidden } from '@/player/track-edits';
 import { makeStyles } from '@/theme';
 import { formatCount } from '@/utils/format';
@@ -17,11 +19,12 @@ export function HiddenSongsScreen() {
   const styles = useStyles();
   const db = useSQLiteContext();
   const { data } = useLibraryQuery(listHiddenTracks);
-  const tracks = data ?? NO_TRACKS;
+  const { tracks, sort } = useTrackSort('hidden.songs', data ?? NO_TRACKS);
   return (
     <View style={styles.root}>
       <TrackList
         tracks={tracks}
+        header={tracks.length ? <ListToolbar summary={formatCount(tracks.length, 'song')} sort={sort} /> : null}
         batchExtra={(indexes) => [
           {
             label: 'Show in library',

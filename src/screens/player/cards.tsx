@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Artwork } from '@/components/artwork';
@@ -6,8 +6,8 @@ import { Chips } from '@/components/chips';
 import { LyricsSearch } from '@/components/lyrics-search';
 import { listBookmarks, type BookmarkWithTrack } from '@/db/bookmarks';
 import type { Track } from '@/db/types';
+import { useLyrics } from '@/hooks/use-lyrics';
 import { activeLine } from '@/lyrics/lrc';
-import { loadLyrics, type LoadedLyrics } from '@/lyrics/load';
 import { queue, type QueueInfo } from '@/player/queue-store';
 import { makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { libraryEvents } from '@/utils/events';
@@ -79,22 +79,7 @@ export function LyricsCard({
 }) {
   const styles = useStyles();
   const colors = useTheme();
-  const [lyrics, setLyrics] = useState<LoadedLyrics | null | undefined>(undefined);
-  const latest = useRef(track);
-  latest.current = track;
-
-  // By id and lyrics file rather than the whole row: hearting the song replaces the row, and
-  // reloading then would blank the card for a moment and jolt everything under it.
-  useEffect(() => {
-    let cancelled = false;
-    setLyrics(undefined);
-    void loadLyrics(latest.current).then((l) => {
-      if (!cancelled) setLyrics(l);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [track.id, track.lyrics_path]);
+  const lyrics = useLyrics(track);
 
   if (lyrics === undefined) return null;
   if (lyrics === null) {

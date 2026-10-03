@@ -341,6 +341,36 @@ function jsonStrings(value: unknown): string[] {
   }
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * Dates for a song's plays from Musicolet's counts over the last week, month and year before
+ * `until` (the backup's time). Musicolet keeps no single plays, so each span's plays are spread
+ * evenly over the part of it the shorter span leaves, and none comes after the song's last play.
+ * Plays older than a year stay in the total alone.
+ */
+export function datePlays(r: SongRow, until: number): number[] {
+  if (!until) return [];
+  // Each counter is reset on its own, so a week can hold more than a month that just began: a
+  // longer span holds at least the shorter one's plays, and none more than the total.
+  const total = positive(r.COL_NUM_PLAYED) ?? 0;
+  const week = Math.min(positive(r.COL_NUM_PLAYED_W) ?? 0, total);
+  const month = Math.min(Math.max(positive(r.COL_NUM_PLAYED_M) ?? 0, week), total);
+  const year = Math.min(Math.max(positive(r.COL_NUM_PLAYED_Y) ?? 0, month), total);
+  const last = positive(r.COL_LAST_PLAYED);
+  const out: number[] = [];
+  const spread = (count: number, fromDays: number, toDays: number) => {
+    const start = until - toDays * DAY_MS;
+    let end = until - fromDays * DAY_MS;
+    if (last !== undefined && last > start && last < end) end = last;
+    for (let i = 0; i < count; i++) out.push(Math.round(end - ((i + 0.5) * (end - start)) / count));
+  };
+  spread(week, 0, 7);
+  spread(month - week, 7, 30);
+  spread(year - month, 30, 365);
+  return out;
+}
+
 /** The members `fromMusicolet` reads, already decrypted and checked. */
 interface Musicolet {
   /** A JSON member, parsed; undefined when it is not there. */
@@ -358,6 +388,8 @@ function fromMusicolet(rows: SongRow[], members: Musicolet, createdAt: number): 
   // Musicolet can hold one file twice: a stale row with its plays and a fresh one without. The
   // restore matches one song to one row, first come, so the one with the plays comes first.
   const plays = (r: SongRow) => (isNumber(r.COL_NUM_PLAYED) ? r.COL_NUM_PLAYED : 0);
+  // A backup without its time counts back from its last play.
+  const newestPlay = rows.reduce((max, r) => Math.max(max, positive(r.COL_LAST_PLAYED) ?? 0), 0);
   for (const r of [...rows].sort((a, b) => plays(b) - plays(a))) {
     const uri = r.COL_PATH;
     if (typeof uri !== 'string' || !uri || indexOf.has(uri)) continue;
@@ -376,6 +408,8 @@ function fromMusicolet(rows: SongRow[], members: Musicolet, createdAt: number): 
     set('lastPlayedAt', r.COL_LAST_PLAYED);
     set('resumeMs', r.COL_LASTPOS);
     set('addedAt', r.COL_DATE_ADDED);
+    const playedAt = datePlays(r, createdAt || newestPlay);
+    if (playedAt.length) t.playedAt = playedAt;
     indexOf.set(uri, tracks.length);
     tracks.push(t);
   }

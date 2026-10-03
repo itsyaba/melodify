@@ -25,18 +25,30 @@ function native(): NativeLyrics | null {
 
 /** Per track, for the session. Lyrics files rarely change while the app is open. */
 const cache = new Map<number, LoadedLyrics | null>();
+/** Reads under way, so the player's lyric line and its card read a song's file once. */
+const reading = new Map<number, Promise<LoadedLyrics | null>>();
 
 /** After the lyrics editor saved, so the player reads them again. */
 export function forgetLyrics(trackId: number): void {
   cache.delete(trackId);
+  reading.delete(trackId);
 }
 
 /**
  * A sidecar `.lrc` first, since it is usually the synced one and the one a user put there on
  * purpose; then whatever is embedded in the file.
  */
-export async function loadLyrics(track: Track): Promise<LoadedLyrics | null> {
-  if (cache.has(track.id)) return cache.get(track.id)!;
+export function loadLyrics(track: Track): Promise<LoadedLyrics | null> {
+  if (cache.has(track.id)) return Promise.resolve(cache.get(track.id)!);
+  let pending = reading.get(track.id);
+  if (!pending) {
+    pending = readLyrics(track).finally(() => reading.delete(track.id));
+    reading.set(track.id, pending);
+  }
+  return pending;
+}
+
+async function readLyrics(track: Track): Promise<LoadedLyrics | null> {
   let result: LoadedLyrics | null = null;
   if (track.lyrics_path) {
     try {

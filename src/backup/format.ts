@@ -25,6 +25,11 @@ export interface BackupTrack {
   playCount?: number;
   skipCount?: number;
   lastPlayedAt?: number;
+  /**
+   * When some of the plays happened (ms), for Most played's dated spans. Only a Musicolet backup
+   * has these, made from its week, month and year counts; a Melodify backup leaves them out.
+   */
+  playedAt?: number[];
   resumeMs?: number;
   addedAt?: number;
   /** The song's path in Musicolet (its `COL_PATH`), when it came from a Musicolet backup. */
