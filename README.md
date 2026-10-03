@@ -177,7 +177,9 @@ This project is developed on Linux. There is no Xcode and no simulator, so the l
 
 1. **Build in CI.** A GitHub Actions macOS runner runs `expo prebuild` and `xcodebuild` with code
    signing disabled, then zips `Payload/` into an unsigned `.ipa`. Pushes build Release, with the JS
-   inside and EAS Update after that; run the workflow by hand with Debug for a dev client.
+   inside and EAS Update after that; run the workflow by hand with Debug for a dev client. Debug
+   installs beside Release as **Melodify Dev** (`dev.yeab.melodify.dev`, set in `app.config.ts`),
+   with its own data, and takes the third free-account app slot.
 2. **Sign and install.** Background audio and file sharing are plain Info.plist keys, not paid
    entitlements, so a free Apple account is enough. The route is SideStore: it signs the unsigned
    IPA with the free account on the phone and installs it as a real app (see *Installing with

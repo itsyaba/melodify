@@ -2,7 +2,8 @@
 # install it with SideStore.
 #
 # Release by default: the JS is bundled in and later JS arrives by EAS Update, so pushes only build
-# when native config changes. A manual run can pick Debug, the dev client that loads JS from Metro.
+# when native config changes. A manual run can pick Debug, the dev client that loads JS from Metro;
+# it installs as a separate app, Melodify Dev.
 
 name: iOS unsigned build
 
@@ -38,6 +39,8 @@ jobs:
     env:
       CONFIGURATION: ${{ inputs.configuration || 'Release' }}
       SCHEME: Melodify
+      # Debug installs beside Release as "Melodify Dev" (dev.yeab.melodify.dev); see app.config.ts
+      MELODIFY_DEV_CLIENT: ${{ inputs.configuration == 'Debug' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
 
