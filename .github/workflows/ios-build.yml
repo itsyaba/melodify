@@ -23,6 +23,7 @@ on:
       - package.json
       - package-lock.json
       - modules/**
+      - plugins/**
       - .github/workflows/ios-build.yml
 
 concurrency:
