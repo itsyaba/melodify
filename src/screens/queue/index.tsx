@@ -217,19 +217,23 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   };
 
   // One queue is shown; the rest are a tap away. A row of tabs could not hold twenty names, and
-  // the one being looked at scrolled out of sight among them.
+  // the one being looked at scrolled out of sight among them. Each queue in the list carries its
+  // own ⋯, so renaming, clearing or deleting one never means switching to it first.
   const pickQueue = () =>
     showMenu({
       title: 'Queues',
+      message: `${formatCount(queues.length, 'queue')} · tap one to look at it`,
       items: [
-        ...queues.map((q) => ({
-          label: `${q.name} · ${formatCount(q.tracks.length, 'song')}`,
-          icon: (q.id === activeId ? 'play.fill' : 'rectangle.stack') as MenuItem['icon'],
-          selected: q.id === viewed.id,
-          onPress: () => setViewedId(q.id),
-        })),
+        ...queues.map(
+          (q): MenuItem => ({
+            label: `${q.name} · ${formatCount(q.tracks.length, 'song')}`,
+            icon: q.id === activeId ? 'play.fill' : 'rectangle.stack',
+            selected: q.id === viewed.id,
+            onPress: () => setViewedId(q.id),
+            trailing: { icon: 'ellipsis', label: `${q.name} options`, onPress: () => tabMenu(q) },
+          }),
+        ),
         { label: 'New queue', icon: 'plus', onPress: () => void newQueue() },
-        { label: `${viewed.name} options…`, icon: 'ellipsis', onPress: () => tabMenu(viewed) },
       ],
     });
 
@@ -243,10 +247,20 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
         accessibilityLabel={`${viewed.name}, ${formatCount(viewed.tracks.length, 'song')}${isActive ? ', playing' : ''}`}
         accessibilityHint="Switch to another queue"
       >
-        {isActive ? <SymbolView name="play.fill" size={11} tintColor={colors.tint} /> : null}
-        <Text numberOfLines={1} style={[type.headline, { color: colors.label }]}>{viewed.name}</Text>
-        <Text style={[type.footnote, { color: colors.secondaryLabel }]}>{formatCount(viewed.tracks.length, 'song')}</Text>
-        <SymbolView name="chevron.down" size={12} tintColor={colors.secondaryLabel} />
+        <View style={styles.pickerTile}>
+          <SymbolView name={isActive ? 'waveform' : 'list.number'} size={20} tintColor={colors.tint} />
+        </View>
+        <View style={styles.pickerText}>
+          <Text numberOfLines={1} style={[type.headline, { color: colors.label }]}>{viewed.name}</Text>
+          <Text numberOfLines={1} style={[type.footnote, { color: colors.secondaryLabel }]}>
+            {isActive ? 'Playing · ' : ''}
+            {formatCount(viewed.tracks.length, 'song')}
+            {viewed.tracks.length ? ` · ${formatDuration(total)}` : ''}
+          </Text>
+        </View>
+        <View style={styles.pickerChevron}>
+          <SymbolView name="chevron.down" size={13} tintColor={colors.secondaryLabel} weight="semibold" />
+        </View>
       </Pressable>
     </View>
   );
@@ -494,13 +508,28 @@ const useStyles = makeStyles((colors) => ({
   picker: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-    gap: spacing.xs,
+    gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.full,
+    borderRadius: radius.lg,
     backgroundColor: colors.secondaryBackground,
+  },
+  pickerTile: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.fill,
+  },
+  pickerText: { flex: 1, gap: 2 },
+  pickerChevron: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.full,
+    backgroundColor: colors.fill,
   },
   // The left border is always there, transparent off the playing song, so no row shifts sideways
   // when the song changes.

@@ -123,6 +123,17 @@ export function MenuHost() {
         ) : null}
         <Text numberOfLines={2} style={[type.body, styles.label, { color: tint }]}>{item.label}</Text>
         {item.selected ? <SymbolView name="checkmark" size={17} tintColor={colors.tint} weight="semibold" /> : null}
+        {item.trailing ? (
+          <Pressable
+            onPress={() => close(item.trailing!.onPress)}
+            hitSlop={spacing.sm}
+            accessibilityRole="button"
+            accessibilityLabel={item.trailing.label}
+            style={({ pressed }) => [styles.trailing, pressed && styles.pressed]}
+          >
+            <SymbolView name={item.trailing.icon} size={20} tintColor={colors.secondaryLabel} />
+          </Pressable>
+        ) : null}
       </Pressable>
     );
   };
@@ -210,6 +221,7 @@ const useStyles = makeStyles((colors) => ({
     paddingVertical: spacing.sm,
   },
   icon: { width: 26, alignItems: 'center' },
+  trailing: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full },
   label: { flex: 1 },
   pressed: { backgroundColor: colors.fill },
 }));

@@ -11,6 +11,11 @@ export interface MenuItem {
   icon?: SFSymbol;
   /** The option in force (the current sort order), marked with a check. */
   selected?: boolean;
+  /**
+   * A second button at the row's right, for an action on that row's own subject: the ⋯ beside
+   * each queue in the queue picker. Runs once the sheet is gone, as the row itself does.
+   */
+  trailing?: { icon: SFSymbol; label: string; onPress: () => void };
 }
 
 export interface MenuRequest {
