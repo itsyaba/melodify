@@ -291,10 +291,14 @@ export function ReorderableList<T>({
           g.contentHeight = h;
         }}
         // Rows are all one height, but FlatList has not measured the far ones: jumping to the
-        // playing song in a long queue lands by arithmetic instead of failing.
+        // playing song in a long queue lands by arithmetic instead of failing. The row is put a
+        // third of the way down what the tab bar and mini player leave visible, as the
+        // `viewPosition` the jump asked for would have.
         onScrollToIndexFailed={(info) => {
           const height = g.rowHeight || info.averageItemLength;
-          listRef.current?.scrollToOffset({ offset: g.headerHeight + info.index * height, animated: true });
+          const visible = Math.max(0, g.containerHeight - BOTTOM_COVERED);
+          const offset = g.headerHeight + info.index * height - visible * 0.35;
+          listRef.current?.scrollToOffset({ offset: Math.max(0, offset), animated: true });
         }}
         contentInsetAdjustmentBehavior="automatic"
         ListHeaderComponent={

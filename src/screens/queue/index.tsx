@@ -4,7 +4,6 @@ import { useIsFocused, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from '@/components/symbol';
 import { Artwork } from '@/components/artwork';
-import { Chips } from '@/components/chips';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { ListToolbar } from '@/components/list-toolbar';
@@ -18,7 +17,7 @@ import type { Track } from '@/db/types';
 import { useDensity } from '@/hooks/use-density';
 import { useSelection } from '@/hooks/use-selection';
 import { queue, queueSnapshot, useQueue, useQueues, useUndoLabel, type QueueInfo, type RepeatMode } from '@/player/queue-store';
-import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
+import { artSize, makeStyles, radius, spacing, type, useTheme } from '@/theme';
 import { formatCount, formatDuration } from '@/utils/format';
 
 const REPEAT_ICON = { off: 'repeat', all: 'repeat', one: 'repeat.1' } as const;
@@ -84,9 +83,14 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   useEffect(() => {
     if (landedOn.current === viewed.id) return;
     landedOn.current = viewed.id;
-    // After the rows are laid out, or FlatList has nothing to scroll to yet.
-    const timer = setTimeout(() => jumpToCurrent(false), 50);
-    return () => clearTimeout(timer);
+    // Twice: the first jump is before FlatList has measured rows that far down, so it lands by
+    // arithmetic; the second, once they are mounted, puts the song exactly a third down.
+    const first = setTimeout(() => jumpToCurrent(false), 50);
+    const settle = setTimeout(() => jumpToCurrent(false), 400);
+    return () => {
+      clearTimeout(first);
+      clearTimeout(settle);
+    };
   }, [viewed.id, jumpToCurrent]);
 
   const tabMenu = (q: QueueInfo) => {
@@ -212,27 +216,44 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
     showMenu({ title: track.title, message: [track.artist, track.album].filter(Boolean).join(' • ') || undefined, artKey: track.art_key, items });
   };
 
-  const tabs = queues.map((q) => ({
-    key: q.id,
-    label: `${q.id === activeId ? '▶︎ ' : ''}${q.name} · ${q.tracks.length}`,
-  }));
+  // One queue is shown; the rest are a tap away. A row of tabs could not hold twenty names, and
+  // the one being looked at scrolled out of sight among them.
+  const pickQueue = () =>
+    showMenu({
+      title: 'Queues',
+      items: [
+        ...queues.map((q) => ({
+          label: `${q.name} · ${formatCount(q.tracks.length, 'song')}`,
+          icon: (q.id === activeId ? 'play.fill' : 'rectangle.stack') as MenuItem['icon'],
+          selected: q.id === viewed.id,
+          onPress: () => setViewedId(q.id),
+        })),
+        { label: 'New queue', icon: 'plus', onPress: () => void newQueue() },
+        { label: `${viewed.name} options…`, icon: 'ellipsis', onPress: () => tabMenu(viewed) },
+      ],
+    });
 
-  const chips = (
-    <Chips
-      options={tabs}
-      value={viewed.id}
-      onChange={setViewedId}
-      onLongPress={(id) => {
-        const q = queues.find((x) => x.id === id);
-        if (q) tabMenu(q);
-      }}
-      action={{ label: '+', onPress: () => void newQueue(), accessibilityLabel: 'New queue' }}
-    />
+  const picker = (
+    <View style={styles.pickerRow}>
+      <Pressable
+        onPress={pickQueue}
+        onLongPress={() => tabMenu(viewed)}
+        style={({ pressed }) => [styles.picker, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${viewed.name}, ${formatCount(viewed.tracks.length, 'song')}${isActive ? ', playing' : ''}`}
+        accessibilityHint="Switch to another queue"
+      >
+        {isActive ? <SymbolView name="play.fill" size={11} tintColor={colors.tint} /> : null}
+        <Text numberOfLines={1} style={[type.headline, { color: colors.label }]}>{viewed.name}</Text>
+        <Text style={[type.footnote, { color: colors.secondaryLabel }]}>{formatCount(viewed.tracks.length, 'song')}</Text>
+        <SymbolView name="chevron.down" size={12} tintColor={colors.secondaryLabel} />
+      </Pressable>
+    </View>
   );
 
   const header = (
     <View>
-      {sheet ? chips : null}
+      {sheet ? picker : null}
       {isActive ? <NowPlaying /> : null}
       {!isActive && viewed.tracks.length > 0 ? (
         <Pressable
@@ -340,7 +361,7 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
       {selectionHeader}
     </View>
   ) : (
-    <TabScreen title="Queue" below={chips}>
+    <TabScreen title="Queue" below={picker}>
       {list}
       {selectionHeader}
     </TabScreen>
@@ -468,6 +489,18 @@ const useStyles = makeStyles((colors) => ({
     gap: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.separator,
+  },
+  pickerRow: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  picker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.secondaryBackground,
   },
   // The left border is always there, transparent off the playing song, so no row shifts sideways
   // when the song changes.
