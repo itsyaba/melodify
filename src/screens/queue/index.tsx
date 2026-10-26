@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { Pressable, StyleSheet, Text, View, type FlatList } from 'react-native';
 import { useIsFocused, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SymbolView } from '@/components/symbol';
@@ -14,8 +14,8 @@ import { SelectionHeader } from '@/components/selection-header';
 import { TabScreen } from '@/components/tab-screen';
 import { toast } from '@/components/toast';
 import { albumHref, choosePlaylist, chooseQueue, groupHref, newPlaylistWith } from '@/components/track-actions';
-import { TrackRow } from '@/components/track-row';
 import type { Track } from '@/db/types';
+import { useDensity } from '@/hooks/use-density';
 import { useSelection } from '@/hooks/use-selection';
 import { queue, queueSnapshot, useQueue, useQueues, useUndoLabel, type QueueInfo, type RepeatMode } from '@/player/queue-store';
 import { artSize, makeStyles, spacing, type, useTheme } from '@/theme';
@@ -68,6 +68,26 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
   const total = useMemo(() => tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0), [tracks]);
 
   const selection = useSelection(tracks);
+
+  // Musicolet's queue opens where it is playing, and its crosshair comes back to it.
+  const listRef = useRef<FlatList<Track>>(null);
+  const jumpToCurrent = useCallback(
+    (animated: boolean) => {
+      const index = viewed.currentIndex;
+      if (index < 0 || index >= viewed.tracks.length) return;
+      listRef.current?.scrollToIndex({ index, animated, viewPosition: 0.35 });
+    },
+    [viewed.currentIndex, viewed.tracks.length],
+  );
+  // On the queue being looked at, not on its position: a song ending must not drag the list.
+  const landedOn = useRef<number | null>(null);
+  useEffect(() => {
+    if (landedOn.current === viewed.id) return;
+    landedOn.current = viewed.id;
+    // After the rows are laid out, or FlatList has nothing to scroll to yet.
+    const timer = setTimeout(() => jumpToCurrent(false), 50);
+    return () => clearTimeout(timer);
+  }, [viewed.id, jumpToCurrent]);
 
   const tabMenu = (q: QueueInfo) => {
     const at = queues.findIndex((x) => x.id === q.id);
@@ -229,8 +249,22 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
       {tracks.length ? (
         <View style={styles.toolbar}>
           <View style={{ flex: 1 }}>
-            <ListToolbar summary={`${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`} />
+            <ListToolbar
+              summary={
+                viewed.currentIndex >= 0
+                  ? `${viewed.currentIndex + 1} / ${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`
+                  : `${formatCount(tracks.length, 'song')} · ${formatDuration(total)}`
+              }
+            />
           </View>
+          <IconButton
+            name="scope"
+            size={18}
+            color={colors.secondaryLabel}
+            disabled={viewed.currentIndex < 0}
+            onPress={() => jumpToCurrent(true)}
+            accessibilityLabel="Scroll to the playing song"
+          />
           <IconButton
             name={REPEAT_ICON[viewed.repeat]}
             size={18}
@@ -260,6 +294,7 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
 
   const list = (
     <ReorderableList
+      listRef={listRef}
       data={tracks}
       keyExtractor={(_t, i) => keys[i]}
       extraData={extraData}
@@ -279,40 +314,22 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
               void queue.remove([index], viewed.id).then(() => undoToast(`Removed “${title}”`));
             }
       }
-      renderItem={({ item, index, handle, lifted }) => {
-        const checked = selection.selected.has(index);
-        const isCurrent = index === viewed.currentIndex;
-        return (
-          <View style={[isCurrent && !lifted && styles.current]}>
-            <TrackRow
-              track={item}
-              active={isCurrent && isActive}
-              trailing={
-                selection.active ? (
-                  <View style={styles.check}>
-                    <SymbolView
-                      name={checked ? 'checkmark.circle.fill' : 'circle'}
-                      size={22}
-                      tintColor={checked ? colors.tint : colors.tertiaryLabel}
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.trailing}>
-                    <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(item.duration_ms)}</Text>
-                    {handle}
-                  </View>
-                )
-              }
-              onPress={() => {
-                if (selection.active) selection.toggle(index);
-                else if (isActive) void queue.playAt(index);
-                else void queue.playQueueAt(viewed.id, index);
-              }}
-              onLongPress={() => (selection.active ? selection.toggle(index) : rowMenu(item, index))}
-            />
-          </View>
-        );
-      }}
+      renderItem={({ item, index, handle, lifted }) => (
+        <QueueRow
+          track={item}
+          index={index}
+          current={index === viewed.currentIndex && !lifted}
+          playing={index === viewed.currentIndex && isActive}
+          checked={selection.active ? selection.selected.has(index) : undefined}
+          handle={handle}
+          onPress={() => {
+            if (selection.active) selection.toggle(index);
+            else if (isActive) void queue.playAt(index);
+            else void queue.playQueueAt(viewed.id, index);
+          }}
+          onLongPress={() => (selection.active ? selection.toggle(index) : rowMenu(item, index))}
+        />
+      )}
     />
   );
 
@@ -327,6 +344,80 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
       {list}
       {selectionHeader}
     </TabScreen>
+  );
+}
+
+/**
+ * A row as Musicolet draws one in a queue: the song's place in the queue where other lists put
+ * album art, the title over artist and album, then the length and the drag handle. Dropping the
+ * art keeps the rows short, so a queue of hundreds reads as a list of numbers rather than a wall
+ * of covers. The playing song takes the accent, with a bar down its side and a waveform for its
+ * number.
+ */
+function QueueRow({
+  track,
+  index,
+  current,
+  playing,
+  checked,
+  handle,
+  onPress,
+  onLongPress,
+}: {
+  track: Track;
+  index: number;
+  current: boolean;
+  playing: boolean;
+  /** Undefined outside multi-select; the check replaces the length and the handle inside it. */
+  checked?: boolean;
+  handle: ReactElement;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const styles = useStyles();
+  const colors = useTheme();
+  const density = useDensity();
+  const subtitle = [track.artist, track.album].filter(Boolean).join(' · ') || track.folder || 'Unknown';
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [
+        styles.row,
+        { paddingVertical: density.paddingVertical, minHeight: density.minHeight },
+        current && styles.currentRow,
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={playing ? { selected: true } : undefined}
+      accessibilityLabel={`${index + 1}. ${track.title}, ${subtitle}`}
+    >
+      <View style={styles.index}>
+        {current ? (
+          <SymbolView name="waveform" size={16} tintColor={colors.tint} />
+        ) : (
+          <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{index + 1}</Text>
+        )}
+      </View>
+      <View style={styles.rowText}>
+        <Text numberOfLines={1} style={[type.body, { color: current ? colors.tint : colors.label }]}>{track.title}</Text>
+        <Text numberOfLines={1} style={[type.footnote, { color: colors.secondaryLabel }]}>{subtitle}</Text>
+      </View>
+      {checked === undefined ? (
+        <View style={styles.trailing}>
+          <Text style={[type.footnote, { color: colors.tertiaryLabel }]}>{formatDuration(track.duration_ms)}</Text>
+          {handle}
+        </View>
+      ) : (
+        <View style={styles.check}>
+          <SymbolView
+            name={checked ? 'checkmark.circle.fill' : 'circle'}
+            size={22}
+            tintColor={checked ? colors.tint : colors.tertiaryLabel}
+          />
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -378,7 +469,21 @@ const useStyles = makeStyles((colors) => ({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.separator,
   },
-  current: { backgroundColor: colors.secondaryBackground },
+  // The left border is always there, transparent off the playing song, so no row shifts sideways
+  // when the song changes.
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+  },
+  currentRow: { backgroundColor: colors.secondaryBackground, borderLeftColor: colors.tint },
+  index: { minWidth: 26, alignItems: 'flex-end' },
+  rowText: { flex: 1, gap: 2 },
   trailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   check: { width: 28, alignItems: 'flex-end' },
 }));

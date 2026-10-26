@@ -43,6 +43,7 @@ const TABLE: Record<string, string> = {
   'music.note': 'music-note',
   'music.note.list': 'queue-music',
   'list.number': 'format-list-numbered',
+  'scope': 'gps-fixed',
   'list.bullet': 'list',
   'list.bullet.rectangle': 'list-alt',
   'opticaldisc': 'album',

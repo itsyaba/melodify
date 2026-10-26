@@ -290,6 +290,12 @@ export function ReorderableList<T>({
         onContentSizeChange={(_w, h) => {
           g.contentHeight = h;
         }}
+        // Rows are all one height, but FlatList has not measured the far ones: jumping to the
+        // playing song in a long queue lands by arithmetic instead of failing.
+        onScrollToIndexFailed={(info) => {
+          const height = g.rowHeight || info.averageItemLength;
+          listRef.current?.scrollToOffset({ offset: g.headerHeight + info.index * height, animated: true });
+        }}
         contentInsetAdjustmentBehavior="automatic"
         ListHeaderComponent={
           header ? (
