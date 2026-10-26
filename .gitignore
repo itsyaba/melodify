@@ -45,3 +45,6 @@ modules/melodify-audio/android/.cxx/
 
 # third-party UI screenshots, local design reference only
 /reference/
+
+# Photos dropped into the chat from the phone.
+.tg-uploads/

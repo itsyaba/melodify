@@ -24,6 +24,13 @@ function trigger(key: TabKey, hidden: boolean) {
           <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       );
+    case 'artists':
+      return (
+        <NativeTabs.Trigger key={key} name="(artists)" hidden={hidden}>
+          <NativeTabs.Trigger.Icon sf="music.mic" md="mic" />
+          <NativeTabs.Trigger.Label>Artists</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      );
     case 'folders':
       return (
         <NativeTabs.Trigger key={key} name="(folders)" hidden={hidden}>
@@ -54,7 +61,14 @@ function trigger(key: TabKey, hidden: boolean) {
   }
 }
 
-const TITLES: Record<TabKey, string> = { home: 'Home', queue: 'Queue', folders: 'Folders', library: 'Library', search: 'Search' };
+const TITLES: Record<TabKey, string> = {
+  home: 'Home',
+  queue: 'Queue',
+  artists: 'Artists',
+  folders: 'Folders',
+  library: 'Library',
+  search: 'Search',
+};
 
 export default function TabsLayout() {
   return Platform.OS === 'android' ? <AndroidTabs /> : <IosTabs />;

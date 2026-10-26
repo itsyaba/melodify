@@ -56,6 +56,12 @@ export interface GroupSummary {
   duration_ms: number | null;
 }
 
+/** An artist with how much it has been played, for the Artists tab's rail. */
+export interface ArtistSummary extends GroupSummary {
+  /** All-time plays summed over the artist's songs. */
+  plays: number;
+}
+
 export interface FolderEntry {
   /** Folder path relative to Documents/, e.g. "Artist/Album". */
   path: string;

@@ -95,13 +95,15 @@ export type AutoBackup = 'off' | 'daily' | 'weekly';
 export type PlayerLayout = 'standard' | 'edge' | 'compact';
 export type Density = 'comfortable' | 'compact';
 export type OrientationChoice = 'auto' | 'portrait' | 'landscape';
-export type TabKey = 'home' | 'queue' | 'folders' | 'library' | 'search';
+export type TabKey = 'home' | 'queue' | 'artists' | 'folders' | 'library' | 'search';
 export type LibraryViewKey =
   | 'songs' | 'albums' | 'artists' | 'album_artists' | 'genres' | 'composers' | 'years' | 'playlists';
 export type PlayerShortcut =
   | 'lyrics' | 'sleep' | 'abRepeat' | 'bookmark' | 'sound' | 'queue' | 'details' | 'playlist' | 'share';
 
-export const ALL_TABS: readonly TabKey[] = ['home', 'queue', 'folders', 'library', 'search'];
+export const ALL_TABS: readonly TabKey[] = ['home', 'queue', 'artists', 'folders', 'library', 'search'];
+/** The bar out of the box: Folders is the one tab every key has but the default bar leaves out. */
+export const DEFAULT_TABS: readonly TabKey[] = ['home', 'queue', 'artists', 'library', 'search'];
 /**
  * Tabs that cannot be switched off: Home holds the settings gear and is where "Go to album" from
  * the player lands, and Library holds the lists.
@@ -127,7 +129,7 @@ export const DEFAULT_PREFS: Prefs = {
   density: 'comfortable',
   keepAwake: false,
   orientation: 'portrait',
-  tabs: [...ALL_TABS],
+  tabs: [...DEFAULT_TABS],
   libraryViews: [...ALL_LIBRARY_VIEWS],
   // Spotify keeps three under its controls; A–B repeat, bookmarks and sound are in the menu.
   playerShortcuts: ['lyrics', 'sleep', 'queue'],
@@ -148,13 +150,15 @@ export const DEFAULT_PREFS: Prefs = {
   headsetClicks: ['toggle', 'next', 'previous'],
   respectNomedia: true,
   skipSilence: false,
-  version: 2,
+  version: 3,
 };
 
 /** Version 1 trimmed the player's default row from these six; a row the user chose stays as it was. */
 const SIX_SHORTCUTS: readonly PlayerShortcut[] = ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'];
 /** Version 2 put Home first and moved Settings to a gear on it; this was the default bar before. */
 const OLD_DEFAULT_TABS = ['library', 'folders', 'queue', 'settings', 'search'];
+/** Version 3 put Artists in the bar where Folders was; this was the default bar before it. */
+const V2_DEFAULT_TABS = ['home', 'queue', 'folders', 'library', 'search'];
 
 /**
  * One-time changes to stored preferences, for defaults that changed after they were saved: a
@@ -168,6 +172,11 @@ function migrate(stored: Partial<Prefs>): Partial<Prefs> {
   // The old default bar becomes the new one. A bar the user arranged keeps its order: `sanitize`
   // drops Settings from it and puts Home in front.
   if ((stored.version ?? 0) < 2 && String(stored.tabs) === String(OLD_DEFAULT_TABS)) {
+    out.tabs = [...DEFAULT_PREFS.tabs];
+  }
+  // Artists takes Folders' place in a bar nobody has rearranged. One that was arranged by hand
+  // keeps every tab it has, Folders included; Artists waits in Settings › Tabs and views.
+  if ((stored.version ?? 0) < 3 && String(out.tabs) === String(V2_DEFAULT_TABS)) {
     out.tabs = [...DEFAULT_PREFS.tabs];
   }
   out.version = DEFAULT_PREFS.version;

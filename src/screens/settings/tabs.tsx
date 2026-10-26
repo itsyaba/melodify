@@ -14,6 +14,7 @@ import { makeStyles } from '@/theme';
 const TAB_LABELS: Record<TabKey, string> = {
   home: 'Home',
   queue: 'Queue',
+  artists: 'Artists',
   folders: 'Folders',
   library: 'Library',
   search: 'Search',

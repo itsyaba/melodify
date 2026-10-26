@@ -6,12 +6,14 @@ export const unstable_settings = {
   initialRouteName: 'index',
   library: { initialRouteName: 'library' },
   search: { initialRouteName: 'search' },
+  artists: { initialRouteName: 'artists' },
 };
 
 /**
- * One layout for three tabs: Home, Library and Search share every screen below, so an album
- * opened from any of them stays in that tab. `segment` says which tab this copy is: "(home)",
- * "(library)" or "(search)". Settings lives here too, opened from the gear on Home.
+ * One layout for four tabs: Home, Library, Search and Artists share every screen below, so an
+ * album opened from any of them stays in that tab. `segment` says which tab this copy is:
+ * "(home)", "(library)", "(search)" or "(artists)". Settings lives here too, opened from the
+ * gear on Home.
  */
 export default function SharedLayout({ segment }: { segment: string }) {
   const group = segment.match(/\((.*)\)/)?.[1] ?? 'home';
@@ -21,8 +23,9 @@ export default function SharedLayout({ segment }: { segment: string }) {
     home: <Stack.Screen key="index" name="index" options={{ title: 'Home', headerShown: false }} />,
     library: <Stack.Screen key="library" name="library" options={{ title: 'Library', headerShown: false }} />,
     search: <Stack.Screen key="search" name="search" options={{ title: 'Search', headerShown: false }} />,
+    artists: <Stack.Screen key="artists" name="artists" options={{ title: 'Artists', headerShown: false }} />,
   };
-  const first = group === 'library' || group === 'search' ? group : 'home';
+  const first = group === 'library' || group === 'search' || group === 'artists' ? group : 'home';
   return (
     <Stack screenOptions={{ headerLargeTitleEnabled: true, headerBackButtonDisplayMode: 'minimal' }}>
       {/* A stack starts on its first screen, so each tab lists its own first. */}

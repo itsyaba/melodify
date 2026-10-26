@@ -13,6 +13,7 @@ type MaterialName = keyof typeof MaterialIcons.glyphMap;
 const ICONS: Record<string, MaterialName> = {
   '(home)': 'home',
   '(queue)': 'queue-music',
+  '(artists)': 'mic',
   '(folders)': 'folder',
   '(library)': 'library-music',
   '(search)': 'search',

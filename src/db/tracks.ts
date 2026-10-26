@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getPrefs } from '@/prefs';
 import { listMostPlayed as listPlayedSince, summarizeMostPlayed, type MostPlayed, type PlaySummary } from './plays';
 import { ADDED_ORDER, addedPeriodCovers, countAddedPeriods, listAddedSince, type AddedPeriod } from './added';
-import type { AlbumSummary, FolderEntry, GroupSummary, Track } from './types';
+import type { AlbumSummary, ArtistSummary, FolderEntry, GroupSummary, Track } from './types';
 
 export type TrackSort = 'title' | 'artist' | 'album' | 'added' | 'played' | 'plays' | 'duration' | 'year' | 'filename';
 
@@ -113,6 +113,24 @@ export function listGroups(db: SQLiteDatabase, kind: GroupKind, sort: GroupSort 
     GROUP BY ${col}
     ORDER BY ${order}
   `);
+}
+
+/**
+ * The artists played most, for the rail at the top of the Artists tab. Artists with no plays yet
+ * are left out, so a library that has never been played shows no rail at all.
+ */
+export function listTopArtists(db: SQLiteDatabase, limit = 10): Promise<ArtistSummary[]> {
+  return db.getAllAsync<ArtistSummary>(
+    `SELECT CAST(artist AS TEXT) AS name, COUNT(*) AS track_count, COUNT(DISTINCT album) AS album_count,
+            MAX(art_key) AS art_key, SUM(duration_ms) AS duration_ms, SUM(play_count) AS plays
+     FROM tracks
+     WHERE ${visible()} AND artist IS NOT NULL AND artist != ''
+     GROUP BY artist
+     HAVING plays > 0
+     ORDER BY plays DESC, track_count DESC, name COLLATE NOCASE
+     LIMIT ?`,
+    limit,
+  );
 }
 
 /** Every track in one group, album by album. `value` is the group's `name` as listed. */
