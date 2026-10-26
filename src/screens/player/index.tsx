@@ -26,6 +26,7 @@ import { formatDuration } from '@/utils/format';
 import { AboutCard, BookmarksCard, LyricsCard, UpNextCard } from './cards';
 import { LyricLine } from './lyric-line';
 import { Backdrop, FavoriteButton, ModeButton, PlayButton, PlayerHeader, StatusPills, type Pill } from './controls';
+import { DeckCounter, DeckHeader, DeckLamp, DeckSleeve, DeckStage, DeckTitle, DeckTransport } from './deck';
 import { abMark, abMenu, bookmarkHere, bookmarksMenu, queueMenu, sleepLabel, sleepMenu } from './menus';
 import { SHORTCUTS } from './shortcuts';
 import { SwipeArt } from './swipe-art';
@@ -138,6 +139,7 @@ export function PlayerScreen() {
   }
 
   const playing = state === 'playing';
+  const deck = layout === 'deck';
   const shown = scrubMs ?? positionMs;
   const skipMs = prefs.skipSeconds * 1000;
   // Audiobooks, podcasts and mixes: the songs long enough to remember their place get Spotify's
@@ -295,7 +297,7 @@ export function PlayerScreen() {
         accessibilityLabel={`Artwork for ${track.title}`}
         accessibilityHint={`Swipe sideways for the next or previous song. Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
       >
-        <View style={[styles.artShadow, { borderRadius: radius[rounded] }]}>
+        <View style={[!deck && styles.artShadow, { borderRadius: radius[rounded] }]}>
           <Artwork artKey={track.art_key} size={size} rounded={rounded} />
         </View>
       </Pressable>
@@ -306,7 +308,16 @@ export function PlayerScreen() {
   const lyricLine =
     prefs.lyricLine && !showLyrics ? <LyricLine track={track} positionMs={positionMs} onPress={toggleLyrics} /> : null;
 
-  const header = (
+  const header = deck ? (
+    <DeckHeader
+      from={queueName}
+      index={currentIndex + 1}
+      total={tracks.length}
+      onClose={() => router.back()}
+      onFrom={() => queueMenu(openQueue)}
+      onMore={moreMenu}
+    />
+  ) : (
     <PlayerHeader
       from={queueName}
       detail={`${currentIndex + 1} of ${tracks.length}`}
@@ -315,7 +326,23 @@ export function PlayerScreen() {
       onMore={moreMenu}
     />
   );
-  const titleRow = (
+  const favorite = (
+    <FavoriteButton
+      favorite={!!track.favorite}
+      onPress={() => void queue.setFavorite(track, !track.favorite)}
+      onLongPress={() => void choosePlaylist(db, [track])}
+    />
+  );
+  const titleRow = deck ? (
+    <DeckTitle
+      title={track.title}
+      artist={track.artist}
+      album={track.album}
+      onTitle={track.album ? goAlbum : undefined}
+      onArtist={track.artist ? goArtist : undefined}
+      trailing={favorite}
+    />
+  ) : (
     <View style={styles.titleRow}>
       <View style={styles.titleText}>
         <Text
@@ -344,16 +371,69 @@ export function PlayerScreen() {
       />
     </View>
   );
-  const seekRow = (
+  const seekBar = (
+    <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} color={colors.label} loop={loop} />
+  );
+  const seekRow = deck ? (
+    <DeckCounter positionMs={shown} durationMs={durationMs}>
+      {seekBar}
+    </DeckCounter>
+  ) : (
     <View>
-      <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} color={colors.label} loop={loop} />
+      {seekBar}
       <View style={styles.times}>
         <Text style={[type.caption, styles.time]}>{formatDuration(shown)}</Text>
         <Text style={[type.caption, styles.time]}>{durationMs > 0 ? `-${formatDuration(durationMs - shown)}` : '--:--'}</Text>
       </View>
     </View>
   );
-  const transport = (
+  const deckTransport = (
+    <DeckTransport
+      playing={playing}
+      onToggle={toggle}
+      onPrevious={previous}
+      onNext={next}
+      onPreviousHold={() => startHold(-1)}
+      onNextHold={() => startHold(1)}
+      onHoldEnd={endHold}
+      left={
+        longForm ? (
+          <DeckLamp
+            name={skipIcon('back', prefs.skipSeconds)}
+            active={false}
+            onPress={() => skip(-skipMs)}
+            accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
+          />
+        ) : (
+          <DeckLamp
+            name="shuffle"
+            active={false}
+            disabled={tracks.length < 2}
+            onPress={doShuffle}
+            accessibilityLabel="Shuffle the queue"
+          />
+        )
+      }
+      right={
+        longForm ? (
+          <DeckLamp
+            name={skipIcon('forward', prefs.skipSeconds)}
+            active={false}
+            onPress={() => skip(skipMs)}
+            accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
+          />
+        ) : (
+          <DeckLamp
+            name={repeat === 'one' ? 'repeat.1' : 'repeat'}
+            active={repeat !== 'off'}
+            onPress={doRepeat}
+            accessibilityLabel={`${REPEAT_LABEL[repeat]}. Change repeat mode`}
+          />
+        )
+      }
+    />
+  );
+  const transport = deck ? deckTransport : (
     <View style={styles.transport}>
       {longForm ? (
         <IconButton name={skipIcon('back', prefs.skipSeconds)} size={26} onPress={() => skip(-skipMs)} accessibilityLabel={`Back ${prefs.skipSeconds} seconds`} />
@@ -474,6 +554,8 @@ export function PlayerScreen() {
     const heroHeight = Math.max(0, (viewport || height) - insets.bottom - CARD_PEEK);
     const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
     const size = Math.floor(Math.min(artBox.width, artBox.height));
+    // The deck's sleeve is narrower than the area: the record takes the room it leaves.
+    const sleeveSize = Math.floor(Math.min(artBox.width * 0.78, artBox.height));
     const hero =
       layout === 'compact' ? (
         // Smaller artwork beside the title, and the next few songs where the artwork was.
@@ -507,6 +589,27 @@ export function PlayerScreen() {
               </>
             )}
           </View>
+          {controls}
+        </View>
+      ) : deck ? (
+        // Deck: the sleeve tilted on the left with the record turning out behind it, the song
+        // under them, then the counter and the plate of keys.
+        <View style={[styles.hero, { height: heroHeight }]}>
+          {header}
+          <View style={styles.deckArea} onLayout={measureArt}>
+            {showLyrics ? (
+              lyrics
+            ) : size > 0 ? (
+              <DeckStage
+                size={sleeveSize}
+                artKey={track.art_key}
+                playing={playing}
+                sleeve={<DeckSleeve>{artwork(sleeveSize, 'md')}</DeckSleeve>}
+              />
+            ) : null}
+          </View>
+          {lyricLine}
+          {titleRow}
           {controls}
         </View>
       ) : (
@@ -560,6 +663,9 @@ const useStyles = makeStyles((colors) => ({
   safe: { flex: 1 },
   hero: { paddingHorizontal: spacing.xl, gap: spacing.lg, paddingBottom: spacing.sm },
   artArea: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' },
+  // The record slides out to the right of the sleeve, so the stage sits left of centre and the
+  // area does not clip what hangs over its edge.
+  deckArea: { flex: 1, minHeight: 0, alignItems: 'flex-start', justifyContent: 'center', overflow: 'visible' },
   edgeArt: { marginHorizontal: -spacing.xl },
   artShadow: { boxShadow: [{ offsetX: 0, offsetY: 10, blurRadius: 30, color: colors.shadow }] },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

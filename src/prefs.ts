@@ -92,7 +92,7 @@ export type HeadsetAction = 'toggle' | 'next' | 'previous' | 'skipForward' | 'sk
 export const HEADSET_ACTIONS: readonly HeadsetAction[] = ['toggle', 'next', 'previous', 'skipForward', 'skipBackward', 'none'];
 
 export type AutoBackup = 'off' | 'daily' | 'weekly';
-export type PlayerLayout = 'standard' | 'edge' | 'compact';
+export type PlayerLayout = 'deck' | 'standard' | 'edge' | 'compact';
 export type Density = 'comfortable' | 'compact';
 export type OrientationChoice = 'auto' | 'portrait' | 'landscape';
 export type TabKey = 'home' | 'queue' | 'artists' | 'folders' | 'library' | 'search';
@@ -123,7 +123,7 @@ export const DEFAULT_PREFS: Prefs = {
   minDurationMs: DEFAULT_MIN_DURATION_MS,
   theme: 'system',
   accent: 'pink',
-  playerLayout: 'standard',
+  playerLayout: 'deck',
   blurBackground: true,
   lyricLine: true,
   density: 'comfortable',
@@ -150,13 +150,15 @@ export const DEFAULT_PREFS: Prefs = {
   headsetClicks: ['toggle', 'next', 'previous'],
   respectNomedia: true,
   skipSilence: false,
-  version: 3,
+  version: 4,
 };
 
 /** Version 1 trimmed the player's default row from these six; a row the user chose stays as it was. */
 const SIX_SHORTCUTS: readonly PlayerShortcut[] = ['lyrics', 'sleep', 'abRepeat', 'bookmark', 'sound', 'queue'];
 /** Version 2 put Home first and moved Settings to a gear on it; this was the default bar before. */
 const OLD_DEFAULT_TABS = ['library', 'folders', 'queue', 'settings', 'search'];
+/** Version 4 made Deck the player; Standard was the default layout before it. */
+const V3_DEFAULT_LAYOUT = 'standard';
 /** Version 3 put Artists in the bar where Folders was; this was the default bar before it. */
 const V2_DEFAULT_TABS = ['home', 'queue', 'folders', 'library', 'search'];
 
@@ -178,6 +180,10 @@ function migrate(stored: Partial<Prefs>): Partial<Prefs> {
   // keeps every tab it has, Folders included; Artists waits in Settings › Tabs and views.
   if ((stored.version ?? 0) < 3 && String(out.tabs) === String(V2_DEFAULT_TABS)) {
     out.tabs = [...DEFAULT_PREFS.tabs];
+  }
+  // The player that was never chosen becomes the Deck; Standard is still in Settings › Appearance.
+  if ((stored.version ?? 0) < 4 && stored.playerLayout === V3_DEFAULT_LAYOUT) {
+    out.playerLayout = DEFAULT_PREFS.playerLayout;
   }
   out.version = DEFAULT_PREFS.version;
   return out;

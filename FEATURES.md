@@ -139,7 +139,7 @@ to double-check against the current Musicolet release.
 | Themes | Light, dark, black (AMOLED) | JS | same, colors swapped by hand | wip |
 | Accent colors | Pick accent color | JS | same, plus the wallpaper (Android 12+) | wip |
 | Follow system theme | Automatic light / dark | JS | same | wip |
-| Player layouts | Multiple now-playing layouts (standard, edge-to-edge, compact), all in a Spotify-style player with scrolling cards for lyrics, the queue, bookmarks and song details | JS | same | wip |
+| Player layouts | Four now-playing layouts. Deck, the default: the cover as a tilted sleeve with the record itself turning out behind it, the song under them, the position in big numerals over a grooved rail, and one plate of transport keys with shuffle and repeat as lamps. Then standard, edge-to-edge and compact, and under all of them the scrolling cards for lyrics, the queue, bookmarks and song details | JS | same | wip |
 | Quick access shortcuts | Choose which shortcut buttons show under the player's controls, and their order (lyrics, sleep timer and queue to start with); the rest go at the top of the player's ••• menu | JS | same | wip |
 | Album art blur background | Blurred art behind the player | JS | same | wip |
 | Font size / density | Compact vs comfortable lists | JS | same | wip |
