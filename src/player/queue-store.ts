@@ -854,6 +854,12 @@ export function useCurrentTrack(): Track | null {
   return useSyncExternalStore(subscribe, get, get);
 }
 
+/** Playing, paused or idle, without the position ticks: the recap's mute button, mini bars. */
+export function usePlaybackState(): PlaybackState {
+  const get = () => state.state;
+  return useSyncExternalStore(subscribe, get, get);
+}
+
 /** What undo would revert, without the position ticks. */
 export function useUndoLabel(): string | null {
   const get = () => state.undoLabel;

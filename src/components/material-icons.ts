@@ -31,6 +31,8 @@ const TABLE: Record<string, string> = {
   'slider.vertical.3': 'equalizer',
   'waveform': 'graphic-eq',
   'speaker.fill': 'volume-down',
+  'speaker.wave.2.fill': 'volume-up',
+  'speaker.slash.fill': 'volume-off',
   'speaker.wave.3.fill': 'volume-up',
   'moon.zzz': 'bedtime',
   'moon.zzz.fill': 'bedtime',
