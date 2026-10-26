@@ -8,6 +8,9 @@ import { useLibraryQuery } from '@/hooks/use-library-query';
 import { engineInfo } from '@/player';
 import { usePrefs, type Prefs } from '@/prefs';
 import { openOnboarding } from '@/screens/onboarding/fonts';
+import { monthPeriod, monthPeriodAround, previousPeriod, yearPeriod } from '@/screens/recap/period';
+import { openRecap } from '@/screens/recap/state';
+import { showMenu } from '@/components/menus';
 import { ACCENTS, makeStyles, radius, SETTINGS_TILES, spacing, type, useTheme } from '@/theme';
 import { formatCount } from '@/utils/format';
 
@@ -20,6 +23,28 @@ function soundSummary(p: Prefs): string {
     p.equalizer.enabled ? `EQ ${p.equalizer.name || 'custom'}` : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'Speed, pitch, equalizer';
+}
+
+/**
+ * Settings › Your recap: the spans worth looking back on. This month is offered while it runs,
+ * and the one just gone until the next is worth reading; the years are always there.
+ */
+function openRecapMenu(): void {
+  const now = new Date();
+  const thisMonth = monthPeriod(now);
+  const lastMonth = previousPeriod(thisMonth);
+  const soFar = monthPeriodAround(now).key === thisMonth.key;
+  const thisYear = yearPeriod(now);
+  showMenu({
+    title: 'Your recap',
+    message: 'How you listened, month by month and year by year',
+    items: [
+      { label: soFar ? thisMonth.label : `${thisMonth.label} so far`, icon: 'calendar', onPress: () => openRecap(thisMonth) },
+      { label: lastMonth.label, icon: 'calendar', onPress: () => openRecap(lastMonth) },
+      { label: `${thisYear.label} in music`, icon: 'star', onPress: () => openRecap(thisYear) },
+      { label: `${previousPeriod(thisYear).label} in music`, icon: 'star', onPress: () => openRecap(previousPeriod(thisYear)) },
+    ],
+  });
 }
 
 /** The Settings root: a card for the app, then one row per page of settings. */
@@ -91,6 +116,13 @@ export function SettingsScreen() {
           title="Backup and restore"
           subtitle="Playlists, queues, play counts"
           onPress={() => router.push('/settings/backup')}
+        />
+        <CategoryRow
+          icon="chart.bar.fill"
+          color={SETTINGS_TILES.recap}
+          title="Your recap"
+          subtitle="This month and this year in music"
+          onPress={openRecapMenu}
         />
         <CategoryRow
           icon="sparkles"

@@ -154,6 +154,7 @@ to double-check against the current Musicolet release.
 | Last played timestamp | Per track | JS | same | wip |
 | Recently played list | Ordered history | JS | same | wip |
 | Skip counts | Tracks skipped early (verify): next pressed before the song counted as a play | JS | same | wip |
+| Recap | Melodify's own, not Musicolet's: a month's or a year's listening as story cards over a dark sweep — minutes against the span before, top artist and song with their runners-up, a 24-hour clock with the peak hour, days with music and the longest streak, songs heard for the first time, a persona (Devotee, Night Owl, Explorer…) with the top genres, and a share of the lot as text. It opens by itself on the last day of a month (and for three days after) and from 17 December through 7 January, once per span and only with at least 20 plays in it; Settings › Your recap opens any of the four spans any time | JS | same | wip |
 
 ## 11. Data management
 

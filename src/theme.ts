@@ -241,6 +241,7 @@ export const SETTINGS_TILES = {
   sound: ACCENTS.orange.hex,
   backup: ACCENTS.green.hex,
   tour: ACCENTS.yellow.hex,
+  recap: ACCENTS.indigo.hex,
   about: '#8e8e93',
 } as const;
 
@@ -324,6 +325,32 @@ export const HOME_CARDS = {
   lime: { fill: '#d2e86b', ink: '#171c04', muted: 'rgba(23, 28, 4, 0.68)', button: '#2a320a', buttonInk: '#ffffff' },
   peach: { fill: '#f7b896', ink: '#2b1207', muted: 'rgba(43, 18, 7, 0.68)', button: '#5b2611', buttonInk: '#ffffff' },
 } as const satisfies Record<string, CardLook>;
+
+/**
+ * The recap's story cards: one sweep each, dark enough for white text, in the order the cards are
+ * shown. The same in every theme, as Spotify's Wrapped is: a recap is its own place, not a page
+ * of the app.
+ */
+export const RECAP_CARDS: readonly { gradient: readonly [string, string]; glow: string }[] = [
+  { gradient: ['#3b1d60', '#120a1f'], glow: '#b06bff' },
+  { gradient: ['#06324a', '#04141d'], glow: '#38d6ff' },
+  { gradient: ['#5c1430', '#1d0610'], glow: '#ff4f87' },
+  { gradient: ['#13472f', '#06160f'], glow: '#49e08a' },
+  { gradient: ['#5a3406', '#1d1102'], glow: '#ffae34' },
+  { gradient: ['#1c2a63', '#080d20'], glow: '#6c86ff' },
+  { gradient: ['#4a1550', '#17071a'], glow: '#e36bff' },
+];
+
+/** Ink and glass on a recap card, which is dark whatever the theme is. */
+export const RECAP = {
+  ink: '#ffffff',
+  muted: 'rgba(255, 255, 255, 0.64)',
+  faint: 'rgba(255, 255, 255, 0.22)',
+  glass: 'rgba(255, 255, 255, 0.1)',
+  glassEdge: 'rgba(255, 255, 255, 0.16)',
+  button: '#ffffff',
+  buttonInk: '#111113',
+} as const;
 
 /**
  * The name bands on Home's playlist covers, Spotify's mix labels: bright fills with near-black

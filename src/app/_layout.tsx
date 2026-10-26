@@ -15,7 +15,9 @@ import { loadPrefs } from '@/prefs';
 import { readPendingTags } from '@/scan/scanner';
 import { OnboardingHost } from '@/screens/onboarding';
 import { loadOnboardingFonts } from '@/screens/onboarding/fonts';
-import { loadOnboarding } from '@/screens/onboarding/state';
+import { isOnboardingOpen, loadOnboarding } from '@/screens/onboarding/state';
+import { RecapHost } from '@/screens/recap';
+import { loadRecap } from '@/screens/recap/state';
 import { ACCENTS, currentTheme, useTheme } from '@/theme';
 import { startOpenWith } from '@/utils/open-with';
 import { startQuickActions } from '@/utils/quick-actions';
@@ -35,6 +37,8 @@ async function initDatabase(db: SQLiteDatabase) {
   startSound();
   await restoreQueue(db);
   startQuickActions(db);
+  // Not awaited: a month's or a year's recap arrives a moment after the first screen, not before it.
+  void loadRecap(db, isOnboardingOpen());
   startOpenWith(db);
   void readPendingTags(db);
   startAutoBackup(db);
@@ -86,6 +90,7 @@ export default function RootLayout() {
           </Stack>
           {/* Over the tabs, under the toasts and menus the welcome pages raise themselves. */}
           <OnboardingHost />
+          <RecapHost />
           <ToastHost />
           <MenuHost />
           {Platform.OS === 'android' ? <PromptHost /> : null}

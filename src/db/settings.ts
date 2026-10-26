@@ -21,6 +21,8 @@ export interface Settings {
   musicolet: MusicoletMeta;
   /** When the welcome pages were finished or skipped, ms since epoch. */
   onboardedAt: number;
+  /** Recap spans already shown ("2026-10", "2026"), so each arrives unasked only once. */
+  recapsSeen: string[];
 }
 
 export const RECENT_SEARCHES = 12;

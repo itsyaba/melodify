@@ -302,6 +302,12 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       lyrics too: Search LRCLIB under them and Lyrics from LRCLIB… in every song's menu list
       LRCLIB's matches (the song's length and synced first, then the nearest lengths); the pick
       replaces the `.lrc`, which Undo writes back, or sits beside embedded lyrics, which stay
+- [ ] Recap (2026-10-26): Spotify Wrapped's shape over the plays table, monthly as well as yearly.
+      Story cards with tap zones and progress segments, each on its own sweep, built from one
+      query of `plays` joined to the songs: minutes against the month or year before, the top
+      artist and song with their runners-up, the listening clock, days and streaks, first-time
+      songs, a persona, and a text share. `dueRecap` decides when it arrives unasked, and
+      `recapsSeen` in settings keeps it to once a span. JS only, no new build needed
 - [ ] Home redesign (2026-09-26), so it no longer copies Spotify's search page: the weekday over
       the time of day ("SATURDAY / Evening") with a search pill and a round gear beside it, and a
       soft accent wash behind the top. Your lists: Favorites, Recently added, Most played,
