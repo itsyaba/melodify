@@ -7,6 +7,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { startAutoBackup } from '@/backup';
 import { MenuHost } from '@/components/menu-sheet';
 import { PromptHost } from '@/components/prompt-dialog';
+import { PreviewCard } from '@/components/preview-card';
 import { ToastHost } from '@/components/toast';
 import { DB_NAME, migrate } from '@/db';
 import { restoreQueue } from '@/player/queue-store';
@@ -91,6 +92,7 @@ export default function RootLayout() {
           {/* Over the tabs, under the toasts and menus the welcome pages raise themselves. */}
           <OnboardingHost />
           <RecapHost />
+          <PreviewCard />
           <ToastHost />
           <MenuHost />
           {Platform.OS === 'android' ? <PromptHost /> : null}

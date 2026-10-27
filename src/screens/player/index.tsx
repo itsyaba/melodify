@@ -250,6 +250,7 @@ export function PlayerScreen() {
   const moreMenu = () =>
     actions.trackMenu(track, {
       beforeNavigate: () => router.back(),
+      previewing: true,
       first: [
         ...(longForm
           ? [

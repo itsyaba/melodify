@@ -20,6 +20,7 @@ import { recordPlay, recordSkip, setFavorite, setResumeMs } from '@/db/tracks';
 import type { Track } from '@/db/types';
 import { getPrefs, subscribePrefs, type HeadsetAction } from '@/prefs';
 import { musicUri } from '@/storage';
+import { PREVIEW_MS, setPreview } from './preview';
 import { libraryEvents } from '@/utils/events';
 import { artUri } from '@/components/artwork';
 import { replayGainDb } from './gain';
@@ -127,6 +128,19 @@ let savedMs = 0;
 const SAVE_EVERY_MS = 5000;
 /** Whether the current load has been counted as a play yet. */
 let counted = false;
+/**
+ * A preview borrows the engine without touching any queue: no play is counted, no position is
+ * saved, and nothing is armed to follow it. When it ends — on its own, or because something else
+ * wanted the engine — the song that was playing comes back exactly where it was left.
+ */
+let preview: {
+  queueId: number;
+  index: number;
+  positionMs: number;
+  wasPlaying: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
+} | null = null;
+
 /**
  * Latest resume position per track id, newer than the `resume_ms` on the in-memory rows. Kept
  * here rather than patched into the rows: that would give the playing track a new identity every
@@ -359,6 +373,7 @@ export function patchTracks(ids: number[], patch: Partial<Track>): void {
 export const queue = {
   /** Replace the active queue with `tracks` and start at `index`. Undoable. */
   async replace(tracks: Track[], index: number) {
+    if (preview) await queue.endPreview();
     const q = active();
     if (q.tracks.length > 0) {
       pushUndo({ queueId: q.id, label: 'Replace queue', tracks: q.tracks, currentIndex: q.currentIndex, positionMs: resumeMs() });
@@ -373,10 +388,12 @@ export const queue = {
     await queue.replace(ops.shuffled(tracks), 0);
   },
   async playAt(index: number) {
+    if (preview) await queue.endPreview();
     await loadIndex(index);
   },
   /** Plays `index` of any queue, making that queue the active one first. */
   async playQueueAt(queueId: number, index: number) {
+    if (preview) await queue.endPreview();
     if (queueId !== state.activeId) {
       if (!getQueue(queueId)) return;
       activate(queueId);
@@ -385,6 +402,10 @@ export const queue = {
   },
   /** `manual` is false only for a track that ended by itself, which is when repeat-one applies. */
   async next(manual = true) {
+    if (preview) {
+      await queue.endPreview();
+      return;
+    }
     const q = active();
     // Passed over before it counted as a play: a skip, for the statistics.
     const leaving = q.tracks[q.currentIndex];
@@ -394,6 +415,10 @@ export const queue = {
     else await loadIndex(i);
   },
   async previous() {
+    if (preview) {
+      await queue.endPreview();
+      return;
+    }
     const q = active();
     const i = ops.previousIndex(q.tracks.length, q.currentIndex, q.repeat);
     if (state.positionMs > 3000 || i === q.currentIndex || i < 0) await engine.seek(0);
@@ -408,6 +433,50 @@ export const queue = {
     } else await engine.play();
   },
   seek: (ms: number) => engine.seek(ms),
+
+  /**
+   * Plays a stretch of a song without disturbing anything: Musicolet's preview. It starts a third
+   * of the way in, where a song is usually itself, runs for `lengthMs`, and then puts back what
+   * was playing, at its position and in the state it was in. Previewing another song while one is
+   * running simply moves the preview along.
+   */
+  async preview(track: Track, opts: { startMs?: number; lengthMs?: number } = {}) {
+    const lengthMs = opts.lengthMs ?? PREVIEW_MS;
+    const duration = track.duration_ms ?? 0;
+    const startMs = opts.startMs ?? (duration > lengthMs * 3 ? Math.floor(duration / 3) : 0);
+    if (preview?.timer) clearTimeout(preview.timer);
+    if (!preview) {
+      const q = active();
+      preview = { queueId: q.id, index: q.currentIndex, positionMs: resumeMs(), wasPlaying: isPlaying(), timer: null };
+    }
+    loadGeneration += 1;
+    loading += 1;
+    try {
+      await engine.load(trackUri(track), nowPlayingMeta(track), { autoplay: true, startMs, gainDb: gainOf(track) });
+    } finally {
+      loading -= 1;
+    }
+    // Nothing follows a preview: the queue's next song must not slide in behind it.
+    run(engine.setNext(null));
+    if (preview) preview.timer = setTimeout(() => run(queue.endPreview()), lengthMs);
+    setPreview({ track, startedAt: Date.now(), lengthMs });
+  },
+
+  /** Ends a preview and gives the queue its engine back, where it was. */
+  async endPreview() {
+    const p = preview;
+    if (!p) return;
+    preview = null;
+    setPreview(null);
+    if (p.timer) clearTimeout(p.timer);
+    const q = getQueue(p.queueId);
+    if (!q || p.index < 0 || !q.tracks[p.index]) {
+      await engine.stop();
+      return;
+    }
+    if (p.queueId !== state.activeId) activate(p.queueId);
+    await loadIndex(p.index, { autoplay: p.wasPlaying, startMs: p.positionMs });
+  },
 
   // Editing. Every one takes an optional queue id and defaults to the active queue.
   append(tracks: Track[], queueId = state.activeId) {
@@ -688,10 +757,14 @@ function run(op: Promise<unknown>): void {
 
 engine.on('state', (s) => {
   set({ state: s });
+  if (preview) return;
   if (loading === 0 && (s === 'paused' || s === 'ended' || s === 'idle')) savePosition();
 });
 engine.on('position', (p) => {
   if (loading > 0) return;
+  // A preview counts as no play, saves no position, and leaves the queue's own position alone,
+  // so the mini player goes on showing the song it will come back to.
+  if (preview) return;
   set({ positionMs: p.positionMs, durationMs: p.durationMs });
   if (!counted && state.state === 'playing' && p.positionMs >= playThreshold(p.durationMs)) {
     counted = true;
@@ -707,7 +780,10 @@ engine.on('position', (p) => {
 });
 // Leaving the app is the last reliable moment before it may be killed without warning.
 AppState.addEventListener('change', (next) => {
-  if (next !== 'active') savePosition();
+  if (next === 'active') return;
+  // A preview is a thing you are looking at; it does not belong to a phone in a pocket.
+  if (preview) run(queue.endPreview());
+  else savePosition();
 });
 /**
  * Consulted when a track ends by itself, before the queue moves on. The sleep timer uses it to
@@ -732,7 +808,14 @@ async function onTrackEnded() {
   else await loadIndex(i, { autoplay: false });
 }
 
-engine.on('ended', () => run(onTrackEnded()));
+engine.on('ended', () => {
+  // A song sampled to its end puts the queue back rather than moving it on.
+  if (preview) {
+    run(queue.endPreview());
+    return;
+  }
+  run(onTrackEnded());
+});
 
 /**
  * Pulled headphones pause playback (the engine does that itself); with the preference on, the

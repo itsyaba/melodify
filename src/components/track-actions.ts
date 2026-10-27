@@ -126,6 +126,8 @@ interface TrackMenuOptions {
   onSelect?: () => void;
   /** Runs before a "Go to" item navigates: the player uses it to close itself first. */
   beforeNavigate?: () => void;
+  /** Leaves "Preview" out: the player is already playing this song in full. */
+  previewing?: boolean;
 }
 
 /** How a collection's menu is headed: its cover, and a line under its name. */
@@ -165,6 +167,12 @@ export function useTrackActions() {
           artKey: track.art_key,
           items: [
             ...(opts.first ?? []),
+            {
+              label: 'Preview',
+              icon: 'waveform',
+              hidden: opts.previewing === true,
+              onPress: () => void queue.preview(track),
+            },
             ...queueItems([track]),
             ...(opts.extra ?? []),
             {
