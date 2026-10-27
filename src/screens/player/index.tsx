@@ -10,6 +10,7 @@ import { IconButton } from '@/components/icon-button';
 import { LyricsView } from '@/components/lyrics-view';
 import type { MenuItem } from '@/components/menus';
 import { SeekBar } from '@/components/seek-bar';
+import { WavySeek } from '@/components/wavy-seek';
 import { Slider } from '@/components/slider';
 import { toast, ToastHost } from '@/components/toast';
 import { albumHref, choosePlaylist, groupHref, useTrackActions } from '@/components/track-actions';
@@ -26,7 +27,7 @@ import { formatDuration } from '@/utils/format';
 import { AboutCard, BookmarksCard, LyricsCard, UpNextCard } from './cards';
 import { LyricLine } from './lyric-line';
 import { Backdrop, FavoriteButton, ModeButton, PlayButton, PlayerHeader, StatusPills, type Pill } from './controls';
-import { DeckCounter, DeckHeader, DeckLamp, DeckSleeve, DeckStage, DeckTitle, DeckTransport } from './deck';
+import { MaterialTimes, MaterialTitle, MaterialTopBar, MaterialTransport, ToneButton } from './material';
 import { abMark, abMenu, bookmarkHere, bookmarksMenu, queueMenu, sleepLabel, sleepMenu } from './menus';
 import { SHORTCUTS } from './shortcuts';
 import { SwipeArt } from './swipe-art';
@@ -139,7 +140,7 @@ export function PlayerScreen() {
   }
 
   const playing = state === 'playing';
-  const deck = layout === 'deck';
+  const material = layout === 'material';
   const shown = scrubMs ?? positionMs;
   const skipMs = prefs.skipSeconds * 1000;
   // Audiobooks, podcasts and mixes: the songs long enough to remember their place get Spotify's
@@ -282,7 +283,7 @@ export function PlayerScreen() {
     const { width: w, height: h } = e.nativeEvent.layout;
     setArtBox((box) => (Math.abs(box.width - w) < 1 && Math.abs(box.height - h) < 1 ? box : { width: w, height: h }));
   };
-  const artwork = (size: number, rounded: 'none' | 'md') => (
+  const artwork = (size: number, rounded: 'none' | 'md' | 'lg') => (
     <SwipeArt
       width={size}
       canNext={canNext}
@@ -297,7 +298,7 @@ export function PlayerScreen() {
         accessibilityLabel={`Artwork for ${track.title}`}
         accessibilityHint={`Swipe sideways for the next or previous song. Double-tap the left or right side to skip ${prefs.skipSeconds} seconds`}
       >
-        <View style={[!deck && styles.artShadow, { borderRadius: radius[rounded] }]}>
+        <View style={[styles.artShadow, { borderRadius: radius[rounded] }]}>
           <Artwork artKey={track.art_key} size={size} rounded={rounded} />
         </View>
       </Pressable>
@@ -308,8 +309,8 @@ export function PlayerScreen() {
   const lyricLine =
     prefs.lyricLine && !showLyrics ? <LyricLine track={track} positionMs={positionMs} onPress={toggleLyrics} /> : null;
 
-  const header = deck ? (
-    <DeckHeader
+  const header = material ? (
+    <MaterialTopBar
       from={queueName}
       index={currentIndex + 1}
       total={tracks.length}
@@ -333,14 +334,16 @@ export function PlayerScreen() {
       onLongPress={() => void choosePlaylist(db, [track])}
     />
   );
-  const titleRow = deck ? (
-    <DeckTitle
+  const titleRow = material ? (
+    <MaterialTitle
       title={track.title}
       artist={track.artist}
       album={track.album}
       onTitle={track.album ? goAlbum : undefined}
       onArtist={track.artist ? goArtist : undefined}
-      trailing={favorite}
+      favorite={!!track.favorite}
+      onFavorite={() => void queue.setFavorite(track, !track.favorite)}
+      onFavoriteLong={() => void choosePlaylist(db, [track])}
     />
   ) : (
     <View style={styles.titleRow}>
@@ -374,10 +377,18 @@ export function PlayerScreen() {
   const seekBar = (
     <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={seek} onScrub={setScrubMs} color={colors.label} loop={loop} />
   );
-  const seekRow = deck ? (
-    <DeckCounter positionMs={shown} durationMs={durationMs}>
-      {seekBar}
-    </DeckCounter>
+  const seekRow = material ? (
+    <View>
+      <WavySeek
+        positionMs={positionMs}
+        durationMs={durationMs}
+        playing={playing}
+        onSeek={seek}
+        onScrub={setScrubMs}
+        loop={loop}
+      />
+      <MaterialTimes positionMs={shown} durationMs={durationMs} />
+    </View>
   ) : (
     <View>
       {seekBar}
@@ -387,8 +398,8 @@ export function PlayerScreen() {
       </View>
     </View>
   );
-  const deckTransport = (
-    <DeckTransport
+  const materialTransport = (
+    <MaterialTransport
       playing={playing}
       onToggle={toggle}
       onPrevious={previous}
@@ -396,18 +407,18 @@ export function PlayerScreen() {
       onPreviousHold={() => startHold(-1)}
       onNextHold={() => startHold(1)}
       onHoldEnd={endHold}
+      canPrevious={canPrevious}
+      canNext={canNext}
       left={
         longForm ? (
-          <DeckLamp
+          <ToneButton
             name={skipIcon('back', prefs.skipSeconds)}
-            active={false}
             onPress={() => skip(-skipMs)}
             accessibilityLabel={`Back ${prefs.skipSeconds} seconds`}
           />
         ) : (
-          <DeckLamp
+          <ToneButton
             name="shuffle"
-            active={false}
             disabled={tracks.length < 2}
             onPress={doShuffle}
             accessibilityLabel="Shuffle the queue"
@@ -416,14 +427,13 @@ export function PlayerScreen() {
       }
       right={
         longForm ? (
-          <DeckLamp
+          <ToneButton
             name={skipIcon('forward', prefs.skipSeconds)}
-            active={false}
             onPress={() => skip(skipMs)}
             accessibilityLabel={`Forward ${prefs.skipSeconds} seconds`}
           />
         ) : (
-          <DeckLamp
+          <ToneButton
             name={repeat === 'one' ? 'repeat.1' : 'repeat'}
             active={repeat !== 'off'}
             onPress={doRepeat}
@@ -433,7 +443,7 @@ export function PlayerScreen() {
       }
     />
   );
-  const transport = deck ? deckTransport : (
+  const transport = material ? materialTransport : (
     <View style={styles.transport}>
       {longForm ? (
         <IconButton name={skipIcon('back', prefs.skipSeconds)} size={26} onPress={() => skip(-skipMs)} accessibilityLabel={`Back ${prefs.skipSeconds} seconds`} />
@@ -494,6 +504,21 @@ export function PlayerScreen() {
       {prefs.playerShortcuts.map((key) => {
         const s = shortcut(key);
         const def = SHORTCUTS[key];
+        // Material draws them as tonal buttons that fill with the accent while they are on.
+        if (material) {
+          return (
+            <ToneButton
+              key={key}
+              name={s.active && def.activeIcon ? def.activeIcon : def.icon}
+              active={s.active}
+              filled={!s.active}
+              onPress={s.onPress}
+              onLongPress={s.onLongPress}
+              accessibilityLabel={s.label}
+              accessibilityHint={s.hint}
+            />
+          );
+        }
         return (
           <IconButton
             key={key}
@@ -554,8 +579,6 @@ export function PlayerScreen() {
     const heroHeight = Math.max(0, (viewport || height) - insets.bottom - CARD_PEEK);
     const upNext = tracks.slice(currentIndex + 1, currentIndex + 1 + UP_NEXT);
     const size = Math.floor(Math.min(artBox.width, artBox.height));
-    // The deck's sleeve is narrower than the area: the record takes the room it leaves.
-    const sleeveSize = Math.floor(Math.min(artBox.width * 0.78, artBox.height));
     const hero =
       layout === 'compact' ? (
         // Smaller artwork beside the title, and the next few songs where the artwork was.
@@ -591,22 +614,13 @@ export function PlayerScreen() {
           </View>
           {controls}
         </View>
-      ) : deck ? (
-        // Deck: the sleeve tilted on the left with the record turning out behind it, the song
-        // under them, then the counter and the plate of keys.
-        <View style={[styles.hero, { height: heroHeight }]}>
+      ) : material ? (
+        // Material: the cover on a large rounded card, the song set under it, then the wavy bar
+        // and the group of keys, with the shortcuts as tonal buttons below them.
+        <View style={[styles.hero, styles.materialHero, { height: heroHeight }]}>
           {header}
-          <View style={styles.deckArea} onLayout={measureArt}>
-            {showLyrics ? (
-              lyrics
-            ) : size > 0 ? (
-              <DeckStage
-                size={sleeveSize}
-                artKey={track.art_key}
-                playing={playing}
-                sleeve={<DeckSleeve>{artwork(sleeveSize, 'md')}</DeckSleeve>}
-              />
-            ) : null}
+          <View style={styles.artArea} onLayout={measureArt}>
+            {showLyrics ? lyrics : size > 0 ? artwork(size, 'lg') : null}
           </View>
           {lyricLine}
           {titleRow}
@@ -663,9 +677,8 @@ const useStyles = makeStyles((colors) => ({
   safe: { flex: 1 },
   hero: { paddingHorizontal: spacing.xl, gap: spacing.lg, paddingBottom: spacing.sm },
   artArea: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' },
-  // The record slides out to the right of the sleeve, so the stage sits left of centre and the
-  // area does not clip what hangs over its edge.
-  deckArea: { flex: 1, minHeight: 0, alignItems: 'flex-start', justifyContent: 'center', overflow: 'visible' },
+  // Material sets everything on one left margin and gives its rows more air than Spotify's.
+  materialHero: { gap: spacing.xl },
   edgeArt: { marginHorizontal: -spacing.xl },
   artShadow: { boxShadow: [{ offsetX: 0, offsetY: 10, blurRadius: 30, color: colors.shadow }] },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -676,7 +689,7 @@ const useStyles = makeStyles((colors) => ({
   time: { color: colors.secondaryLabel, fontVariant: ['tabular-nums'] },
   transport: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   volume: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  shortcuts: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xs },
+  shortcuts: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xs, gap: spacing.sm },
   fewShortcuts: { justifyContent: 'space-around' },
   cards: { paddingHorizontal: spacing.lg, gap: spacing.md },
   compactHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

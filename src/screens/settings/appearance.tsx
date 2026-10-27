@@ -15,7 +15,7 @@ const THEMES: { key: ThemeName; label: string }[] = [
   { key: 'black', label: 'Black' },
 ];
 const LAYOUTS: Record<Prefs['playerLayout'], string> = {
-  deck: 'Deck, with the record',
+  material: 'Material, with the wavy bar',
   standard: 'Standard',
   edge: 'Edge-to-edge artwork',
   compact: 'Compact, with up next',

@@ -302,6 +302,11 @@ Linux against real MP3, M4A, FLAC, WAV and AIFF files, checked with ffprobe.
       lyrics too: Search LRCLIB under them and Lyrics from LRCLIB… in every song's menu list
       LRCLIB's matches (the song's length and synced first, then the nearest lengths); the pick
       replaces the `.lrc`, which Undo writes back, or sits beside embedded lyrics, which stay
+- [ ] Material player (2026-10-27): the Deck lasted a day. The now-playing screen is now Material 3
+      Expressive's media player — Google's shapes rather than Spotify's — with the wavy seek bar
+      drawn from short rounded segments laid along a sine and slid sideways on a loop, since there
+      is no SVG or canvas in this app, and a play key whose corner radius animates between a circle
+      and a squircle with the state. JS only, no new build needed
 - [ ] Recap (2026-10-26): Spotify Wrapped's shape over the plays table, monthly as well as yearly.
       Story cards with tap zones and progress segments, each on its own sweep, built from one
       query of `plays` joined to the songs: minutes against the month or year before, the top
