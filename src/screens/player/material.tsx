@@ -125,6 +125,8 @@ export function MaterialTitle({
   favorite,
   onFavorite,
   onFavoriteLong,
+  compact = false,
+  leading,
 }: {
   title: string;
   artist: string | null;
@@ -134,17 +136,21 @@ export function MaterialTitle({
   favorite: boolean;
   onFavorite: () => void;
   onFavoriteLong: () => void;
+  /** Small, for the row the lyrics push it into: the cover shrinks to a thumbnail beside it. */
+  compact?: boolean;
+  leading?: ReactNode;
 }) {
   const styles = useStyles();
   return (
     <View style={styles.titleRow}>
+      {leading}
       <View style={styles.titleText}>
         <Text
-          numberOfLines={2}
+          numberOfLines={compact ? 1 : 2}
           onPress={onTitle}
           accessibilityRole={onTitle ? 'link' : 'header'}
           accessibilityHint={onTitle ? 'Goes to the album' : undefined}
-          style={styles.title}
+          style={compact ? styles.titleSmall : styles.title}
         >
           {title}
         </Text>
@@ -153,7 +159,7 @@ export function MaterialTitle({
           onPress={onArtist}
           accessibilityRole={onArtist ? 'link' : 'text'}
           accessibilityHint={onArtist ? 'Goes to the artist' : undefined}
-          style={styles.subtitle}
+          style={compact ? styles.subtitleSmall : styles.subtitle}
         >
           {[artist, album].filter(Boolean).join(' · ') || 'Unknown artist'}
         </Text>
@@ -163,9 +169,9 @@ export function MaterialTitle({
         onPress={onFavorite}
         onLongPress={onFavoriteLong}
         active={favorite}
-        filled={!favorite}
-        size={52}
-        icon={22}
+        filled={!favorite && !compact}
+        size={compact ? 44 : 52}
+        icon={compact ? 20 : 22}
         accessibilityLabel={favorite ? 'In favorites. Remove' : 'Add to favorites'}
         accessibilityHint="Hold to add to a playlist"
       />
@@ -296,6 +302,8 @@ const useStyles = makeStyles((colors) => ({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   titleText: { flex: 1, gap: 4 },
   title: { fontSize: 26, lineHeight: 31, fontWeight: '700', color: colors.label },
+  titleSmall: { fontSize: 17, lineHeight: 21, fontWeight: '700', color: colors.label },
+  subtitleSmall: { ...type.footnote, color: colors.secondaryLabel },
   subtitle: { ...type.subhead, color: colors.secondaryLabel },
   times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -spacing.xs },
   time: { color: colors.secondaryLabel, fontVariant: ['tabular-nums'] },

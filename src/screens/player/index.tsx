@@ -47,6 +47,8 @@ const UP_NEXT = 6;
 const COMPACT_ART = 96;
 /** How much of the first card shows under the controls, hinting that the player scrolls. */
 const CARD_PEEK = 44;
+/** The cover beside the song once the lyrics have taken the screen. */
+const LYRICS_ART = 52;
 
 /** While previous or next is held, the position moves this far every tick. */
 const HOLD_STEP_MS = 5000;
@@ -305,6 +307,8 @@ export function PlayerScreen() {
     </SwipeArt>
   );
   const lyrics = <LyricsView track={track} positionMs={positionMs} onSeek={seek} />;
+  // With the screen to themselves the lines are set large, and fall away from the one being sung.
+  const bigLyrics = <LyricsView track={track} positionMs={positionMs} onSeek={seek} size="large" />;
   // Not while the whole lyrics are up: they already show the line.
   const lyricLine =
     prefs.lyricLine && !showLyrics ? <LyricLine track={track} positionMs={positionMs} onPress={toggleLyrics} /> : null;
@@ -332,6 +336,26 @@ export function PlayerScreen() {
       favorite={!!track.favorite}
       onPress={() => void queue.setFavorite(track, !track.favorite)}
       onLongPress={() => void choosePlaylist(db, [track])}
+    />
+  );
+  const materialTitle = (compact: boolean) => (
+    <MaterialTitle
+      title={track.title}
+      artist={track.artist}
+      album={track.album}
+      onTitle={track.album ? goAlbum : undefined}
+      onArtist={track.artist ? goArtist : undefined}
+      favorite={!!track.favorite}
+      onFavorite={() => void queue.setFavorite(track, !track.favorite)}
+      onFavoriteLong={() => void choosePlaylist(db, [track])}
+      compact={compact}
+      leading={
+        compact ? (
+          <Pressable onPress={toggleLyrics} accessibilityRole="button" accessibilityLabel="Show the artwork">
+            <Artwork artKey={track.art_key} size={LYRICS_ART} rounded="md" />
+          </Pressable>
+        ) : undefined
+      }
     />
   );
   const titleRow = material ? (
@@ -616,14 +640,24 @@ export function PlayerScreen() {
         </View>
       ) : material ? (
         // Material: the cover on a large rounded card, the song set under it, then the wavy bar
-        // and the group of keys, with the shortcuts as tonal buttons below them.
-        <View style={[styles.hero, styles.materialHero, { height: heroHeight }]}>
+        // and the group of keys, with the shortcuts as tonal buttons below them. Lyrics take the
+        // whole screen instead, with the cover shrunk to a thumbnail beside the song at the top.
+        <View style={[styles.hero, styles.materialHero, showLyrics && styles.lyricsHero, { height: heroHeight }]}>
           {header}
-          <View style={styles.artArea} onLayout={measureArt}>
-            {showLyrics ? lyrics : size > 0 ? artwork(size, 'lg') : null}
-          </View>
-          {lyricLine}
-          {titleRow}
+          {showLyrics ? (
+            <>
+              {materialTitle(true)}
+              <View style={styles.lyricsArea}>{bigLyrics}</View>
+            </>
+          ) : (
+            <>
+              <View style={styles.artArea} onLayout={measureArt}>
+                {size > 0 ? artwork(size, 'lg') : null}
+              </View>
+              {lyricLine}
+              {titleRow}
+            </>
+          )}
           {controls}
         </View>
       ) : (
@@ -679,6 +713,9 @@ const useStyles = makeStyles((colors) => ({
   artArea: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' },
   // Material sets everything on one left margin and gives its rows more air than Spotify's.
   materialHero: { gap: spacing.xl },
+  // The lyrics want the room, so the rows around them tighten up.
+  lyricsHero: { gap: spacing.md },
+  lyricsArea: { flex: 1, minHeight: 0, marginHorizontal: -spacing.xs },
   edgeArt: { marginHorizontal: -spacing.xl },
   artShadow: { boxShadow: [{ offsetX: 0, offsetY: 10, blurRadius: 30, color: colors.shadow }] },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
