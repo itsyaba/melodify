@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, View, type LayoutChangeEvent, type PanResponderInstance } from 'react-native';
 import { makeStyles, radius, useTheme } from '@/theme';
+import { formatDuration } from '@/utils/format';
 
 /**
  * Material 3's media seek bar: the played part is a wave that travels while the song plays and
@@ -120,13 +121,23 @@ export function WavySeek({ positionMs, durationMs, playing, onSeek, onScrub, loo
   const played = progress * width;
   const a = loop && durationMs > 0 ? fraction(loop.aMs) : null;
   const b = loop && loop.bMs !== null && durationMs > 0 ? fraction(loop.bMs) : null;
+  const nudge = (action: string) => {
+    if (durationMs <= 0) return;
+    const step = action === 'increment' ? 10_000 : action === 'decrement' ? -10_000 : 0;
+    if (step) onSeek(Math.max(0, Math.min(durationMs, shown + step)));
+  };
 
   return (
     <View
       style={styles.hit}
       onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+      accessible
       accessibilityRole="adjustable"
       accessibilityLabel="Seek"
+      accessibilityValue={{ text: `${formatDuration(shown)} of ${formatDuration(durationMs)}` }}
+      accessibilityState={{ disabled: durationMs <= 0 }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(event) => nudge(event.nativeEvent.actionName)}
       {...responder.current.panHandlers}
     >
       {/* What is left to play: a flat line, inset past the handle as M3 insets its track. */}

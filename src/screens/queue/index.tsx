@@ -262,6 +262,15 @@ export function QueueScreen({ sheet = false }: { sheet?: boolean }) {
           <SymbolView name="chevron.down" size={13} tintColor={colors.secondaryLabel} weight="semibold" />
         </View>
       </Pressable>
+      <Pressable
+        onPress={() => void newQueue()}
+        accessibilityRole="button"
+        accessibilityLabel="New queue"
+        style={({ pressed }) => [styles.newQueue, pressed && styles.pressed]}
+      >
+        <SymbolView name="plus" size={17} tintColor={colors.tint} weight="semibold" />
+        <Text style={[type.subhead, { color: colors.tint }]}>New queue</Text>
+      </Pressable>
     </View>
   );
 
@@ -504,8 +513,9 @@ const useStyles = makeStyles((colors) => ({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.separator,
   },
-  pickerRow: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   picker: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -513,6 +523,14 @@ const useStyles = makeStyles((colors) => ({
     paddingVertical: spacing.sm,
     borderRadius: radius.lg,
     backgroundColor: colors.secondaryBackground,
+  },
+  newQueue: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
   },
   pickerTile: {
     width: 40,

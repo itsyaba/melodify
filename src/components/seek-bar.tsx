@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { PanResponder, View, type ColorValue, type LayoutChangeEvent, type PanResponderInstance } from 'react-native';
 import { makeStyles, radius } from '@/theme';
+import { formatDuration } from '@/utils/format';
 
 const TRACK = 4;
 const THUMB = 14;
@@ -73,13 +74,23 @@ export function SeekBar({ positionMs, durationMs, onSeek, onScrub, color, loop }
   const tone = color ? { backgroundColor: color } : null;
   const a = loop && durationMs > 0 ? fraction(loop.aMs) : null;
   const b = loop && loop.bMs !== null && durationMs > 0 ? fraction(loop.bMs) : null;
+  const nudge = (action: string) => {
+    if (durationMs <= 0) return;
+    const step = action === 'increment' ? 10_000 : action === 'decrement' ? -10_000 : 0;
+    if (step) onSeek(Math.max(0, Math.min(durationMs, shown + step)));
+  };
 
   return (
     <View
       style={styles.hit}
       onLayout={onLayout}
+      accessible
       accessibilityRole="adjustable"
       accessibilityLabel="Seek"
+      accessibilityValue={{ text: `${formatDuration(shown)} of ${formatDuration(durationMs)}` }}
+      accessibilityState={{ disabled: durationMs <= 0 }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(event) => nudge(event.nativeEvent.actionName)}
       {...responder.current.panHandlers}
     >
       <View style={styles.track}>
